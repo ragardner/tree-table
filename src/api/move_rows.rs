@@ -1,0 +1,101 @@
+use crate::SelectionKind;
+use crate::SelectionState;
+use crate::Table;
+use crate::args::MoveArgs;
+use crate::str_err;
+use crate::utils::consecutive_ranges::consecutive_ranges_borrowed;
+use std::collections::{HashMap, HashSet};
+
+impl Table {
+    pub fn move_rows(&self, kwargs: Option<MoveArgs>) -> Result<(), String> {
+        let grid = &mut *self.grid.borrow_mut();
+        let num_rows = Self::acr_total_rows(&grid.index.cells) as u64;
+        if num_rows == 0 {
+            return Ok(());
+        }
+        let kwargs: MoveArgs = kwargs.unwrap_or(MoveArgs {
+            old_to_new: Some(vec![(0, num_rows.saturating_sub(1))]),
+            select: false,
+            emit: true,
+            undo: true,
+        });
+        // Validate old_to_new, create inverse
+        let mut seen_old_indices: HashSet<u64> = HashSet::new();
+        let mut seen_new_indices: HashSet<u64> = HashSet::new();
+        let mut old_to_new: HashMap<usize, usize> = HashMap::new();
+        let mut new_to_old: HashMap<usize, usize> = HashMap::new();
+
+        for (old_pos, new_pos) in kwargs
+            .old_to_new
+            .unwrap_or(vec![(0, num_rows.saturating_sub(1))])
+            .iter()
+        {
+            let size_old_pos = *old_pos as usize;
+            let size_new_pos = *new_pos as usize;
+            // Validation
+            if old_pos >= &num_rows {
+                // Check if old pos is within bounds
+                return Err(str_err!(format!(
+                    "Old pos {} is out of bounds. Number of rows: {}",
+                    old_pos, num_rows
+                )));
+            } else if new_pos >= &num_rows {
+                // Check if new pos exceeds num_rows
+                return Err(str_err!(format!(
+                    "New pos {} exceeds number of rows. Number of rows: {}",
+                    new_pos, num_rows
+                )));
+            } else if !seen_old_indices.insert(*old_pos) {
+                // Check for duplicate old indices
+                return Err(str_err!(format!("Duplicate old pos: {}", old_pos)));
+            } else if !seen_new_indices.insert(*new_pos) {
+                // Check for duplicate new indices
+                return Err(str_err!(format!("Duplicate new pos: {}", new_pos)));
+            } else {
+                old_to_new.insert(size_old_pos, size_new_pos);
+                new_to_old.insert(size_new_pos, size_old_pos);
+            }
+        }
+        let mut sel = self.sel.borrow_mut();
+        let mut event_data = self.cr_new_event(true);
+        event_data.moved_rows = old_to_new;
+        self.cr_move_rows(&mut event_data, new_to_old, None, None, true)?;
+
+        if kwargs.select {
+            Self::acr_deselect_all(&mut sel);
+            let mut sorted_moved: Vec<usize> = event_data
+                .moved_rows
+                .values()
+                .filter_map(|n| {
+                    let data_row = *n;
+                    if Self::acr_row_is_vis_opt(&grid.index.cells, &data_row).is_some() {
+                        Self::acr_data_to_disp_row_opt(&grid.disp_rows, data_row)
+                    } else {
+                        None
+                    }
+                })
+                .collect();
+            if !sorted_moved.is_empty() {
+                sorted_moved.sort_unstable();
+                for (start, end) in consecutive_ranges_borrowed(sorted_moved.iter()) {
+                    Self::acr_add_selection_box(
+                        &mut sel,
+                        &grid,
+                        start,
+                        Some(end),
+                        0,
+                        None,
+                        SelectionKind::Rows,
+                        SelectionState::Normal,
+                        true,
+                    );
+                }
+            }
+        }
+        self.cr_event_modified(&event_data, kwargs.emit, true)?;
+        if self.opts.borrow().enabled_undo && kwargs.undo {
+            grid.undo_stack.push_back(event_data);
+        }
+        Ok(())
+    }
+}

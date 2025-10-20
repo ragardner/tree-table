@@ -1,0 +1,63 @@
+use super::cell_props::CellProps;
+use super::val::Val;
+use crate::MaxMap;
+use crate::TableCell;
+use std::borrow::Borrow;
+use std::hash::Hash;
+use std::hash::Hasher;
+
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug, Clone)]
+pub struct IndexCell {
+    pub iid: String,
+    pub val: Val,
+    pub vals: MaxMap<TableCell>,
+    pub dim: u64,
+    pub vis: bool,
+    pub par: String,
+    pub chn: Vec<String>,
+    pub open: bool,
+    pub props: Option<CellProps>,
+}
+
+impl PartialEq for IndexCell {
+    fn eq(&self, other: &Self) -> bool {
+        self.iid == other.iid
+    }
+}
+
+impl Eq for IndexCell {}
+
+impl Hash for IndexCell {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.iid.hash(state);
+    }
+}
+
+impl Borrow<str> for IndexCell {
+    fn borrow(&self) -> &str {
+        self.iid.as_str()
+    }
+}
+
+impl Borrow<String> for IndexCell {
+    fn borrow(&self) -> &String {
+        &self.iid
+    }
+}
+
+impl IndexCell {
+    pub fn new(val: Val, dim: u64, vis: bool, iid: String) -> Self {
+        IndexCell {
+            iid,
+            val,
+            vals: MaxMap::new(),
+            dim,
+            vis,
+            par: "".to_string(),
+            chn: Vec::new(),
+            open: false,
+            props: None,
+        }
+    }
+}
