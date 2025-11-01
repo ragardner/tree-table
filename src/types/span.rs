@@ -1,6 +1,7 @@
 use crate::Coords;
 use crate::SelectionKind;
 use crate::Table;
+use crate::TableGrid;
 use crate::utils::utils_fns::{span_a2i, span_a2n};
 use regex::Regex;
 use std::sync::OnceLock;
@@ -47,39 +48,57 @@ pub struct Span {
 }
 
 impl Span {
-    pub fn rows(&self, table: &Table) -> std::ops::Range<usize> {
-        let start: usize = self.row.try_into().unwrap_or(usize::MAX);
+    pub fn rows(&self, grid: &TableGrid) -> std::ops::Range<usize> {
+        let start: usize = self.row;
         if let Some(end) = self.end_row {
-            start..end.try_into().unwrap_or(usize::MAX)
+            start..end
         } else {
-            start..table.cr_total_rows()
+            start..Table::acr_total_rows(&grid.index.cells)
         }
     }
 
-    pub fn cols(&self, table: &Table) -> std::ops::Range<usize> {
-        let start: usize = self.col.try_into().unwrap_or(usize::MAX);
-        if let Some(end) = self.end_col {
-            start..end.try_into().unwrap_or(usize::MAX)
+    pub fn rows_start_end(&self, grid: &TableGrid) -> (usize, usize) {
+        let start: usize = self.row;
+        if let Some(end) = self.end_row {
+            (start, end)
         } else {
-            start..table.cr_total_cols()
+            (start, Table::acr_total_rows(&grid.index.cells))
+        }
+    }
+
+    pub fn cols(&self, grid: &TableGrid) -> std::ops::Range<usize> {
+        let start: usize = self.col;
+        if let Some(end) = self.end_col {
+            start..end
+        } else {
+            start..Table::acr_total_cols(&grid.header.cells)
+        }
+    }
+
+    pub fn cols_start_end(&self, grid: &TableGrid) -> (usize, usize) {
+        let start: usize = self.col;
+        if let Some(end) = self.end_col {
+            (start, end)
+        } else {
+            (start, Table::acr_total_cols(&grid.header.cells))
         }
     }
 
     /// Returns an index.
-    pub fn max_row(&self, table: &Table) -> usize {
+    pub fn max_row(&self, grid: &TableGrid) -> usize {
         if let Some(end) = self.end_row {
-            end.saturating_sub(1).try_into().unwrap_or(usize::MAX)
+            end.saturating_sub(1)
         } else {
-            table.cr_total_rows().saturating_sub(1)
+            Table::acr_total_rows(&grid.index.cells).saturating_sub(1)
         }
     }
 
     /// Returns an index.
-    pub fn max_col(&self, table: &Table) -> usize {
+    pub fn max_col(&self, grid: &TableGrid) -> usize {
         if let Some(end) = self.end_col {
-            end.saturating_sub(1).try_into().unwrap_or(usize::MAX)
+            end.saturating_sub(1)
         } else {
-            table.cr_total_cols().saturating_sub(1)
+            Table::acr_total_cols(&grid.header.cells).saturating_sub(1)
         }
     }
 

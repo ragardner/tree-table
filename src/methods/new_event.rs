@@ -1,11 +1,11 @@
 use crate::EventData;
+use crate::Options;
+use crate::Selection;
 use crate::Table;
 use std::collections::HashMap;
 
 impl Table {
-    pub(crate) fn cr_new_event(&self, boxes: bool) -> EventData {
-        let opts = self.opts.borrow();
-        let sel = self.sel.borrow();
+    pub(crate) fn cr_new_event(&self, boxes: bool, opts: &Options, sel: &Selection) -> EventData {
         EventData {
             widget_name: opts.widget_name.clone(),
             widget_id: opts.widget_id.clone(),

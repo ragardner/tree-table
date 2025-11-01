@@ -38,7 +38,7 @@ impl ChangeHeaderCell {
     ) -> Result<ChangeHeaderCell, String> {
         match self {
             ChangeHeaderCell::SetVal(old_val) => {
-                if let Ok(cell) = Table::acr_hcell_mut(&mut cells, &col) {
+                if let Ok(cell) = Table::acr_hcell_mut(&mut cells, col) {
                     // Assuming header is HashMap<usize, HeaderCell> or similar
                     let current_val = std::mem::replace(&mut cell.val, old_val.clone());
                     Ok(ChangeHeaderCell::SetVal(current_val))
@@ -47,7 +47,7 @@ impl ChangeHeaderCell {
                 }
             }
             ChangeHeaderCell::SetDim(old_dim) => {
-                if let Ok(cell) = Table::acr_hcell_mut(&mut cells, &col) {
+                if let Ok(cell) = Table::acr_hcell_mut(&mut cells, col) {
                     let current_dim = std::mem::replace(&mut cell.dim, *old_dim);
                     Ok(ChangeHeaderCell::SetDim(current_dim))
                 } else {
@@ -55,7 +55,7 @@ impl ChangeHeaderCell {
                 }
             }
             ChangeHeaderCell::SetVis(old_vis) => {
-                if let Ok(cell) = Table::acr_hcell_mut(&mut cells, &col) {
+                if let Ok(cell) = Table::acr_hcell_mut(&mut cells, col) {
                     let current_vis = std::mem::replace(&mut cell.vis, *old_vis);
                     Ok(ChangeHeaderCell::SetVis(current_vis))
                 } else {
@@ -63,7 +63,7 @@ impl ChangeHeaderCell {
                 }
             }
             ChangeHeaderCell::SetIid(old_iid) => {
-                if let Ok(cell) = Table::acr_hcell_mut(&mut cells, &col) {
+                if let Ok(cell) = Table::acr_hcell_mut(&mut cells, col) {
                     let current_iid = std::mem::replace(&mut cell.iid, old_iid.clone());
                     let removed_pos = iid_to_col
                         .remove(&current_iid)
@@ -75,7 +75,7 @@ impl ChangeHeaderCell {
                 }
             }
             ChangeHeaderCell::SetProps(change) => {
-                if let Ok(cell) = Table::acr_hcell_mut(&mut cells, &col) {
+                if let Ok(cell) = Table::acr_hcell_mut(&mut cells, col) {
                     if let Some(props) = cell.props.as_mut() {
                         let inverted = change.invert(props);
                         Ok(ChangeHeaderCell::SetProps(inverted))

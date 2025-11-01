@@ -1,23 +1,29 @@
 use crate::EventData;
 use crate::IndexCell;
 use crate::MaxMap;
+use crate::Options;
+use crate::Selection;
 use crate::Table;
 use crate::TableCell;
+use crate::TableGrid;
 use crate::Val;
 use crate::statics::DEFAULT_INHERIT;
 use crate::str_err;
+use std::cell::RefCell;
+use std::rc::Rc;
 
 impl Table {
     pub(crate) fn cr_add_rows(
         &self,
-        index: Vec<(usize, IndexCell)>,
+        mut grid: &mut TableGrid,
+        sel: &Selection,
+        index: Vec<(usize, Rc<RefCell<IndexCell>>)>,
         sorted_seq: Vec<usize>,
         event_data: &mut EventData,
         mod_sel: bool,
         mod_tree: bool,
         remake_rows: bool,
     ) -> Result<(), String> {
-        let mut grid = &mut *self.grid.borrow_mut();
         if mod_tree {
             Self::acr_tree_add_rows(&mut grid, &index, event_data)?;
         }
@@ -42,7 +48,6 @@ impl Table {
         // Update event_data
         event_data.added_rows = sorted_seq;
         if mod_sel {
-            let sel = self.sel.borrow();
             event_data.selection_boxes = sel.selection_boxes.clone();
             event_data.selected = sel.selected.clone();
         }
@@ -51,23 +56,23 @@ impl Table {
 
     pub(crate) fn cr_add_rows_get_args(
         &self,
+        grid: &mut TableGrid,
+        opts: &Options,
         iids: Vec<String>,
         mut pos: usize,
         inherit: &str,
         vis: bool,
-    ) -> Result<(Vec<(usize, IndexCell)>, Vec<usize>), String> {
-        let grid = &mut *self.grid.borrow_mut();
-        let opts = self.opts.borrow();
-        let ncols = self.cr_total_cols();
-        if pos as usize > self.cr_total_rows() as usize {
-            pos = self.cr_total_rows();
+    ) -> Result<(Vec<(usize, Rc<RefCell<IndexCell>>)>, Vec<usize>), String> {
+        let ncols = Self::acr_total_cols(&grid.header.cells);
+        if pos > Self::acr_total_rows(&grid.index.cells) {
+            pos = Self::acr_total_rows(&grid.index.cells);
         }
         let end = pos.checked_add(iids.len()).ok_or(str_err!("Max. rows"))?;
-        let mut index: Vec<(usize, IndexCell)> = Vec::new();
+        let mut index: Vec<(usize, Rc<RefCell<IndexCell>>)> = Vec::new();
         let mut sorted_seq: Vec<usize> = Vec::new();
         let empty_val: &Val = &opts.empty_val;
         let empty_index_val: &Val = &opts.empty_val;
-        let opt_inherit_row = self.cr_get_inherit_row(pos, inherit)?;
+        let opt_inherit_row = self.cr_get_inherit_row(&grid.index.iid_to_row, pos, inherit)?;
         let do_inherit = opt_inherit_row.is_some();
         let inherit_row: usize = opt_inherit_row.unwrap_or(0);
         let index_props = if do_inherit {
@@ -79,26 +84,21 @@ impl Table {
 
         // Tree mode
         let tree_mode = opts.tree_mode;
-        let mut par: String = "".to_string();
         let mut show_new_rows: bool = vis.clone();
         // Determine parent of insert pos & whether new rows will be visible
         if tree_mode {
-            par = Self::acr_tree_row_par(&grid, &pos)?;
-            if par.is_empty() {
-                show_new_rows = true;
-            } else {
-                if let Some(par_rn) = grid.index.iid_to_row.get(&par) {
-                    show_new_rows = Self::acr_tree_iid_displayed(
-                        &grid.index.cells,
-                        &grid.index.iid_to_row,
-                        &par,
-                    )? && Self::acr_tree_row_is_open(&grid.index.cells, par_rn)?;
+            let par_cell_res =
+                Self::acr_tree_row_par_cell(&grid.index.cells, &grid.index.iid_to_row, pos);
+            if let Ok(par_cell_opt) = par_cell_res {
+                if let Some(par_cell) = par_cell_opt {
+                    show_new_rows = par_cell.vis && par_cell.open;
                 } else {
-                    show_new_rows = false;
+                    show_new_rows = true
                 }
+            } else {
+                show_new_rows = true
             }
         }
-
         // Create index
         for (rn, iid) in (pos..end).zip(iids.into_iter()) {
             sorted_seq.push(rn);
@@ -123,19 +123,24 @@ impl Table {
             } else {
                 empty_index_val.clone()
             };
+            let par_cell = {
+                let res =
+                    Self::acr_tree_par_cell_weak(&grid.index.cells, &grid.index.iid_to_row, &iid);
+                if let Ok(op) = res { op } else { None }
+            };
             index.push((
                 rn,
-                IndexCell {
+                Rc::new(RefCell::new(IndexCell {
                     iid,
                     val,
                     vals: cols_map,
                     dim: default_dim,
                     vis: show_new_rows,
-                    par: par.clone(),
+                    par: par_cell,
                     chn: Vec::new(),
                     open: false,
                     props: index_props.clone(),
-                },
+                })),
             ));
         }
         Ok((index, sorted_seq))
@@ -143,12 +148,14 @@ impl Table {
 
     pub(crate) fn cr_ensure_widget_nrows(
         &self,
+        mut grid: &mut TableGrid,
+        opts: &Options,
+        sel: &Selection,
         max_row: usize,
         event_data: &mut EventData,
         remake_rows: bool,
     ) -> Result<usize, String> {
-        let grid = &mut *self.grid.borrow_mut();
-        let table_nrows = self.cr_total_rows();
+        let table_nrows = Self::acr_total_rows(&grid.index.cells);
         let rows_to_add: usize = if max_row + 1 > table_nrows {
             (max_row + 1) - table_nrows
         } else {
@@ -158,9 +165,25 @@ impl Table {
             let iids: Vec<String> = (0..rows_to_add)
                 .map(|_| grid.index.new_iid())
                 .collect::<Result<Vec<String>, String>>()?;
-            let (index, sorted_seq) =
-                self.cr_add_rows_get_args(iids, self.cr_total_rows(), DEFAULT_INHERIT, true)?;
-            self.cr_add_rows(index, sorted_seq, event_data, false, false, remake_rows)?;
+            let cr_add_rows_pos = Self::acr_total_rows(&grid.index.cells);
+            let (index, sorted_seq) = self.cr_add_rows_get_args(
+                &mut grid,
+                &opts,
+                iids,
+                cr_add_rows_pos,
+                DEFAULT_INHERIT,
+                true,
+            )?;
+            self.cr_add_rows(
+                &mut grid,
+                &sel,
+                index,
+                sorted_seq,
+                event_data,
+                false,
+                false,
+                remake_rows,
+            )?;
         };
         Ok(rows_to_add)
     }

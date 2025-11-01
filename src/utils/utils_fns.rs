@@ -1,6 +1,9 @@
+use crate::IndexCell;
 use chrono::Duration;
 use core::sync::atomic::{AtomicU32, Ordering};
+use std::cell::RefCell;
 use std::collections::HashMap;
+use std::rc::Rc;
 
 static WIDGET_ID_COUNTER: AtomicU32 = AtomicU32::new(0);
 
@@ -8,7 +11,6 @@ pub(crate) fn generate_unique_id() -> u32 {
     WIDGET_ID_COUNTER.fetch_add(1, Ordering::Relaxed)
 }
 
-const A_VALUE: usize = 'A' as usize;
 const SPAN_COL_A_VALUE: usize = 'A' as usize;
 const ALPHABET: [char; 62] = [
     'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S',
@@ -18,22 +20,27 @@ const ALPHABET: [char; 62] = [
 ];
 
 pub(crate) fn remove_duplicates_outside_section(
-    strings: Vec<String>,
+    items: Vec<Rc<RefCell<IndexCell>>>,
     section_start: usize,
     section_size: usize,
-) -> Vec<String> {
-    if section_start == 0 && section_size >= strings.len() {
-        return strings;
+) -> Vec<Rc<RefCell<IndexCell>>> {
+    if section_start == 0 && section_size >= items.len() {
+        return items;
     }
     let section_end = section_start + section_size;
     let keep: Vec<bool> = {
-        let section_set: std::collections::HashSet<&String> =
-            strings[section_start..section_end].iter().collect();
-        (0..strings.len())
-            .map(|i| i >= section_start && i < section_end || !section_set.contains(&strings[i]))
+        let section_set: std::collections::HashSet<String> = items[section_start..section_end]
+            .iter()
+            .map(|rc| rc.borrow().iid.clone())
+            .collect();
+        (0..items.len())
+            .map(|i| {
+                i >= section_start && i < section_end
+                    || !section_set.contains(&items[i].borrow().iid)
+            })
             .collect()
     };
-    strings
+    items
         .into_iter()
         .enumerate()
         .filter(|(i, _)| keep[*i])

@@ -2,8 +2,11 @@ use crate::CellProps;
 use crate::EventData;
 use crate::HeaderCell;
 use crate::MaxMap;
+use crate::Options;
+use crate::Selection;
 use crate::Table;
 use crate::TableCell;
+use crate::TableGrid;
 use crate::Val;
 use crate::statics::DEFAULT_INHERIT;
 use crate::str_err;
@@ -12,6 +15,8 @@ use std::collections::HashMap;
 impl Table {
     pub(crate) fn cr_add_cols(
         &self,
+        grid: &mut TableGrid,
+        sel: &Selection,
         cols: HashMap<usize, MaxMap<TableCell>>,
         header: Vec<(usize, HeaderCell)>,
         sorted_seq: Vec<usize>,
@@ -19,7 +24,6 @@ impl Table {
         mod_sel: bool,
         remake_cols: bool,
     ) -> Result<(), String> {
-        let grid = &mut *self.grid.borrow_mut();
         // insert into table data
         if !cols.is_empty() {
             grid.index.add_cols(Some(cols), &sorted_seq);
@@ -45,7 +49,6 @@ impl Table {
         // Update event_data
         event_data.added_cols = sorted_seq;
         if mod_sel {
-            let sel = self.sel.borrow();
             event_data.selection_boxes = sel.selection_boxes.clone();
             event_data.selected = sel.selected.clone();
         }
@@ -54,6 +57,8 @@ impl Table {
 
     pub(crate) fn cr_add_cols_get_args(
         &self,
+        grid: &TableGrid,
+        opts: &Options,
         iids: Vec<String>,
         mut pos: usize,
         inherit: &str,
@@ -66,18 +71,16 @@ impl Table {
         ),
         String,
     > {
-        let grid = &mut *self.grid.borrow_mut();
-        let opts = self.opts.borrow();
-        let nrows = self.cr_total_rows();
-        if pos as usize > self.cr_total_cols() as usize {
-            pos = self.cr_total_cols();
+        let nrows = Self::acr_total_rows(&grid.index.cells);
+        if pos > Self::acr_total_cols(&grid.header.cells) {
+            pos = Self::acr_total_cols(&grid.header.cells);
         }
         let end = pos.checked_add(iids.len()).ok_or(str_err!("Max. cols"))?;
         let mut cols: HashMap<usize, MaxMap<TableCell>> = HashMap::new();
         let mut header: Vec<(usize, HeaderCell)> = Vec::new();
         let mut sorted_seq: Vec<usize> = Vec::new();
         let empty_val: &Val = &opts.empty_val;
-        let opt_inherit_col = self.cr_get_inherit_col(pos, inherit)?;
+        let opt_inherit_col = self.cr_get_inherit_col(&grid.header.iid_to_col, pos, inherit)?;
         let do_inherit = opt_inherit_col.is_some();
         let inherit_col: usize = opt_inherit_col.unwrap_or(0);
         let header_props: Option<CellProps> = if do_inherit {
@@ -126,12 +129,14 @@ impl Table {
 
     pub(crate) fn cr_ensure_widget_ncols(
         &self,
+        mut grid: &mut TableGrid,
+        opts: &Options,
+        sel: &Selection,
         max_col: usize,
         event_data: &mut EventData,
         remake_cols: bool,
     ) -> Result<usize, String> {
-        let grid = &mut *self.grid.borrow_mut();
-        let table_ncols = self.cr_total_cols();
+        let table_ncols = Self::acr_total_cols(&grid.header.cells);
         let cols_to_add: usize = if max_col + 1 > table_ncols {
             (max_col + 1) - table_ncols
         } else {
@@ -141,9 +146,25 @@ impl Table {
             let iids = (0..cols_to_add)
                 .map(|_| grid.header.new_iid())
                 .collect::<Result<Vec<String>, String>>()?;
-            let (cols, header, sorted_seq) =
-                self.cr_add_cols_get_args(iids, self.cr_total_cols(), DEFAULT_INHERIT, true)?;
-            self.cr_add_cols(cols, header, sorted_seq, event_data, false, remake_cols)?;
+            let cr_add_cols_pos = Self::acr_total_cols(&grid.header.cells);
+            let (cols, header, sorted_seq) = self.cr_add_cols_get_args(
+                &grid,
+                &opts,
+                iids,
+                cr_add_cols_pos,
+                DEFAULT_INHERIT,
+                true,
+            )?;
+            self.cr_add_cols(
+                &mut grid,
+                &sel,
+                cols,
+                header,
+                sorted_seq,
+                event_data,
+                false,
+                remake_cols,
+            )?;
         };
         Ok(cols_to_add)
     }

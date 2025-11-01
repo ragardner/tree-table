@@ -25,7 +25,7 @@ impl Table {
         disp_cols: &Vec<usize>,
         data_col: usize,
     ) -> Result<usize, String> {
-        bin_index_usize(&disp_cols, data_col as usize)
+        bin_index_usize(&disp_cols, data_col)
             .ok_or(str_err!(format!("Value '{}' not found", data_col)))
             .map(|n| n)
     }
@@ -36,6 +36,6 @@ impl Table {
         disp_cols: &Vec<usize>,
         data_col: usize,
     ) -> Option<usize> {
-        bin_index_usize(&disp_cols, data_col as usize).map(|n| n)
+        bin_index_usize(&disp_cols, data_col).map(|n| n)
     }
 }

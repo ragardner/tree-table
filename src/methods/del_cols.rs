@@ -1,13 +1,14 @@
 use crate::EventData;
 use crate::Table;
+use crate::TableGrid;
 
 impl Table {
     pub(crate) fn cr_del_cols(
         &self,
+        grid: &mut TableGrid,
         positions: Vec<usize>,
         event_data: &mut EventData,
     ) -> Result<(), String> {
-        let grid = &mut *self.grid.borrow_mut();
         // TODO: close dropdowns and editors?
 
         // Retrieve data from header

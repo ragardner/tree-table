@@ -10,24 +10,31 @@ use crate::Note;
 use crate::ProgressBar;
 use crate::Table;
 use crate::Val;
+use std::cell::RefCell;
+use std::rc::Rc;
 
 impl Table {
     // TODO: AND MAYBE DATA FORMATTING PROP SETTER FUNCTIONS
     #[inline]
     pub(crate) fn acr_event_data_fmt_set_tval(
-        cells: &mut Vec<IndexCell>,
+        cells: &Vec<Rc<RefCell<IndexCell>>>,
         row: usize,
         col: usize,
         val: Val,
         empty_val: &Val,
         event_data: &mut EventData,
     ) -> Result<bool, String> {
-        let fmt = Self::acr_tcell_data_format(cells, &row, &col);
-        if fmt.is_some() || Self::acr_val_valid_t(cells, &row, &col, &val, false) {
-            let val = Self::acr_format_data(fmt, val);
-            let cell = Table::acr_icell_mut(cells, &row)?;
+        let fmt_opt = Self::acr_tcell_data_format(cells, row, col);
+        let valid = Self::acr_val_valid_t(&cells, &row, &col, &val, false);
+        if fmt_opt.is_some() || valid {
+            let val = if let Some(fmt_ref) = fmt_opt {
+                Self::acr_format_data(&*fmt_ref, val)
+            } else {
+                val
+            };
+            let mut cell = Table::acr_icell_mut(cells, row)?;
             event_data.add_change_tcells(
-                &row,
+                row,
                 cell.record_set_table_cell_val(col, val, empty_val.clone()),
             );
             Ok(true)
@@ -38,16 +45,21 @@ impl Table {
 
     #[inline]
     pub(crate) fn acr_event_data_fmt_set_ival(
-        cells: &mut Vec<IndexCell>,
+        cells: &Vec<Rc<RefCell<IndexCell>>>,
         row: usize,
         val: Val,
         event_data: &mut EventData,
     ) -> Result<bool, String> {
-        let fmt = Self::acr_icell_data_format(cells, &row)?;
-        if fmt.is_some() || Self::acr_val_valid_i(cells, &row, &val, false) {
-            let val = Self::acr_format_data(fmt, val);
-            let cell = Table::acr_icell_mut(cells, &row)?;
-            event_data.add_change_icells(&row, cell.record_set_val(val));
+        let is_valid = Self::acr_val_valid_i(cells, &row, &val, false);
+        let fmt_opt = Self::acr_icell_data_format(cells, row)?;
+        if fmt_opt.is_some() || is_valid {
+            let formatted_val = if let Some(fmt_ref) = fmt_opt {
+                Self::acr_format_data(&*fmt_ref, val)
+            } else {
+                val
+            };
+            let mut cell = Table::acr_icell_mut(cells, row)?;
+            event_data.add_change_icells(row, cell.record_set_val(formatted_val));
             Ok(true)
         } else {
             Ok(false)
@@ -61,11 +73,15 @@ impl Table {
         val: Val,
         event_data: &mut EventData,
     ) -> Result<bool, String> {
-        let fmt = Self::acr_hcell_data_format(cells, &col)?;
+        let fmt = Self::acr_hcell_data_format(cells, col)?;
         if fmt.is_some() || Self::acr_val_valid_h(cells, &col, &val, false) {
-            let val = Self::acr_format_data(fmt, val);
-            let cell = Table::acr_hcell_mut(cells, &col)?;
-            event_data.add_change_hcells(&col, cell.record_set_val(val));
+            let val = if let Some(fmt) = fmt {
+                Self::acr_format_hdata(fmt, val)
+            } else {
+                val
+            };
+            let cell = Table::acr_hcell_mut(cells, col)?;
+            event_data.add_change_hcells(col, cell.record_set_val(val));
             Ok(true)
         } else {
             Ok(false)
@@ -74,7 +90,7 @@ impl Table {
 
     #[inline]
     pub(crate) fn acr_event_data_set_tval(
-        cells: &mut Vec<IndexCell>,
+        cells: &Vec<Rc<RefCell<IndexCell>>>,
         row: usize,
         col: usize,
         val: Val,
@@ -82,9 +98,9 @@ impl Table {
         event_data: &mut EventData,
     ) -> Result<bool, String> {
         if Self::acr_val_valid_t(cells, &row, &col, &val, false) {
-            let cell = Table::acr_icell_mut(cells, &row)?;
+            let mut cell = Table::acr_icell_mut(cells, row)?;
             event_data.add_change_tcells(
-                &row,
+                row,
                 cell.record_set_table_cell_val(col, val, empty_val.clone()),
             );
             Ok(true)
@@ -95,14 +111,14 @@ impl Table {
 
     #[inline]
     pub(crate) fn acr_event_data_set_ival(
-        cells: &mut Vec<IndexCell>,
+        cells: &Vec<Rc<RefCell<IndexCell>>>,
         row: usize,
         val: Val,
         event_data: &mut EventData,
     ) -> Result<bool, String> {
         if Self::acr_val_valid_i(cells, &row, &val, false) {
-            let cell = Table::acr_icell_mut(cells, &row)?;
-            event_data.add_change_icells(&row, cell.record_set_val(val));
+            let mut cell = Table::acr_icell_mut(cells, row)?;
+            event_data.add_change_icells(row, cell.record_set_val(val));
             Ok(true)
         } else {
             Ok(false)
@@ -117,8 +133,8 @@ impl Table {
         event_data: &mut EventData,
     ) -> Result<bool, String> {
         if Self::acr_val_valid_h(cells, &col, &val, false) {
-            let cell = Table::acr_hcell_mut(cells, &col)?;
-            event_data.add_change_hcells(&col, cell.record_set_val(val));
+            let cell = Table::acr_hcell_mut(cells, col)?;
+            event_data.add_change_hcells(col, cell.record_set_val(val));
             Ok(true)
         } else {
             Ok(false)
@@ -127,40 +143,40 @@ impl Table {
 
     #[inline]
     pub(crate) fn acr_event_data_set_ivis(
-        cells: &mut Vec<IndexCell>,
+        cells: &Vec<Rc<RefCell<IndexCell>>>,
         row: usize,
         vis: bool,
         event_data: &mut EventData,
     ) -> Result<(), String> {
-        let cell = Table::acr_icell_mut(cells, &row)?;
-        event_data.add_change_icells(&row, cell.record_set_vis(vis));
+        let mut cell = Table::acr_icell_mut(cells, row)?;
+        event_data.add_change_icells(row, cell.record_set_vis(vis));
         Ok(())
     }
 
     #[inline]
     pub(crate) fn acr_event_data_set_open(
-        cells: &mut Vec<IndexCell>,
+        cells: &Vec<Rc<RefCell<IndexCell>>>,
         row: usize,
         open: bool,
         event_data: &mut EventData,
     ) -> Result<(), String> {
-        let cell = Table::acr_icell_mut(cells, &row)?;
-        event_data.add_change_icells(&row, cell.record_set_open(open));
+        let mut cell = Table::acr_icell_mut(cells, row)?;
+        event_data.add_change_icells(row, cell.record_set_open(open));
         Ok(())
     }
 
     #[inline]
     pub(crate) fn acr_event_data_set_talign(
-        cells: &mut Vec<IndexCell>,
+        cells: &Vec<Rc<RefCell<IndexCell>>>,
         row: usize,
         col: usize,
         prop: Option<String>,
         empty_val: &Val,
         event_data: &mut EventData,
     ) -> Result<(), String> {
-        let cell = Table::acr_icell_mut(cells, &row)?;
+        let mut cell = Table::acr_icell_mut(cells, row)?;
         event_data.add_change_tcells(
-            &row,
+            row,
             cell.record_set_table_cell_props_align(col, prop, empty_val.clone()),
         );
         Ok(())
@@ -168,16 +184,16 @@ impl Table {
 
     #[inline]
     pub(crate) fn acr_event_data_set_tborders(
-        cells: &mut Vec<IndexCell>,
+        cells: &Vec<Rc<RefCell<IndexCell>>>,
         row: usize,
         col: usize,
         prop: Option<CellBorders>,
         empty_val: &Val,
         event_data: &mut EventData,
     ) -> Result<(), String> {
-        let cell = Table::acr_icell_mut(cells, &row)?;
+        let mut cell = Table::acr_icell_mut(cells, row)?;
         event_data.add_change_tcells(
-            &row,
+            row,
             cell.record_set_table_cell_props_borders(col, prop, empty_val.clone()),
         );
         Ok(())
@@ -185,16 +201,16 @@ impl Table {
 
     #[inline]
     pub(crate) fn acr_event_data_set_tcheckbox(
-        cells: &mut Vec<IndexCell>,
+        cells: &Vec<Rc<RefCell<IndexCell>>>,
         row: usize,
         col: usize,
         prop: Option<Checkbox>,
         empty_val: &Val,
         event_data: &mut EventData,
     ) -> Result<(), String> {
-        let cell = Table::acr_icell_mut(cells, &row)?;
+        let mut cell = Table::acr_icell_mut(cells, row)?;
         event_data.add_change_tcells(
-            &row,
+            row,
             cell.record_set_table_cell_props_checkbox(col, prop, empty_val.clone()),
         );
         Ok(())
@@ -202,7 +218,7 @@ impl Table {
 
     #[inline]
     pub(crate) fn acr_event_data_set_tdata_format(
-        cells: &mut Vec<IndexCell>,
+        cells: &Vec<Rc<RefCell<IndexCell>>>,
         row: usize,
         col: usize,
         prop: Option<DataFormat>,
@@ -210,9 +226,9 @@ impl Table {
         event_data: &mut EventData,
     ) -> Result<(), String> {
         // TODO: adjust cell Val?
-        let cell = Table::acr_icell_mut(cells, &row)?;
+        let mut cell = Table::acr_icell_mut(cells, row)?;
         event_data.add_change_tcells(
-            &row,
+            row,
             cell.record_set_table_cell_props_data_format(col, prop, empty_val.clone()),
         );
         Ok(())
@@ -220,16 +236,16 @@ impl Table {
 
     #[inline]
     pub(crate) fn acr_event_data_set_tdropdown(
-        cells: &mut Vec<IndexCell>,
+        cells: &Vec<Rc<RefCell<IndexCell>>>,
         row: usize,
         col: usize,
         prop: Option<Dropdown>,
         empty_val: &Val,
         event_data: &mut EventData,
     ) -> Result<(), String> {
-        let cell = Table::acr_icell_mut(cells, &row)?;
+        let mut cell = Table::acr_icell_mut(cells, row)?;
         event_data.add_change_tcells(
-            &row,
+            row,
             cell.record_set_table_cell_props_dropdown(col, prop, empty_val.clone()),
         );
         Ok(())
@@ -237,16 +253,16 @@ impl Table {
 
     #[inline]
     pub(crate) fn acr_event_data_set_thighlight(
-        cells: &mut Vec<IndexCell>,
+        cells: &Vec<Rc<RefCell<IndexCell>>>,
         row: usize,
         col: usize,
         prop: Option<Highlight>,
         empty_val: &Val,
         event_data: &mut EventData,
     ) -> Result<(), String> {
-        let cell = Table::acr_icell_mut(cells, &row)?;
+        let mut cell = Table::acr_icell_mut(cells, row)?;
         event_data.add_change_tcells(
-            &row,
+            row,
             cell.record_set_table_cell_props_highlight(col, prop, empty_val.clone()),
         );
         Ok(())
@@ -254,16 +270,16 @@ impl Table {
 
     #[inline]
     pub(crate) fn acr_event_data_set_tnote(
-        cells: &mut Vec<IndexCell>,
+        cells: &Vec<Rc<RefCell<IndexCell>>>,
         row: usize,
         col: usize,
         prop: Option<Note>,
         empty_val: &Val,
         event_data: &mut EventData,
     ) -> Result<(), String> {
-        let cell = Table::acr_icell_mut(cells, &row)?;
+        let mut cell = Table::acr_icell_mut(cells, row)?;
         event_data.add_change_tcells(
-            &row,
+            row,
             cell.record_set_table_cell_props_note(col, prop, empty_val.clone()),
         );
         Ok(())
@@ -271,16 +287,16 @@ impl Table {
 
     #[inline]
     pub(crate) fn acr_event_data_set_tprogressbar(
-        cells: &mut Vec<IndexCell>,
+        cells: &Vec<Rc<RefCell<IndexCell>>>,
         row: usize,
         col: usize,
         prop: Option<ProgressBar>,
         empty_val: &Val,
         event_data: &mut EventData,
     ) -> Result<(), String> {
-        let cell = Table::acr_icell_mut(cells, &row)?;
+        let mut cell = Table::acr_icell_mut(cells, row)?;
         event_data.add_change_tcells(
-            &row,
+            row,
             cell.record_set_table_cell_props_progress_bar(col, prop, empty_val.clone()),
         );
         Ok(())
@@ -288,16 +304,16 @@ impl Table {
 
     #[inline]
     pub(crate) fn acr_event_data_set_treadonly(
-        cells: &mut Vec<IndexCell>,
+        cells: &Vec<Rc<RefCell<IndexCell>>>,
         row: usize,
         col: usize,
         prop: bool,
         empty_val: &Val,
         event_data: &mut EventData,
     ) -> Result<(), String> {
-        let cell = Table::acr_icell_mut(cells, &row)?;
+        let mut cell = Table::acr_icell_mut(cells, row)?;
         event_data.add_change_tcells(
-            &row,
+            row,
             cell.record_set_table_cell_props_readonly(col, prop, empty_val.clone()),
         );
         Ok(())
@@ -305,109 +321,109 @@ impl Table {
 
     #[inline]
     pub(crate) fn acr_event_data_set_ialign(
-        cells: &mut Vec<IndexCell>,
+        cells: &Vec<Rc<RefCell<IndexCell>>>,
         row: usize,
         prop: Option<String>,
         event_data: &mut EventData,
     ) -> Result<(), String> {
-        let cell = Table::acr_icell_mut(cells, &row)?;
-        event_data.add_change_icells(&row, cell.record_set_props_align(prop));
+        let mut cell = Table::acr_icell_mut(cells, row)?;
+        event_data.add_change_icells(row, cell.record_set_props_align(prop));
         Ok(())
     }
 
     #[inline]
     pub(crate) fn acr_event_data_set_iborders(
-        cells: &mut Vec<IndexCell>,
+        cells: &Vec<Rc<RefCell<IndexCell>>>,
         row: usize,
         prop: Option<CellBorders>,
         event_data: &mut EventData,
     ) -> Result<(), String> {
-        let cell = Table::acr_icell_mut(cells, &row)?;
-        event_data.add_change_icells(&row, cell.record_set_props_borders(prop));
+        let mut cell = Table::acr_icell_mut(cells, row)?;
+        event_data.add_change_icells(row, cell.record_set_props_borders(prop));
         Ok(())
     }
 
     #[inline]
     pub(crate) fn acr_event_data_set_icheckbox(
-        cells: &mut Vec<IndexCell>,
+        cells: &Vec<Rc<RefCell<IndexCell>>>,
         row: usize,
         prop: Option<Checkbox>,
         event_data: &mut EventData,
     ) -> Result<(), String> {
-        let cell = Table::acr_icell_mut(cells, &row)?;
-        event_data.add_change_icells(&row, cell.record_set_props_checkbox(prop));
+        let mut cell = Table::acr_icell_mut(cells, row)?;
+        event_data.add_change_icells(row, cell.record_set_props_checkbox(prop));
         Ok(())
     }
 
     #[inline]
     pub(crate) fn acr_event_data_set_idata_format(
-        cells: &mut Vec<IndexCell>,
+        cells: &Vec<Rc<RefCell<IndexCell>>>,
         row: usize,
         prop: Option<DataFormat>,
         event_data: &mut EventData,
     ) -> Result<(), String> {
-        let cell = Table::acr_icell_mut(cells, &row)?;
-        event_data.add_change_icells(&row, cell.record_set_props_data_format(prop));
+        let mut cell = Table::acr_icell_mut(cells, row)?;
+        event_data.add_change_icells(row, cell.record_set_props_data_format(prop));
         Ok(())
     }
 
     #[inline]
     pub(crate) fn acr_event_data_set_idropdown(
-        cells: &mut Vec<IndexCell>,
+        cells: &Vec<Rc<RefCell<IndexCell>>>,
         row: usize,
         prop: Option<Dropdown>,
         event_data: &mut EventData,
     ) -> Result<(), String> {
-        let cell = Table::acr_icell_mut(cells, &row)?;
-        event_data.add_change_icells(&row, cell.record_set_props_dropdown(prop));
+        let mut cell = Table::acr_icell_mut(cells, row)?;
+        event_data.add_change_icells(row, cell.record_set_props_dropdown(prop));
         Ok(())
     }
 
     #[inline]
     pub(crate) fn acr_event_data_set_ihighlight(
-        cells: &mut Vec<IndexCell>,
+        cells: &Vec<Rc<RefCell<IndexCell>>>,
         row: usize,
         prop: Option<Highlight>,
         event_data: &mut EventData,
     ) -> Result<(), String> {
-        let cell = Table::acr_icell_mut(cells, &row)?;
-        event_data.add_change_icells(&row, cell.record_set_props_highlight(prop));
+        let mut cell = Table::acr_icell_mut(cells, row)?;
+        event_data.add_change_icells(row, cell.record_set_props_highlight(prop));
         Ok(())
     }
 
     #[inline]
     pub(crate) fn acr_event_data_set_inote(
-        cells: &mut Vec<IndexCell>,
+        cells: &Vec<Rc<RefCell<IndexCell>>>,
         row: usize,
         prop: Option<Note>,
         event_data: &mut EventData,
     ) -> Result<(), String> {
-        let cell = Table::acr_icell_mut(cells, &row)?;
-        event_data.add_change_icells(&row, cell.record_set_props_note(prop));
+        let mut cell = Table::acr_icell_mut(cells, row)?;
+        event_data.add_change_icells(row, cell.record_set_props_note(prop));
         Ok(())
     }
 
     #[inline]
     pub(crate) fn acr_event_data_set_iprogressbar(
-        cells: &mut Vec<IndexCell>,
+        cells: &Vec<Rc<RefCell<IndexCell>>>,
         row: usize,
         prop: Option<ProgressBar>,
         event_data: &mut EventData,
     ) -> Result<(), String> {
-        let cell = Table::acr_icell_mut(cells, &row)?;
-        event_data.add_change_icells(&row, cell.record_set_props_progress_bar(prop));
+        let mut cell = Table::acr_icell_mut(cells, row)?;
+        event_data.add_change_icells(row, cell.record_set_props_progress_bar(prop));
         Ok(())
     }
 
     #[inline]
     pub(crate) fn acr_event_data_set_ireadonly(
-        cells: &mut Vec<IndexCell>,
+        cells: &Vec<Rc<RefCell<IndexCell>>>,
         row: usize,
         prop: bool,
         event_data: &mut EventData,
     ) -> Result<(), String> {
-        let cell = Table::acr_icell_mut(cells, &row)?;
-        event_data.add_change_icells(&row, cell.record_set_props_readonly(prop));
+        let mut cell = Table::acr_icell_mut(cells, row)?;
+        event_data.add_change_icells(row, cell.record_set_props_readonly(prop));
         Ok(())
     }
 
@@ -418,8 +434,8 @@ impl Table {
         prop: Option<String>,
         event_data: &mut EventData,
     ) -> Result<(), String> {
-        let cell = Table::acr_hcell_mut(cells, &col)?;
-        event_data.add_change_hcells(&col, cell.record_set_props_align(prop));
+        let cell = Table::acr_hcell_mut(cells, col)?;
+        event_data.add_change_hcells(col, cell.record_set_props_align(prop));
         Ok(())
     }
 
@@ -430,8 +446,8 @@ impl Table {
         prop: Option<CellBorders>,
         event_data: &mut EventData,
     ) -> Result<(), String> {
-        let cell = Table::acr_hcell_mut(cells, &col)?;
-        event_data.add_change_hcells(&col, cell.record_set_props_borders(prop));
+        let cell = Table::acr_hcell_mut(cells, col)?;
+        event_data.add_change_hcells(col, cell.record_set_props_borders(prop));
         Ok(())
     }
 
@@ -442,8 +458,8 @@ impl Table {
         prop: Option<Checkbox>,
         event_data: &mut EventData,
     ) -> Result<(), String> {
-        let cell = Table::acr_hcell_mut(cells, &col)?;
-        event_data.add_change_hcells(&col, cell.record_set_props_checkbox(prop));
+        let cell = Table::acr_hcell_mut(cells, col)?;
+        event_data.add_change_hcells(col, cell.record_set_props_checkbox(prop));
         Ok(())
     }
 
@@ -454,8 +470,8 @@ impl Table {
         prop: Option<DataFormat>,
         event_data: &mut EventData,
     ) -> Result<(), String> {
-        let cell = Table::acr_hcell_mut(cells, &col)?;
-        event_data.add_change_hcells(&col, cell.record_set_props_data_format(prop));
+        let cell = Table::acr_hcell_mut(cells, col)?;
+        event_data.add_change_hcells(col, cell.record_set_props_data_format(prop));
         Ok(())
     }
 
@@ -466,8 +482,8 @@ impl Table {
         prop: Option<Dropdown>,
         event_data: &mut EventData,
     ) -> Result<(), String> {
-        let cell = Table::acr_hcell_mut(cells, &col)?;
-        event_data.add_change_hcells(&col, cell.record_set_props_dropdown(prop));
+        let cell = Table::acr_hcell_mut(cells, col)?;
+        event_data.add_change_hcells(col, cell.record_set_props_dropdown(prop));
         Ok(())
     }
 
@@ -478,8 +494,8 @@ impl Table {
         prop: Option<Highlight>,
         event_data: &mut EventData,
     ) -> Result<(), String> {
-        let cell = Table::acr_hcell_mut(cells, &col)?;
-        event_data.add_change_hcells(&col, cell.record_set_props_highlight(prop));
+        let cell = Table::acr_hcell_mut(cells, col)?;
+        event_data.add_change_hcells(col, cell.record_set_props_highlight(prop));
         Ok(())
     }
 
@@ -490,8 +506,8 @@ impl Table {
         prop: Option<Note>,
         event_data: &mut EventData,
     ) -> Result<(), String> {
-        let cell = Table::acr_hcell_mut(cells, &col)?;
-        event_data.add_change_hcells(&col, cell.record_set_props_note(prop));
+        let cell = Table::acr_hcell_mut(cells, col)?;
+        event_data.add_change_hcells(col, cell.record_set_props_note(prop));
         Ok(())
     }
 
@@ -502,8 +518,8 @@ impl Table {
         prop: Option<ProgressBar>,
         event_data: &mut EventData,
     ) -> Result<(), String> {
-        let cell = Table::acr_hcell_mut(cells, &col)?;
-        event_data.add_change_hcells(&col, cell.record_set_props_progress_bar(prop));
+        let cell = Table::acr_hcell_mut(cells, col)?;
+        event_data.add_change_hcells(col, cell.record_set_props_progress_bar(prop));
         Ok(())
     }
 
@@ -514,8 +530,8 @@ impl Table {
         prop: bool,
         event_data: &mut EventData,
     ) -> Result<(), String> {
-        let cell = Table::acr_hcell_mut(cells, &col)?;
-        event_data.add_change_hcells(&col, cell.record_set_props_readonly(prop));
+        let cell = Table::acr_hcell_mut(cells, col)?;
+        event_data.add_change_hcells(col, cell.record_set_props_readonly(prop));
         Ok(())
     }
 }

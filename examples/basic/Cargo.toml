@@ -1,12 +1,9 @@
 [package]
 authors = ["ragardner"]
 edition = "2024"
-name = "tree-table-core-basic"
+name = "basic"
 publish = false
 version = "0.1.0"
 
-[lib]
-crate-type = ["cdylib"]
-
 [dependencies]
-tree-table-core = { path = "../../" }
+tree-table-core = { path = "../.." }

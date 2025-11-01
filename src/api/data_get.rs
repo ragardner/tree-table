@@ -5,10 +5,8 @@ use crate::Val;
 use crate::args::GetDataIidsArgs;
 use crate::args::GetDataSpanArgs;
 use crate::args::GetDataYxArgs;
-use crate::str_err;
 
 impl Table {
-    // TODO: Maybe dont clone
     /// Gets row data using an array of row ids or positions.
     pub fn get_data_iids(
         &self,
@@ -21,40 +19,32 @@ impl Table {
             Some(kwargs) => {
                 if kwargs.ignore_invalid {
                     for (row_iid, cols) in kwargs.rows.into_iter() {
-                        let Some(rn) = grid.index.row(&row_iid) else {
+                        let Ok(rn) = Self::acr_pos(&grid.index.iid_to_row, &row_iid) else {
                             continue;
                         };
                         let mut row_result: Vec<(String, Val)> = Vec::new();
                         for col_iid in cols.into_iter() {
-                            let Some(cn) = grid.header.col(&col_iid) else {
+                            let Ok(cn) = Self::acr_pos(&grid.header.iid_to_col, &col_iid) else {
                                 continue;
                             };
                             row_result.push((
                                 col_iid,
-                                Self::acr_tcell_val(&grid.index.cells, rn, cn)
-                                    .unwrap_or(empty_val)
-                                    .clone(),
+                                Self::acr_tcell_val_cloned(&grid.index.cells, rn, cn)
+                                    .unwrap_or(empty_val.clone()),
                             ));
                         }
                         result.push((row_iid, row_result));
                     }
                 } else {
                     for (row_iid, cols) in kwargs.rows.into_iter() {
-                        let rn = grid
-                            .index
-                            .row(&row_iid)
-                            .ok_or(str_err!(format!("Row iid not found: {}", row_iid)))?;
+                        let rn = Self::acr_pos(&grid.index.iid_to_row, &row_iid)?;
                         let mut row_result: Vec<(String, Val)> = Vec::new();
                         for col_iid in cols.into_iter() {
-                            let cn = grid
-                                .header
-                                .col(&col_iid)
-                                .ok_or(str_err!(format!("Col iid not found: {}", col_iid)))?;
+                            let cn = Self::acr_pos(&grid.header.iid_to_col, &col_iid)?;
                             row_result.push((
                                 col_iid,
-                                Self::acr_tcell_val(&grid.index.cells, rn, cn)
-                                    .unwrap_or(empty_val)
-                                    .clone(),
+                                Self::acr_tcell_val_cloned(&grid.index.cells, rn, cn)
+                                    .unwrap_or(empty_val.clone()),
                             ));
                         }
                         result.push((row_iid, row_result));
@@ -67,13 +57,12 @@ impl Table {
                     let mut row_result: Vec<(String, Val)> = Vec::new();
                     for cn in 0..num_cols {
                         row_result.push((
-                            Self::acr_borrow_ciid(&grid.header.cells, &cn)?.clone(),
-                            Self::acr_tcell_val(&grid.index.cells, &rn, &cn)
-                                .unwrap_or(empty_val)
-                                .clone(),
+                            Self::acr_borrow_ciid(&grid.header.cells, cn)?.clone(),
+                            Self::acr_tcell_val_cloned(&grid.index.cells, rn, cn)
+                                .unwrap_or(empty_val.clone()),
                         ))
                     }
-                    result.push((icell.iid.clone(), row_result));
+                    result.push((icell.borrow().iid.clone(), row_result));
                 }
             }
         }
@@ -94,9 +83,8 @@ impl Table {
                 let cn = key.1 as usize;
                 result.push((
                     key,
-                    Self::acr_tcell_val(&grid.index.cells, &rn, &cn)
-                        .unwrap_or(empty_val)
-                        .clone(),
+                    Self::acr_tcell_val_cloned(&grid.index.cells, rn, cn)
+                        .unwrap_or(empty_val.clone()),
                 ));
             }
         } else {
@@ -106,9 +94,8 @@ impl Table {
                 for cn in 0..num_cols {
                     result.push((
                         CellKey(rn as u64, cn as u64),
-                        Self::acr_tcell_val(&grid.index.cells, &rn, &cn)
-                            .unwrap_or(empty_val)
-                            .clone(),
+                        Self::acr_tcell_val_cloned(&grid.index.cells, rn, cn)
+                            .unwrap_or(empty_val.clone()),
                     ));
                 }
             }
@@ -130,8 +117,8 @@ impl Table {
         let mut result: Vec<Vec<Val>> = Vec::new();
 
         let span = self.cr_key_to_span(kwargs.key)?;
-        let rows = span.rows(self);
-        let cols = span.cols(self);
+        let (r_start, r_end) = span.rows_start_end(&grid);
+        let (c_start, c_end) = span.cols_start_end(&grid);
 
         // Sub-arrays are columns
         if kwargs.transpose {
@@ -141,30 +128,21 @@ impl Table {
                 } else {
                     vec![]
                 };
-                index_row.extend(rows.clone().map(|r| {
-                    Self::acr_icell(&grid.index.cells, &r)
-                        .map(|cell| &cell.val)
-                        .unwrap_or(empty_val)
-                        .clone()
-                }));
+                for r in r_start..r_end {
+                    index_row.push(Self::acr_icell_val_cloned(&grid.index.cells, r)?);
+                }
                 result.push(index_row);
             }
             if kwargs.header || kwargs.table {
-                for col in cols.clone() {
+                for col in c_start..c_end {
                     let mut col_data: Vec<Val> = Vec::new();
                     if kwargs.header {
-                        col_data.push(
-                            Self::acr_hcell(&grid.header.cells, &col)
-                                .map(|cell| &cell.val)
-                                .unwrap_or(empty_val)
-                                .clone(),
-                        );
+                        col_data.push(Self::acr_hcell_val(&grid.header.cells, col)?.clone());
                     }
                     if kwargs.table {
-                        col_data.extend(rows.clone().map(|r| {
-                            Self::acr_tcell_val(&grid.index.cells, &r, &col)
-                                .unwrap_or(empty_val)
-                                .clone()
+                        col_data.extend((r_start..r_end).map(|r| {
+                            Self::acr_tcell_val_cloned(&grid.index.cells, r, col)
+                                .unwrap_or(empty_val.clone())
                         }));
                     }
                     result.push(col_data);
@@ -178,30 +156,21 @@ impl Table {
                 } else {
                     vec![]
                 };
-                header_row.extend(cols.clone().map(|c| {
-                    Self::acr_hcell(&grid.header.cells, &c)
-                        .map(|cell| &cell.val)
-                        .unwrap_or(empty_val)
-                        .clone()
-                }));
+                for c in c_start..c_end {
+                    header_row.push(Self::acr_hcell_val(&grid.header.cells, c)?.clone());
+                }
                 result.push(header_row);
             }
             if kwargs.index || kwargs.table {
-                for row in rows.clone() {
+                for row in r_start..r_end {
                     let mut row_data: Vec<Val> = Vec::new();
                     if kwargs.index {
-                        row_data.push(
-                            Self::acr_icell(&grid.index.cells, &row)
-                                .map(|cell| &cell.val)
-                                .unwrap_or(empty_val)
-                                .clone(),
-                        );
+                        row_data.push(Self::acr_icell_val_cloned(&grid.index.cells, row)?);
                     }
                     if kwargs.table {
-                        row_data.extend(cols.clone().map(|c| {
-                            Self::acr_tcell_val(&grid.index.cells, &row, &c)
-                                .unwrap_or(empty_val)
-                                .clone()
+                        row_data.extend((c_start..c_end).map(|c| {
+                            Self::acr_tcell_val_cloned(&grid.index.cells, row, c)
+                                .unwrap_or(empty_val.clone())
                         }));
                     }
                     result.push(row_data);

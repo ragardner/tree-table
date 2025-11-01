@@ -9,19 +9,28 @@ use crate::args::SelectionClearArgs;
 use crate::statics::get_true;
 use crate::utils::consecutive_ranges::consecutive_ranges_owned;
 use std::collections::HashSet;
+use std::ops::DerefMut;
 
 impl Table {
     /// Clear all selections.
     pub fn selection_clear(&self, kwargs: Option<SelectionClearArgs>) -> Result<(), String> {
+        let (mut grid, opts, mut sel) = self.cr_mut_borrows();
+        let mut grid = grid.deref_mut();
         let kwargs: SelectionClearArgs = kwargs.unwrap_or(SelectionClearArgs {
             emit: true,
             undo: get_true(),
         });
-        let event_data: EventData = self.cr_new_event(true);
-        Self::acr_deselect_all(&mut self.sel.borrow_mut());
-        self.cr_event_select(&self.cr_new_event(true), kwargs.emit, true)?;
-        if self.opts.borrow().enabled_undo && kwargs.undo {
-            self.grid.borrow_mut().undo_stack.push_back(event_data);
+        let event_data: EventData = self.cr_new_event(true, &opts, &sel);
+        Self::acr_deselect_all(&mut sel);
+        self.cr_event_select(
+            &mut grid,
+            &self.events.borrow(),
+            &self.cr_new_event(true, &opts, &sel),
+            kwargs.emit,
+            true,
+        )?;
+        if opts.enabled_undo && kwargs.undo {
+            grid.undo_stack.push_back(event_data);
         }
         // TODO: set refresh timer
         Ok(())
@@ -29,6 +38,8 @@ impl Table {
 
     /// Create a selection box using a span. Uses displayed indices.
     pub fn select(&self, kwargs: Option<AddSelectionArgs>) -> Result<(), String> {
+        let (mut grid, opts, mut sel) = self.cr_mut_borrows();
+        let mut grid = grid.deref_mut();
         let kwargs: AddSelectionArgs = kwargs.unwrap_or(AddSelectionArgs {
             key: SpanKey::None,
             current: true,
@@ -36,10 +47,10 @@ impl Table {
             undo: true,
         });
         let span = self.cr_key_to_span(kwargs.key)?;
-        let event_data: EventData = self.cr_new_event(true);
+        let event_data: EventData = self.cr_new_event(true, &opts, &sel);
         Self::acr_add_selection_box(
-            &mut self.sel.borrow_mut(),
-            &self.grid.borrow(),
+            &mut sel,
+            &grid,
             span.row,
             span.end_row,
             span.col,
@@ -48,9 +59,15 @@ impl Table {
             SelectionState::Normal,
             kwargs.current,
         );
-        self.cr_event_select(&self.cr_new_event(true), kwargs.emit, true)?;
-        if self.opts.borrow().enabled_undo && kwargs.undo {
-            self.grid.borrow_mut().undo_stack.push_back(event_data);
+        self.cr_event_select(
+            &mut grid,
+            &self.events.borrow(),
+            &self.cr_new_event(true, &opts, &sel),
+            kwargs.emit,
+            true,
+        )?;
+        if opts.enabled_undo && kwargs.undo {
+            grid.undo_stack.push_back(event_data);
         }
         // TODO: set refresh timer
         Ok(())
@@ -58,14 +75,14 @@ impl Table {
 
     /// Select rows using either item ids or row numbers. Uses data indices.
     pub fn select_rows(&self, kwargs: Option<SelectRowsColsArgs>) -> Result<(), String> {
+        let (mut grid, opts, mut sel) = self.cr_mut_borrows();
+        let mut grid = grid.deref_mut();
         let kwargs: SelectRowsColsArgs = kwargs.unwrap_or(SelectRowsColsArgs {
-            items: self
-                .grid
-                .borrow()
+            items: grid
                 .index
                 .cells
                 .iter()
-                .map(|c| c.iid.clone())
+                .map(|c| c.borrow().iid.clone())
                 .collect(),
             replace: false,
             current: true,
@@ -76,36 +93,37 @@ impl Table {
             return Ok(());
         }
 
-        let grid = &mut *self.grid.borrow_mut();
-        let opts = self.opts.borrow();
-
         // Convert iids / numbers to numbers
         let mut row_nums = Vec::new();
         for iid in kwargs.items.into_iter() {
-            row_nums.push(Self::acr_copy_pos(&grid.index.iid_to_row, &iid)?);
+            row_nums.push(Self::acr_pos(&grid.index.iid_to_row, &iid)?);
         }
         row_nums.sort_unstable();
         row_nums.dedup();
 
-        let mut event_data: EventData = self.cr_new_event(false);
+        let mut event_data: EventData = self.cr_new_event(false, &opts, &sel);
 
         // If we're using tree mode then we need to expand rows
         if opts.tree_mode {
             let mut to_open: HashSet<usize> = HashSet::new();
             for rn in row_nums.iter() {
                 // Is not visible and has a parent then add ancestors to to_open
-                if !Self::acr_row_is_vis(&grid.index.cells, rn)?
-                    && !Self::acr_icell(&grid.index.cells, rn)?.par.is_empty()
+                if !Self::acr_row_is_vis(&grid.index.cells, *rn)?
+                    && Self::acr_row_has_par(&grid.index.cells, *rn)?
                 {
-                    let iid = Self::acr_borrow_riid(&grid.index.cells, rn)?;
-                    for anc_res in grid.index.ancestor_rows(iid) {
+                    let iid = Self::acr_borrow_riid(&grid.index.cells, *rn)?;
+                    for anc_res in grid.index.ancestor_rows(&iid) {
                         to_open.insert(anc_res?);
                     }
                 }
             }
             if !to_open.is_empty() {
-                let to_show =
-                    self.cr_tree_open_close(to_open.into_iter(), true, Some(&mut event_data))?;
+                let to_show = self.cr_tree_open_close(
+                    &mut grid,
+                    to_open.into_iter(),
+                    true,
+                    Some(&mut event_data),
+                )?;
                 Self::acr_set_row_vis(
                     &mut grid.index.cells,
                     to_show.into_iter(),
@@ -131,7 +149,6 @@ impl Table {
         );
 
         // Save prior selection boxes for potential undo
-        let mut sel = self.sel.borrow_mut();
         let prior_boxes = sel.selection_boxes.clone();
         let prior_sel = sel.selected.clone();
 
@@ -164,7 +181,13 @@ impl Table {
         event_data.selected = sel.selected.clone();
 
         // Emit an event with the saved cells and current selection boxes
-        self.cr_event_select(&event_data, kwargs.emit, true)?;
+        self.cr_event_select(
+            &mut grid,
+            &self.events.borrow(),
+            &event_data,
+            kwargs.emit,
+            true,
+        )?;
 
         // Add saved cells and prior boxes to undo stack
         if opts.enabled_undo && kwargs.undo {
@@ -179,16 +202,11 @@ impl Table {
 
     /// Select cols using either item ids or col numbers. Uses data indices.
     pub fn select_cols(&self, kwargs: Option<SelectRowsColsArgs>) -> Result<(), String> {
+        let (mut grid, opts, mut sel) = self.cr_mut_borrows();
+        let mut grid = grid.deref_mut();
         // Deserialize kwargs
         let kwargs: SelectRowsColsArgs = kwargs.unwrap_or(SelectRowsColsArgs {
-            items: self
-                .grid
-                .borrow()
-                .header
-                .cells
-                .iter()
-                .map(|c| c.iid.clone())
-                .collect(),
+            items: grid.header.cells.iter().map(|c| c.iid.clone()).collect(),
             replace: false,
             current: true,
             emit: true,
@@ -198,18 +216,15 @@ impl Table {
             return Ok(());
         }
 
-        let grid = &mut *self.grid.borrow_mut();
-        let opts = self.opts.borrow();
-
         // Convert iids / numbers to numbers
         let mut items = Vec::new();
         for iid in kwargs.items.into_iter() {
-            items.push(Self::acr_copy_pos(&grid.header.iid_to_col, &iid)?);
+            items.push(Self::acr_pos(&grid.header.iid_to_col, &iid)?);
         }
         items.sort_unstable();
         items.dedup();
 
-        let mut event_data: EventData = self.cr_new_event(false);
+        let mut event_data: EventData = self.cr_new_event(false, &opts, &sel);
 
         // Unhide any currently hidden items
         Self::acr_set_col_vis(
@@ -227,7 +242,6 @@ impl Table {
         );
 
         // Save prior selection boxes for potential undo
-        let mut sel = self.sel.borrow_mut();
         let prior_boxes = sel.selection_boxes.clone();
         let prior_sel = sel.selected.clone();
 
@@ -260,7 +274,13 @@ impl Table {
         event_data.selected = sel.selected.clone();
 
         // Emit an event with the saved cells and current selection boxes
-        self.cr_event_select(&event_data, kwargs.emit, true)?;
+        self.cr_event_select(
+            &mut grid,
+            &self.events.borrow(),
+            &event_data,
+            kwargs.emit,
+            true,
+        )?;
 
         // Add saved cells and prior boxes to undo stack
         if opts.enabled_undo && kwargs.undo {

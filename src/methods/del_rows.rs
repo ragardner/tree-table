@@ -1,19 +1,22 @@
 use crate::EventData;
+use crate::Options;
 use crate::Table;
+use crate::TableGrid;
 use std::collections::HashSet;
 
 impl Table {
     pub(crate) fn cr_del_rows(
         &self,
+        grid: &mut TableGrid,
+        opts: &Options,
         mut positions: Vec<usize>,
         event_data: &mut EventData,
         validate: bool,
     ) -> Result<(), String> {
-        let grid = &mut *self.grid.borrow_mut();
         // TODO: close dropdowns and editors?
 
         // Deal with tree, copies affected index cells
-        if self.opts.borrow().tree_mode {
+        if opts.tree_mode {
             if validate {
                 // Descendants of rows are also deleted
                 // In order not to make mistakes any descendant rows are removed first
@@ -21,7 +24,7 @@ impl Table {
                 positions = self.cr_tree_remove_and_add_descendants(
                     positions
                         .iter()
-                        .filter_map(|rn| grid.index.iid(rn).cloned())
+                        .filter_map(|rn| Self::acr_copy_riid(&grid.index.cells, *rn).ok())
                         .collect::<HashSet<String>>(),
                 )?;
             }

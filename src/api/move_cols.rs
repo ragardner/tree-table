@@ -5,10 +5,12 @@ use crate::args::MoveArgs;
 use crate::str_err;
 use crate::utils::consecutive_ranges::consecutive_ranges_borrowed;
 use std::collections::{HashMap, HashSet};
+use std::ops::DerefMut;
 
 impl Table {
     pub fn move_cols(&self, kwargs: Option<MoveArgs>) -> Result<(), String> {
-        let grid = &mut *self.grid.borrow_mut();
+        let (mut grid, opts, mut sel) = self.cr_mut_borrows();
+        let mut grid = grid.deref_mut();
         let num_cols = Self::acr_total_cols(&grid.header.cells) as u64;
         if num_cols == 0 {
             return Ok(());
@@ -56,24 +58,17 @@ impl Table {
                 new_to_old.insert(size_new_pos, size_old_pos);
             }
         }
-        let mut sel = self.sel.borrow_mut();
-        let mut event_data = self.cr_new_event(true);
+
+        let mut event_data = self.cr_new_event(true, &opts, &sel);
         event_data.moved_cols = old_to_new;
-        self.cr_move_cols(&mut event_data, &new_to_old)?;
+        self.cr_move_cols(&mut grid, &mut event_data, &new_to_old)?;
 
         if kwargs.select {
             Self::acr_deselect_all(&mut sel);
             let mut sorted_moved: Vec<usize> = event_data
                 .moved_cols
                 .values()
-                .filter_map(|n| {
-                    let data_col = *n;
-                    if Self::acr_col_is_vis_opt(&grid.header.cells, &data_col).is_some() {
-                        Self::acr_data_to_disp_col_opt(&grid.disp_cols, data_col)
-                    } else {
-                        None
-                    }
-                })
+                .filter_map(|n| Self::acr_data_to_disp_col_opt(&grid.disp_cols, *n))
                 .collect();
             if !sorted_moved.is_empty() {
                 sorted_moved.sort_unstable();
@@ -92,8 +87,14 @@ impl Table {
                 }
             }
         }
-        self.cr_event_modified(&event_data, kwargs.emit, true)?;
-        if self.opts.borrow().enabled_undo && kwargs.undo {
+        self.cr_event_modified(
+            &mut grid,
+            &self.events.borrow(),
+            &event_data,
+            kwargs.emit,
+            true,
+        )?;
+        if opts.enabled_undo && kwargs.undo {
             grid.undo_stack.push_back(event_data);
         }
         Ok(())

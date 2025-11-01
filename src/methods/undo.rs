@@ -1,7 +1,11 @@
 use crate::ChangeHeaderCell;
 use crate::ChangeIndexCell;
 use crate::EventData;
+use crate::Events;
+use crate::Options;
+use crate::Selection;
 use crate::Table;
+use crate::TableGrid;
 use crate::ValidationMessage;
 use crate::args::UndoRedoArgs;
 use crate::str_err;
@@ -16,8 +20,9 @@ pub enum UndoType {
 
 impl Table {
     pub(crate) fn cr_undo(&self, kwargs: Option<UndoRedoArgs>) -> Result<(), String> {
+        let (mut grid, opts, sel) = self.cr_mut_borrows();
+        let events = self.events.borrow();
         let kwargs = kwargs.unwrap_or(UndoRedoArgs { emit: true });
-        let mut grid = self.grid.borrow_mut();
         if grid.undo_stack.is_empty() {
             return Ok(());
         }
@@ -25,15 +30,17 @@ impl Table {
             .undo_stack
             .pop_back()
             .ok_or(str_err!("Undo stack unexpectedly empty"))?;
-        let event_data = self.cr_undo_and_invert_event(change, UndoType::Undo)?;
-        self.cr_event_modified(&event_data, kwargs.emit, false)?;
+        let event_data =
+            self.cr_undo_and_invert_event(&mut grid, &opts, &sel, &events, change, UndoType::Undo)?;
+        self.cr_event_modified(&mut grid, &events, &event_data, kwargs.emit, false)?;
         grid.redo_stack.push_back(event_data);
         Ok(())
     }
 
     pub(crate) fn cr_redo(&self, kwargs: Option<UndoRedoArgs>) -> Result<(), String> {
+        let (mut grid, opts, sel) = self.cr_mut_borrows();
+        let events = self.events.borrow();
         let kwargs = kwargs.unwrap_or(UndoRedoArgs { emit: true });
-        let mut grid = self.grid.borrow_mut();
         if grid.redo_stack.is_empty() {
             return Ok(());
         }
@@ -41,21 +48,22 @@ impl Table {
             .redo_stack
             .pop_back()
             .ok_or(str_err!("Redo stack unexpectedly empty"))?;
-        let event_data = self.cr_undo_and_invert_event(change, UndoType::Redo)?;
-        self.cr_event_modified(&event_data, kwargs.emit, false)?;
+        let event_data =
+            self.cr_undo_and_invert_event(&mut grid, &opts, &sel, &events, change, UndoType::Redo)?;
+        self.cr_event_modified(&mut grid, &events, &event_data, kwargs.emit, false)?;
         grid.undo_stack.push_back(event_data);
         Ok(())
     }
 
     fn cr_edit_cells_using_change(
         &self,
+        grid: &mut TableGrid,
+        events: &Events,
+        opts: &Options,
         change: &mut EventData,
         event_data: &mut EventData,
     ) -> Result<Option<ValidationMessage>, String> {
-        let grid = &mut *self.grid.borrow_mut();
-        if self.events.borrow_mut().bound_validation_fn.is_some()
-            && self.opts.borrow_mut().validation_includes_undo
-        {
+        if events.bound_validation_fn.is_some() && opts.validation_includes_undo {
             let mut table_data: HashMap<u64, Vec<ChangeIndexCell>> = HashMap::new();
             let mut index_data: HashMap<u64, Vec<ChangeIndexCell>> = HashMap::new();
             let mut header_data: HashMap<u64, Vec<ChangeHeaderCell>> = HashMap::new();
@@ -246,36 +254,65 @@ impl Table {
 
     pub(crate) fn cr_undo_and_invert_event(
         &self,
+        mut grid: &mut TableGrid,
+        opts: &Options,
+        sel: &Selection,
+        events: &Events,
         mut to_undo: EventData,
         undo_type: UndoType,
     ) -> Result<EventData, String> {
-        let mut event_data = self.cr_new_event(false);
+        let mut event_data = self.cr_new_event(false, &opts, &sel);
         event_data.selection_boxes = to_undo.selection_boxes.clone();
         event_data.selected = to_undo.selected.clone();
 
         if undo_type == UndoType::Undo {
-            let to_validate = self.cr_edit_cells_using_change(&mut to_undo, &mut event_data)?;
-            self.cr_bulk_edit_validation(to_validate, &mut event_data)?;
+            let to_validate = self.cr_edit_cells_using_change(
+                &mut grid,
+                &events,
+                &opts,
+                &mut to_undo,
+                &mut event_data,
+            )?;
+            self.cr_bulk_edit_validation(
+                &mut grid,
+                &self.events.borrow(),
+                to_validate,
+                &mut event_data,
+            )?;
         }
 
         if !to_undo.moved_cols.is_empty() {
             let new_to_old = std::mem::take(&mut to_undo.moved_cols);
             event_data.moved_cols = new_to_old.iter().map(|(k, v)| (*v, *k)).collect();
-            self.cr_move_cols(&mut event_data, &new_to_old)?;
+            self.cr_move_cols(&mut grid, &mut event_data, &new_to_old)?;
         }
 
         if !to_undo.moved_rows.is_empty() {
             let new_to_old = std::mem::take(&mut to_undo.moved_rows);
             event_data.moved_rows = new_to_old.iter().map(|(k, v)| (*v, *k)).collect();
-            self.cr_move_rows(&mut event_data, new_to_old, Some(&mut to_undo), None, true)?;
+            self.cr_move_rows(
+                &mut grid,
+                &opts,
+                &mut event_data,
+                new_to_old,
+                Some(&mut to_undo),
+                None,
+                true,
+            )?;
         }
 
         if !to_undo.added_cols.is_empty() {
-            self.cr_del_cols(std::mem::take(&mut to_undo.added_cols), &mut event_data)?;
+            self.cr_del_cols(
+                &mut grid,
+                std::mem::take(&mut to_undo.added_cols),
+                &mut event_data,
+            )?;
         }
 
         if !to_undo.added_rows.is_empty() {
             self.cr_del_rows(
+                &mut grid,
+                &opts,
                 std::mem::take(&mut to_undo.added_rows),
                 &mut event_data,
                 false,
@@ -285,6 +322,8 @@ impl Table {
         if !to_undo.removed_header.is_empty() {
             let sorted_seq = to_undo.removed_header.iter().map(|t| t.0.clone()).collect();
             self.cr_add_cols(
+                &mut grid,
+                &sel,
                 std::mem::take(&mut to_undo.removed_table_cells),
                 std::mem::take(&mut to_undo.removed_header),
                 sorted_seq,
@@ -297,6 +336,8 @@ impl Table {
         if !to_undo.removed_index.is_empty() {
             let sorted_seq = to_undo.removed_index.iter().map(|t| t.0.clone()).collect();
             self.cr_add_rows(
+                &mut grid,
+                &sel,
                 std::mem::take(&mut to_undo.removed_index),
                 sorted_seq,
                 &mut event_data,
@@ -307,8 +348,19 @@ impl Table {
         }
 
         if undo_type == UndoType::Redo {
-            let to_validate = self.cr_edit_cells_using_change(&mut to_undo, &mut event_data)?;
-            self.cr_bulk_edit_validation(to_validate, &mut event_data)?;
+            let to_validate = self.cr_edit_cells_using_change(
+                &mut grid,
+                &events,
+                &opts,
+                &mut to_undo,
+                &mut event_data,
+            )?;
+            self.cr_bulk_edit_validation(
+                &mut grid,
+                &self.events.borrow(),
+                to_validate,
+                &mut event_data,
+            )?;
         }
 
         // TODO: Handle selection boxes

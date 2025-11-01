@@ -11,7 +11,9 @@ use crate::Table;
 use crate::TableCell;
 use crate::Val;
 use crate::str_err;
+use std::cell::RefCell;
 use std::collections::HashMap;
+use std::rc::Rc;
 
 // Enum for changes to IndexCell fields. Each variant stores the *old* value,
 // since the new value is already in the Table. Inversion will fetch current (new) as old for the inverse.
@@ -52,125 +54,137 @@ pub enum ChangeCellProps {
 impl ChangeIndexCell {
     pub fn invert(
         &self,
-        mut cells: &mut Vec<IndexCell>,
+        cells: &Vec<Rc<RefCell<IndexCell>>>,
         iid_to_row: &mut HashMap<String, usize>,
         row: usize,
     ) -> Result<ChangeIndexCell, String> {
         match self {
-            ChangeIndexCell::SetVal(old_val) => {
-                if let Ok(cell) = Table::acr_icell_mut(&mut cells, &row) {
-                    let current_val = std::mem::replace(&mut cell.val, old_val.clone());
-                    Ok(ChangeIndexCell::SetVal(current_val))
+            ChangeIndexCell::SetPar(old_par_iid) => {
+                let mut cell = Table::acr_icell_mut(cells, row)?;
+                // Get current par iid
+                let current_par_iid = cell
+                    .par
+                    .as_ref()
+                    .and_then(|w| w.upgrade())
+                    .map(|rc| rc.borrow().iid.clone())
+                    .unwrap_or_default();
+
+                // Set to old par (lookup Rc by iid and set Weak)
+                cell.par = if old_par_iid.is_empty() {
+                    None
                 } else {
-                    Err(str_err!(format!("Row not found for inversion: {}", row)))
-                }
+                    let par_row = *iid_to_row
+                        .get(old_par_iid)
+                        .ok_or(str_err!(format!("Old par iid not found: {}", old_par_iid)))?;
+                    let par_rc = cells
+                        .get(par_row)
+                        .ok_or(str_err!(format!("Old par row not found: {}", par_row)))?
+                        .clone();
+                    Some(Rc::downgrade(&par_rc))
+                };
+
+                Ok(ChangeIndexCell::SetPar(current_par_iid))
+            }
+            ChangeIndexCell::SetChn(old_chn_iids) => {
+                let mut cell = Table::acr_icell_mut(cells, row)?;
+                // Get current chn iids
+                let current_chn_iids: Vec<String> =
+                    cell.chn.iter().map(|rc| rc.borrow().iid.clone()).collect();
+
+                // Set to old chn (lookup Rc by each iid)
+                cell.chn = old_chn_iids
+                    .iter()
+                    .map(|iid| {
+                        if iid.is_empty() {
+                            return Err(str_err!(format!("Empty iid in old chn")));
+                        }
+                        let child_row = *iid_to_row
+                            .get(iid)
+                            .ok_or(str_err!(format!("Old chn iid not found: {}", iid)))?;
+                        let child_rc = cells
+                            .get(child_row)
+                            .ok_or(str_err!(format!("Old chn row not found: {}", child_row)))?
+                            .clone();
+                        Ok(child_rc)
+                    })
+                    .collect::<Result<Vec<_>, _>>()?;
+
+                Ok(ChangeIndexCell::SetChn(current_chn_iids))
+            }
+            ChangeIndexCell::SetVal(old_val) => {
+                let mut cell = Table::acr_icell_mut(cells, row)?;
+                let current_val = std::mem::replace(&mut cell.val, old_val.clone());
+                Ok(ChangeIndexCell::SetVal(current_val))
             }
             ChangeIndexCell::SetDim(old_dim) => {
-                if let Ok(cell) = Table::acr_icell_mut(&mut cells, &row) {
-                    let current_dim = std::mem::replace(&mut cell.dim, *old_dim);
-                    Ok(ChangeIndexCell::SetDim(current_dim))
-                } else {
-                    Err(str_err!(format!("Row not found for inversion: {}", row)))
-                }
+                let mut cell = Table::acr_icell_mut(cells, row)?;
+                let current_dim = std::mem::replace(&mut cell.dim, *old_dim);
+                Ok(ChangeIndexCell::SetDim(current_dim))
             }
             ChangeIndexCell::SetVis(old_vis) => {
-                if let Ok(cell) = Table::acr_icell_mut(&mut cells, &row) {
-                    let current_vis = std::mem::replace(&mut cell.vis, *old_vis);
-                    Ok(ChangeIndexCell::SetVis(current_vis))
-                } else {
-                    Err(str_err!(format!("Row not found for inversion: {}", row)))
-                }
+                let mut cell = Table::acr_icell_mut(cells, row)?;
+                let current_vis = std::mem::replace(&mut cell.vis, *old_vis);
+                Ok(ChangeIndexCell::SetVis(current_vis))
             }
             ChangeIndexCell::SetIid(old_iid) => {
-                if let Ok(cell) = Table::acr_icell_mut(&mut cells, &row) {
-                    let current_iid = std::mem::replace(&mut cell.iid, old_iid.clone());
-                    let removed_pos = iid_to_row
-                        .remove(&current_iid)
-                        .ok_or(str_err!(format!("iid not found: {}", current_iid)))?;
-                    iid_to_row.insert(old_iid.clone(), removed_pos);
-                    Ok(ChangeIndexCell::SetIid(current_iid))
-                } else {
-                    Err(str_err!(format!("Row not found for inversion: {}", row)))
-                }
-            }
-            ChangeIndexCell::SetPar(old_par) => {
-                if let Ok(cell) = Table::acr_icell_mut(&mut cells, &row) {
-                    let current_par = std::mem::replace(&mut cell.par, old_par.clone());
-                    Ok(ChangeIndexCell::SetPar(current_par))
-                } else {
-                    Err(str_err!(format!("Row not found for inversion: {}", row)))
-                }
-            }
-            ChangeIndexCell::SetChn(old_chn) => {
-                if let Ok(cell) = Table::acr_icell_mut(&mut cells, &row) {
-                    let current_chn = std::mem::replace(&mut cell.chn, old_chn.clone());
-                    Ok(ChangeIndexCell::SetChn(current_chn))
-                } else {
-                    Err(str_err!(format!("Row not found for inversion: {}", row)))
-                }
+                let mut cell = Table::acr_icell_mut(cells, row)?;
+                let current_iid = std::mem::replace(&mut cell.iid, old_iid.clone());
+                let removed_pos = iid_to_row
+                    .remove(&current_iid)
+                    .ok_or(str_err!(format!("iid not found: {}", current_iid)))?;
+                iid_to_row.insert(old_iid.clone(), removed_pos);
+                Ok(ChangeIndexCell::SetIid(current_iid))
             }
             ChangeIndexCell::SetOpen(old_open) => {
-                if let Ok(cell) = Table::acr_icell_mut(&mut cells, &row) {
-                    let current_open = std::mem::replace(&mut cell.open, *old_open);
-                    Ok(ChangeIndexCell::SetOpen(current_open))
-                } else {
-                    Err(str_err!(format!("Row not found for inversion: {}", row)))
-                }
+                let mut cell = Table::acr_icell_mut(cells, row)?;
+                let current_open = std::mem::replace(&mut cell.open, *old_open);
+                Ok(ChangeIndexCell::SetOpen(current_open))
             }
             ChangeIndexCell::SetProps(change) => {
-                if let Ok(cell) = Table::acr_icell_mut(&mut cells, &row) {
-                    if let Some(props) = cell.props.as_mut() {
-                        let inverted = change.invert(props);
-                        Ok(ChangeIndexCell::SetProps(inverted))
-                    } else {
-                        Err(str_err!(format!("No props for inversion in row: {}", row)))
-                    }
+                let mut cell = Table::acr_icell_mut(cells, row)?;
+                if let Some(props) = cell.props.as_mut() {
+                    let inverted = change.invert(props);
+                    Ok(ChangeIndexCell::SetProps(inverted))
                 } else {
-                    Err(str_err!(format!("Row not found for inversion: {}", row)))
+                    Err(str_err!(format!("No props for inversion in row: {}", row)))
                 }
             }
             ChangeIndexCell::SetTableCellVal { col, val: old_val } => {
-                if let Ok(cell) = Table::acr_icell_mut(&mut cells, &row) {
-                    if let Some(table_cell) = cell.vals.get_mut(col) {
-                        // Assuming vals: HashMap<usize, TableCell>
-                        let current_val = std::mem::replace(&mut table_cell.val, old_val.clone());
-                        Ok(ChangeIndexCell::SetTableCellVal {
-                            col: *col,
-                            val: current_val,
-                        })
-                    } else {
-                        Err(str_err!(format!(
-                            "Table cell not found for col {} in row: {}",
-                            col, row
-                        )))
-                    }
+                let mut cell = Table::acr_icell_mut(cells, row)?;
+                if let Some(table_cell) = cell.vals.get_mut(col) {
+                    // Assuming vals: MaxMap<TableCell> with get_mut(&usize) -> Option<&mut TableCell>
+                    let current_val = std::mem::replace(&mut table_cell.val, old_val.clone());
+                    Ok(ChangeIndexCell::SetTableCellVal {
+                        col: *col,
+                        val: current_val,
+                    })
                 } else {
-                    Err(str_err!(format!("Row not found for inversion: {}", row)))
+                    Err(str_err!(format!(
+                        "Table cell not found for col {} in row: {}",
+                        col, row
+                    )))
                 }
             }
             ChangeIndexCell::SetTableCellProps { col, change } => {
-                if let Ok(cell) = Table::acr_icell_mut(&mut cells, &row) {
-                    if let Some(table_cell) = cell.vals.get_mut(col) {
-                        if let Some(props) = table_cell.props.as_mut() {
-                            let inverted = change.invert(props);
-                            Ok(ChangeIndexCell::SetTableCellProps {
-                                col: *col,
-                                change: inverted,
-                            })
-                        } else {
-                            Err(str_err!(format!(
-                                "No props for table cell col {} in row: {}",
-                                col, row
-                            )))
-                        }
+                let mut cell = Table::acr_icell_mut(cells, row)?;
+                if let Some(table_cell) = cell.vals.get_mut(col) {
+                    if let Some(props) = table_cell.props.as_mut() {
+                        let inverted = change.invert(props);
+                        Ok(ChangeIndexCell::SetTableCellProps {
+                            col: *col,
+                            change: inverted,
+                        })
                     } else {
                         Err(str_err!(format!(
-                            "Table cell not found for col {} in row: {}",
+                            "No props for table cell col {} in row: {}",
                             col, row
                         )))
                     }
                 } else {
-                    Err(str_err!(format!("Row not found for inversion: {}", row)))
+                    Err(str_err!(format!(
+                        "Table cell not found for col {} in row: {}",
+                        col, row
+                    )))
                 }
             }
         }
@@ -250,11 +264,64 @@ impl IndexCell {
     pub fn record_set_vis(&mut self, new_vis: bool) -> ChangeIndexCell {
         ChangeIndexCell::SetVis(std::mem::replace(&mut self.vis, new_vis))
     }
-    pub fn record_set_par(&mut self, new_par: String) -> ChangeIndexCell {
-        ChangeIndexCell::SetPar(std::mem::replace(&mut self.par, new_par))
+    pub fn record_set_par(
+        &mut self,
+        new_par: String,
+        iid_to_row: &HashMap<String, usize>,
+        cells: &Vec<Rc<RefCell<IndexCell>>>,
+    ) -> Result<ChangeIndexCell, String> {
+        let current_par_iid = self
+            .par
+            .as_ref()
+            .and_then(|w| w.upgrade())
+            .map(|rc| rc.borrow().iid.clone())
+            .unwrap_or_default();
+
+        self.par = if new_par.is_empty() {
+            None
+        } else {
+            let par_row = *iid_to_row
+                .get(&new_par)
+                .ok_or(str_err!(format!("New par iid not found: {}", new_par)))?;
+            let par_rc = cells
+                .get(par_row)
+                .ok_or(str_err!(format!("New par row not found: {}", par_row)))?
+                .clone();
+            Some(Rc::downgrade(&par_rc))
+        };
+
+        Ok(ChangeIndexCell::SetPar(current_par_iid))
     }
-    pub fn record_set_chn(&mut self, new_chn: Vec<String>) -> ChangeIndexCell {
-        ChangeIndexCell::SetChn(std::mem::replace(&mut self.chn, new_chn))
+    pub fn record_set_chn(
+        &mut self,
+        new_chn: Vec<String>,
+        iid_to_row: &HashMap<String, usize>,
+        cells: &Vec<Rc<RefCell<IndexCell>>>,
+        collect_current: bool,
+    ) -> Result<Option<ChangeIndexCell>, String> {
+        if collect_current {
+            let current_chn_iids: Vec<String> =
+                self.chn.iter().map(|rc| rc.borrow().iid.clone()).collect();
+            self.chn = new_chn
+                .iter()
+                .map(|iid| {
+                    if iid.is_empty() {
+                        return Err(format!("Empty iid in new chn"));
+                    }
+                    let child_row = *iid_to_row
+                        .get(iid)
+                        .ok_or_else(|| format!("New chn iid not found: {}", iid))?;
+                    let child_rc = cells
+                        .get(child_row)
+                        .ok_or_else(|| format!("New chn row not found: {}", child_row))?
+                        .clone();
+                    Ok(child_rc)
+                })
+                .collect::<Result<Vec<_>, _>>()?;
+            return Ok(Some(ChangeIndexCell::SetChn(current_chn_iids)));
+        } else {
+            return Ok(None);
+        };
     }
     pub fn record_set_open(&mut self, new_open: bool) -> ChangeIndexCell {
         ChangeIndexCell::SetOpen(std::mem::replace(&mut self.open, new_open))

@@ -46,7 +46,6 @@ pub struct TreeExtendRow {
     #[cfg_attr(feature = "serde", serde(default = "get_true"))]
     pub open: bool,
     pub dim: Option<u64>,
-    pub chn: Option<Vec<String>>,
 }
 
 /// For tree_extend functions.

@@ -9,9 +9,10 @@ pub use new::Table;
 pub use types::{
     Border, BoundedDeque, CellBorders, CellKey, CellProps, ChangeCellProps, ChangeHeaderCell,
     ChangeIndexCell, Checkbox, Color3, Coords, CyclingCounter, DataFormat, Dropdown, EventData,
-    HeaderCell, Highlight, IndexCell, MaxMap, Note, Options, PartialOptions, ProgressBar, Selected,
-    SelectionBox, SelectionKind, SelectionState, Span, SpanKey, TableCell, TreeMove, Val, ValType,
-    ValidationMessage, statics, string_to_data_format, try_hex_to_color3,
+    GetCellResultExt, GetResultExt, HeaderCell, Highlight, IndexCell, MaxMap, Note, Options,
+    PartialOptions, ProgressBar, Selected, SelectionBox, SelectionKind, SelectionState, Span,
+    SpanKey, TableCell, TreeMove, UpgradeResultExt, Val, ValType, ValidationMessage, statics,
+    string_to_data_format, try_hex_to_color3,
 };
 
 pub(crate) use types::Header;

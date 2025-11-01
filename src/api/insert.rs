@@ -11,7 +11,10 @@ use crate::args::{InsertArgs, InsertRow};
 use crate::statics::default_inherit;
 use crate::str_err;
 use crate::utils::consecutive_ranges::consecutive_ranges_owned;
+use std::cell::RefCell;
 use std::collections::HashSet;
+use std::ops::DerefMut;
+use std::rc::Rc;
 
 impl Default for InsertArgs {
     fn default() -> Self {
@@ -28,7 +31,9 @@ impl Default for InsertArgs {
 }
 
 impl Table {
-    /// Insert a single new row into the table.
+    /// Insert multiple new rows into the table.
+    /// If using tree mode then they can only be inserted under a single
+    /// existing parent.
     pub fn insert(&self, kwargs: Option<InsertArgs>) -> Result<(), String> {
         let kwargs = kwargs.unwrap_or_default();
         let rows = kwargs.rows.unwrap_or(vec![InsertRow {
@@ -39,13 +44,16 @@ impl Table {
             dim: None,
         }]);
 
-        let grid = &mut *self.grid.borrow_mut();
-        let opts = self.opts.borrow();
+        if rows.is_empty() {
+            return Ok(());
+        }
+        let (mut grid, opts, mut sel) = self.cr_mut_borrows();
+        let mut grid = grid.deref_mut();
         let empty_val: Val = opts.empty_val.clone();
         let empty_index_val: Val = opts.empty_val.clone();
         let tree_mode = opts.tree_mode;
 
-        let mut event_data: EventData = self.cr_new_event(true);
+        let mut event_data: EventData = self.cr_new_event(true, &opts, &sel);
         let mut new_iids: HashSet<String> = HashSet::new();
         let dim = Self::acr_get_default_row_dim(&opts);
         let ncols = Self::acr_total_cols(&grid.header.cells);
@@ -57,10 +65,11 @@ impl Table {
             None => None,
         };
         // Determine data insert row number, Also checks if par exists
-        let start_rn = self.cr_tree_get_iid_insert_row(pos, &par)?;
+        let start_rn = self.cr_tree_get_iid_insert_row(&grid, pos, &par)?;
 
         // Determine which row to inherit cell props from
-        let opt_inherit_row = self.cr_get_inherit_row(start_rn, kwargs.inherit.as_str())?;
+        let opt_inherit_row =
+            self.cr_get_inherit_row(&grid.index.iid_to_row, start_rn, kwargs.inherit.as_str())?;
         let do_inherit = opt_inherit_row.is_some();
         let inherit_row = opt_inherit_row.unwrap_or(0);
 
@@ -71,28 +80,52 @@ impl Table {
                 let pos = chn
                     .iter()
                     .enumerate()
-                    .find(|(_, cid)| {
+                    .find(|(_, crc)| {
                         grid.index
                             .iid_to_row
-                            .get(*cid)
+                            .get(&crc.borrow().iid)
                             .map_or(false, |r| r >= &start_rn)
                     })
                     .map(|(i, _)| i)
                     .unwrap_or(chn.len());
                 Some(pos)
-            // Parent has NO children, extend with new
+            // Parent has NO children
             } else {
-                Some(Self::acr_tree_iid_chn(&grid.index.cells, &grid.index.iid_to_row, &par)?.len())
+                Some(0)
             }
         } else {
             None
         };
+        // variable set up
         let splice_chn: bool = chn_splice_pos.is_some();
-        let mut chn_to_splice: Vec<String> = Vec::with_capacity(rows.len());
-        let sorted_seq: Vec<usize> = (start_rn..start_rn + (rows.len())).into_iter().collect();
+        let mut chn_to_splice: Vec<Rc<RefCell<IndexCell>>> = Vec::with_capacity(rows.len());
+        let sorted_seq: Vec<usize> = (start_rn..start_rn + rows.len()).collect();
+
         // push existing hashmap row numbers
         grid.push_rows(&sorted_seq);
         grid.index.add_rows_just_push_hm(&sorted_seq);
+
+        // get parent and determine new rows visibility
+        let parent_rc_opt = if !par.is_empty() {
+            if let Some(&row) = grid.index.iid_to_row.get(&par) {
+                Some(grid.index.cells[row].clone())
+            } else {
+                return Err(str_err!("Parent not found"));
+            }
+        } else {
+            None
+        };
+        let par_weak = parent_rc_opt.as_ref().map(Rc::downgrade);
+        let vis = if tree_mode {
+            if let Some(parent_rc) = &parent_rc_opt {
+                let borrow = parent_rc.borrow();
+                borrow.vis && borrow.open
+            } else {
+                true
+            }
+        } else {
+            true
+        };
 
         // Assess and create rows, index
         for (i, row_spec) in rows.into_iter().enumerate() {
@@ -102,7 +135,7 @@ impl Table {
             // If iid is None generate a new one
             let iid = if let Some(iid) = row_spec.iid {
                 // Check if the provided iid already exists
-                if grid.index.row(&iid).is_some() {
+                if grid.index.iid_to_row.contains_key(&iid) {
                     return Err(str_err!(format!("iid already exists: {}", iid)));
                 }
                 iid
@@ -112,25 +145,6 @@ impl Table {
             // Check for repetitions of iids
             if !new_iids.insert(iid.clone()) {
                 return Err(str_err!(format!("Repeated iid in rows: {}", iid)));
-            };
-
-            // Determine whether new rows will be visible
-            let vis = if tree_mode {
-                if par.is_empty() {
-                    true
-                } else {
-                    if let Some(par_rn) = grid.index.iid_to_row.get(&par) {
-                        Self::acr_tree_iid_displayed(
-                            &grid.index.cells,
-                            &grid.index.iid_to_row,
-                            &par,
-                        )? && Self::acr_tree_row_is_open(&grid.index.cells, par_rn)?
-                    } else {
-                        false
-                    }
-                }
-            } else {
-                true
             };
 
             // Index
@@ -147,9 +161,6 @@ impl Table {
             } else {
                 None
             };
-            if splice_chn {
-                chn_to_splice.push(iid.clone());
-            }
 
             // Table
             let mut cols_map: MaxMap<TableCell> = MaxMap::new();
@@ -158,9 +169,10 @@ impl Table {
             // Which can be identified by the cols not in cols_map
             if let Some(col_vals) = row_spec.vals {
                 for (key, val) in col_vals.into_iter() {
-                    let cn = Self::acr_resolve_col(&grid.header, &key)?;
+                    let cn = Self::acr_pos(&grid.header.iid_to_col, &key)?;
                     let props = if do_inherit {
-                        Self::acr_tcell_props(&grid.index.cells, &inherit_row, &cn).clone()
+                        Self::acr_tcell_props(&grid.index.cells, inherit_row, cn)
+                            .map(|rp| (*rp).clone())
                     } else {
                         None
                     };
@@ -173,7 +185,7 @@ impl Table {
                 for cn in 0..ncols {
                     if !cols_map.contains_key(&cn) {
                         if let Some(props) =
-                            Self::acr_tcell_props(&grid.index.cells, &inherit_row, &cn)
+                            Self::acr_tcell_props(&grid.index.cells, inherit_row, cn)
                         {
                             cols_map.set_cell(
                                 cn,
@@ -187,29 +199,28 @@ impl Table {
                 }
             }
 
-            grid.index.add_row(
-                rn,
-                IndexCell {
-                    val,
-                    vals: cols_map,
-                    dim: if let Some(rs_dim) = row_spec.dim {
-                        rs_dim
-                    } else {
-                        dim
-                    },
-                    vis,
-                    iid,
-                    par: par.clone(),
-                    chn: Vec::new(),
-                    open: row_spec.open,
-                    props: index_props,
-                },
-            );
+            let new_icell = Rc::new(RefCell::new(IndexCell {
+                iid: iid.clone(),
+                val,
+                vals: cols_map,
+                dim: row_spec.dim.unwrap_or(dim),
+                vis,
+                par: par_weak.clone(),
+                chn: Vec::new(),
+                open: row_spec.open,
+                props: index_props,
+            }));
+
+            if splice_chn {
+                chn_to_splice.push(new_icell.clone());
+            }
+
+            grid.index.add_row(rn, iid, new_icell);
         }
 
         // We don't need to record a tree change because undo -> del_rows() removes the spliced chn
         if let Some(chn_splice_pos) = chn_splice_pos {
-            let chn =
+            let mut chn =
                 Self::acr_tree_iid_chn_mut(&mut grid.index.cells, &grid.index.iid_to_row, &par)?;
             chn.splice(chn_splice_pos..chn_splice_pos, chn_to_splice.into_iter());
         }
@@ -221,7 +232,6 @@ impl Table {
             &grid.index.cells,
         );
         // Update event_data
-        let mut sel = self.sel.borrow_mut();
         event_data.added_rows = sorted_seq;
         event_data.selection_boxes = sel.selection_boxes.clone();
         event_data.selected = sel.selected.clone();
@@ -229,15 +239,12 @@ impl Table {
         // Select the added rows
         if kwargs.select {
             Self::acr_deselect_all(&mut sel);
-            for (start, end) in
-                consecutive_ranges_owned(event_data.added_rows.iter().filter_map(|n| {
-                    if Self::acr_row_is_vis_opt(&grid.index.cells, n).is_some() {
-                        Self::acr_data_to_disp_opt(&grid.disp_rows, *n)
-                    } else {
-                        None
-                    }
-                }))
-            {
+            for (start, end) in consecutive_ranges_owned(
+                event_data
+                    .added_rows
+                    .iter()
+                    .filter_map(|n| Self::acr_data_to_disp_opt(&grid.disp_rows, *n)),
+            ) {
                 Self::acr_add_selection_box(
                     &mut sel,
                     &grid,
@@ -253,7 +260,13 @@ impl Table {
         }
 
         // Sheet has been modified
-        self.cr_event_modified(&event_data, kwargs.emit, true)?;
+        self.cr_event_modified(
+            &mut grid,
+            &self.events.borrow(),
+            &event_data,
+            kwargs.emit,
+            true,
+        )?;
 
         // Add to undo stack if undo is enabled and undo is true in kwargs
         if opts.enabled_undo && kwargs.undo {
