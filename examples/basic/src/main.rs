@@ -50,12 +50,12 @@ fn main() {
         30,
         Some(PartialOptions {
             tree_mode: Some(true),
-            enabled_undo: Some(true),
+            // enabled_undo: Some(true),
             ..Default::default()
         }),
     );
 
-    let rows = generate_tree_rows(10, 1000000); // For depth 10, root_children 100000 to get approximately 1,000,001 rows
+    let rows = generate_tree_rows(1, 1000000);
     let args = TreeExtendArgs {
         rows,
         ..Default::default()

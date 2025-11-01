@@ -164,19 +164,15 @@ pub(crate) fn get_full_move_map(
 /// Handles usize::MAX as a special case to avoid overflow.
 #[inline(always)]
 pub fn n_to_base62(n: usize) -> String {
-    if n != usize::MAX {
-        let base: usize = 62;
-        let mut s = String::with_capacity(11);
-        let mut m = n + 1;
-        while m > 0 {
-            let rem = (m - 1) % base;
-            s.push(ALPHABET[rem as usize]);
-            m = (m - 1) / base;
-        }
-        s.chars().rev().collect::<String>()
-    } else {
-        "U7pQjAFJQhP".to_string() // TODO: log and test this
+    let base: usize = 62;
+    let mut s = String::with_capacity(11);
+    let mut m = n + 1;
+    while m > 0 {
+        let rem = (m - 1) % base;
+        s.push(ALPHABET[rem as usize]);
+        m = (m - 1) / base;
     }
+    s.chars().rev().collect::<String>()
 }
 
 /// Gets an index based on a column letter e.g. A = 0.
