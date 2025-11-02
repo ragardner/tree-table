@@ -188,7 +188,7 @@ impl Table {
 
             // par should not already be in Table
             if grid.index.iid_to_row.contains_key(&row_spec.par) {
-                let par = row_spec.par.clone();
+                let par = row_spec.par;
                 match duplicate_id_handling {
                     DuplicateIdHandling::Error => {
                         return Err(str_err!(format!("parent already exists: {}", par)));
@@ -302,8 +302,7 @@ impl Table {
                     // - Set icell parent
                     // - Add icell to parents chn
                     new_icell_mut.par = Some(Rc::downgrade(&par_cell_rc));
-                    let mut par_cell = par_cell_rc.borrow_mut();
-                    par_cell.chn.push(new_icell.clone());
+                    par_cell_rc.borrow_mut().chn.push(new_icell.clone());
                 } else {
                     // Parent is not already an iid in tree
                     // Append icell to par_stubs under par iid
