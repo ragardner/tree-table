@@ -18,6 +18,7 @@ pub mod opts_set;
 pub mod progress_bar;
 pub mod reset;
 pub mod selection_boxes;
+pub mod total_rows;
 pub mod tree_extend;
 pub mod tree_open_close;
 pub mod undo;

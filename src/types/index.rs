@@ -63,10 +63,17 @@ impl Index {
     }
 
     /// Add a single row, assumes iid_to_row has been adjusted before insertion.
-    #[inline]
+    #[inline(always)]
     pub(crate) fn add_row(&mut self, pos: usize, iid: String, cell: Rc<RefCell<IndexCell>>) {
         self.iid_to_row.insert(iid, pos);
         self.cells.insert(pos, cell);
+    }
+
+    /// Add a single row, assumes iid_to_row has been adjusted before insertion.
+    #[inline(always)]
+    pub(crate) fn push_row(&mut self, pos: usize, iid: String, cell: Rc<RefCell<IndexCell>>) {
+        self.iid_to_row.insert(iid, pos);
+        self.cells.push(cell);
     }
 
     /// Insert multiple items, add rows

@@ -1,9 +1,8 @@
-use std::ops::DerefMut;
-
 use crate::Table;
 use crate::Val;
 use crate::args::{ItemArgs, ItemResult};
 use crate::str_err;
+use std::ops::DerefMut;
 
 impl Table {
     /// Modify a table item or get information about a table item.

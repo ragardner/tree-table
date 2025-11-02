@@ -11,23 +11,24 @@ use crate::args::CycleHandling;
 use crate::args::DuplicateIdHandling;
 use crate::args::EmptyIdHandling;
 use crate::args::TreeExtendArgs;
+use crate::log;
 use crate::str_err;
 use crate::utils::consecutive_ranges::consecutive_ranges_owned;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
+use std::time::Instant;
 
 #[inline]
 fn tree_extend_get_descendants(
     initial_chn: &[Rc<RefCell<IndexCell>>],
-) -> impl Iterator<Item = Result<Rc<RefCell<IndexCell>>, String>> {
-    // Define the iterator struct
+) -> impl Iterator<Item = Rc<RefCell<IndexCell>>> {
     struct TreeDescendantIterator {
-        stack: Vec<Rc<RefCell<IndexCell>>>, // Owned Rcs (cloned)
+        stack: Vec<Rc<RefCell<IndexCell>>>,
     }
 
     impl Iterator for TreeDescendantIterator {
-        type Item = Result<Rc<RefCell<IndexCell>>, String>;
+        type Item = Rc<RefCell<IndexCell>>;
 
         fn next(&mut self) -> Option<Self::Item> {
             if self.stack.is_empty() {
@@ -40,27 +41,21 @@ fn tree_extend_get_descendants(
                 self.stack.push(child);
             }
             drop(borrow);
-            Some(Ok(current))
+            Some(current)
         }
     }
-
     let stack: Vec<_> = initial_chn.iter().rev().cloned().collect();
-
     TreeDescendantIterator { stack }
 }
 
 #[inline]
-fn tree_extend_check_inf_loop(
-    initial_chn: &[Rc<RefCell<IndexCell>>],
-    par: &str,
-) -> Result<bool, String> {
-    for cell_res in tree_extend_get_descendants(initial_chn) {
-        let cell = cell_res?;
+fn tree_extend_check_inf_loop(initial_chn: &[Rc<RefCell<IndexCell>>], par: &str) -> bool {
+    for cell in tree_extend_get_descendants(initial_chn) {
         if cell.borrow().iid == par {
-            return Ok(true);
+            return true;
         }
     }
-    Ok(false)
+    false
 }
 
 impl Table {
@@ -76,7 +71,6 @@ impl Table {
         ncols: usize,
     ) -> Result<MaxMap<TableCell>, String> {
         let mut cols_map: MaxMap<TableCell> = MaxMap::new();
-
         // Process cells provided by row_spec.vals
         for (key, val) in vals.into_iter() {
             let cn = Self::acr_pos(&header.iid_to_col, &key)?;
@@ -93,7 +87,6 @@ impl Table {
                 },
             );
         }
-
         // Handle inheritance for missing cells
         if do_inherit {
             for cn in 0..ncols {
@@ -110,7 +103,6 @@ impl Table {
                 }
             }
         }
-
         Ok(cols_map)
     }
 
@@ -123,7 +115,7 @@ impl Table {
         let check_for_cycles: bool = cycle_handling != CycleHandling::Ignore;
         let mut tree_map: HashMap<String, Rc<RefCell<IndexCell>>> =
             HashMap::with_capacity(kwargs.rows.len());
-        let mut tops: Vec<Rc<RefCell<IndexCell>>> = Vec::new();
+        let mut tops: Vec<Rc<RefCell<IndexCell>>> = Vec::with_capacity(kwargs.rows.len() / 2);
         // parents added to the tree_map but which never have their own rows as iids
         let mut par_stubs: HashMap<String, Vec<Rc<RefCell<IndexCell>>>> = HashMap::new();
         let mut grid = &mut *self.grid.borrow_mut();
@@ -147,6 +139,7 @@ impl Table {
             None
         };
 
+        let start = Instant::now();
         // Iterate through the array elements
         for mut row_spec in kwargs.rows.into_iter() {
             // If iid is empty
@@ -190,11 +183,10 @@ impl Table {
                     }
                 }
             } else {
-                // We have to clone to add to a parents children Vec
                 row_spec.iid.clone()
             };
-            // par should not already be in Table
 
+            // par should not already be in Table
             if grid.index.iid_to_row.contains_key(&row_spec.par) {
                 let par = row_spec.par.clone();
                 match duplicate_id_handling {
@@ -266,9 +258,22 @@ impl Table {
                 }
             }
             // Check for cycles (inf loops of children) and id-parent equality
-            let chn_slice = new_icell_mut.chn.as_slice();
-            if iid == row_spec.par
-                || (check_for_cycles && tree_extend_check_inf_loop(chn_slice, &row_spec.par)?)
+            if iid == row_spec.par {
+                match cycle_handling {
+                    CycleHandling::Error => {
+                        return Err(str_err!(format!("iid: {iid} equal to parent")));
+                    }
+                    CycleHandling::Skip => {
+                        continue;
+                    }
+                    CycleHandling::OnlyPrior => {
+                        break;
+                    }
+                    _ => row_spec.par = String::new(),
+                }
+            }
+            if check_for_cycles
+                && tree_extend_check_inf_loop(new_icell_mut.chn.as_slice(), &row_spec.par)
             {
                 match cycle_handling {
                     CycleHandling::Error => {
@@ -289,9 +294,10 @@ impl Table {
                     CycleHandling::Ignore => unreachable!(),
                 }
             }
+
             // Finally, deal with parent and add icell
             if !row_spec.par.is_empty() {
-                if let Some(par_cell_rc) = tree_map.get_mut(&row_spec.par) {
+                if let Some(par_cell_rc) = tree_map.get(&row_spec.par) {
                     // Parent is already an iid in tree
                     // - Set icell parent
                     // - Add icell to parents chn
@@ -312,9 +318,13 @@ impl Table {
                 new_icell_mut.vis = true;
                 tops.push(new_icell.clone());
             }
-            tree_map.insert(iid, new_icell.clone());
+            drop(new_icell_mut);
+            tree_map.insert(iid, new_icell);
         }
+        let duration = start.elapsed();
+        log!("First traversal time taken: {:?}", duration);
 
+        let start = Instant::now();
         // Drain remaining stub ids into tree_map as top-level with defaults
         for (iid, chn) in par_stubs.into_iter() {
             let cols_map = Self::build_row_cells(
@@ -355,11 +365,25 @@ impl Table {
         // self.cr_remake_rows()
         let mut acc: u64 = grid.canvas_rows.last().cloned().unwrap_or(0);
         let mut stack: Vec<(Rc<RefCell<IndexCell>>, bool)> = Vec::new();
+        grid.index.cells.reserve(tree_map.len());
+        grid.index.iid_to_row.reserve(tree_map.len());
         for top in tops.into_iter() {
-            stack.push((top, true));
+            sorted_seq.push(row_ctr);
+            let cb_mut = top.borrow();
+            let iid = cb_mut.iid.clone();
+            let child_vis = cb_mut.open;
+            for child in cb_mut.chn.iter().rev().cloned() {
+                stack.push((child, child_vis));
+            }
+            grid.disp_rows.push(row_ctr);
+            acc += cb_mut.dim;
+            grid.canvas_rows.push(acc);
+            drop(cb_mut);
+            grid.index.push_row(row_ctr, iid, top);
+            row_ctr += 1;
+
             while let Some((icell, inherited_vis)) = stack.pop() {
                 sorted_seq.push(row_ctr);
-
                 let mut cb_mut = icell.borrow_mut();
                 let iid = cb_mut.iid.clone();
                 cb_mut.vis = inherited_vis;
@@ -367,17 +391,16 @@ impl Table {
                 for child in cb_mut.chn.iter().rev().cloned() {
                     stack.push((child, child_vis));
                 }
-
                 // Row grid lines, self.cr_remake_rows()
                 if inherited_vis {
                     grid.disp_rows.push(row_ctr);
                     acc += cb_mut.dim;
                     grid.canvas_rows.push(acc);
                 }
-
                 // Push cell to index, self.grid.index.add_rows()
                 // Only clones a reference
-                grid.index.add_row(row_ctr, iid, icell.clone());
+                drop(cb_mut);
+                grid.index.push_row(row_ctr, iid, icell);
                 row_ctr += 1;
             }
         }
@@ -409,6 +432,8 @@ impl Table {
                 );
             }
         }
+        let duration = start.elapsed();
+        log!("Second traversal time taken: {:?}", duration);
 
         // Sheet has been modified
         self.cr_event_modified(
