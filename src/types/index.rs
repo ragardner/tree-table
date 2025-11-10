@@ -8,15 +8,15 @@ use crate::utils::utils_fns::n_to_base62;
 use crate::utils::utils_fns::pull_n;
 use crate::utils::utils_fns::push_n;
 use crate::utils::utils_fns::push_n_add;
-use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
 
 #[derive(Debug, Clone)]
 pub struct Index {
-    pub iid_to_row: HashMap<String, usize>,
-    pub cells: Vec<Rc<RefCell<IndexCell>>>,
+    pub iid_to_row: HashMap<Rc<str>, usize>,
+    pub cells: Vec<IndexCell>,
     pub iid_ctr: CyclingCounter,
+    pub empty_par: Rc<str>,
 }
 
 impl Index {
@@ -25,6 +25,7 @@ impl Index {
             iid_to_row: HashMap::new(),
             cells: Vec::new(),
             iid_ctr: CyclingCounter::new(),
+            empty_par: Rc::from("".to_string()),
         }
     }
 
@@ -37,16 +38,13 @@ impl Index {
 
     /// Clone index cell properties at row.
     pub(crate) fn clone_props(&self, row: &usize) -> Option<CellProps> {
-        self.cells
-            .get(*row)
-            .and_then(|cell_rc| cell_rc.borrow().props.clone())
+        self.cells.get(*row).and_then(|cell| cell.props.clone())
     }
 
     /// Clone table cell properties at row and col.
     pub(crate) fn clone_table_props(&self, row: &usize, col: &usize) -> Option<CellProps> {
-        self.cells.get(*row).and_then(|icell_rc| {
-            let borrow = icell_rc.borrow();
-            borrow
+        self.cells.get(*row).and_then(|icell| {
+            icell
                 .vals
                 .get(col)
                 .and_then(|table_cell| table_cell.props.clone())
@@ -64,27 +62,27 @@ impl Index {
 
     /// Add a single row, assumes iid_to_row has been adjusted before insertion.
     #[inline(always)]
-    pub(crate) fn add_row(&mut self, pos: usize, iid: String, cell: Rc<RefCell<IndexCell>>) {
+    pub(crate) fn add_row(&mut self, pos: usize, iid: Rc<str>, cell: IndexCell) {
         self.iid_to_row.insert(iid, pos);
         self.cells.insert(pos, cell);
     }
 
     /// Add a single row, assumes iid_to_row has been adjusted before insertion.
     #[inline(always)]
-    pub(crate) fn push_row(&mut self, pos: usize, iid: String, cell: Rc<RefCell<IndexCell>>) {
+    pub(crate) fn push_row(&mut self, pos: usize, iid: Rc<str>, cell: IndexCell) {
         self.iid_to_row.insert(iid, pos);
         self.cells.push(cell);
     }
 
     /// Insert multiple items, add rows
-    pub(crate) fn add_rows(&mut self, to_add: Vec<(usize, Rc<RefCell<IndexCell>>)>) {
+    pub(crate) fn add_rows(&mut self, to_add: Vec<(usize, IndexCell)>) {
         // Adjust existing HashMap indices
         for (_, row) in self.iid_to_row.iter_mut() {
             *row = push_n_add(*row, &to_add);
         }
         // Add items
         for (pos, cell) in to_add.into_iter() {
-            self.iid_to_row.insert(cell.borrow().iid.clone(), pos);
+            self.iid_to_row.insert(cell.iid.clone(), pos);
             self.cells.insert(pos, cell);
         }
     }
@@ -93,7 +91,7 @@ impl Index {
     pub(crate) fn del_rows(
         &mut self,
         sorted_seq: &Vec<usize>,
-    ) -> Result<Vec<(usize, Rc<RefCell<IndexCell>>)>, String> {
+    ) -> Result<Vec<(usize, IndexCell)>, String> {
         let largest_pos = *sorted_seq.last().ok_or(str_err!("To delete is empty."))?;
         if largest_pos >= self.cells.len() {
             return Err(str_err!(format!(
@@ -104,9 +102,9 @@ impl Index {
         }
         let mut removed = Vec::with_capacity(sorted_seq.len());
         for (i, &pos) in sorted_seq.iter().enumerate() {
-            let cell_rc = self.cells.remove(pos - i);
-            self.iid_to_row.remove(&cell_rc.borrow().iid);
-            removed.push((pos, cell_rc));
+            let cell = self.cells.remove(pos - i);
+            self.iid_to_row.remove(&cell.iid);
+            removed.push((pos, cell));
         }
         // Adjust indices post removal
         for (_, pos) in self.iid_to_row.iter_mut() {
@@ -130,7 +128,7 @@ impl Index {
                     let cell = seq_opt[old_idx]
                         .take()
                         .ok_or(str_err!(format!("Mapping error: {}", old_idx)))?;
-                    if let Some(row) = self.iid_to_row.get_mut(&cell.borrow().iid) {
+                    if let Some(row) = self.iid_to_row.get_mut(&cell.iid) {
                         *row = i;
                     };
                     self.cells.push(cell);
@@ -148,7 +146,7 @@ impl Index {
     ) {
         // Adjust existing HashMap indices
         for icell in self.cells.iter_mut() {
-            let index_row_vals = &mut icell.borrow_mut().vals;
+            let index_row_vals = &mut icell.vals;
             index_row_vals.hm = index_row_vals
                 .hm
                 .drain()
@@ -161,7 +159,7 @@ impl Index {
         if let Some(to_add) = to_add {
             for (rowk, cols) in to_add {
                 if let Some(row) = self.cells.get_mut(rowk) {
-                    let index_row_vals = &mut row.borrow_mut().vals;
+                    let index_row_vals = &mut row.vals;
                     for (colk, val) in cols.hm {
                         index_row_vals.insert(colk, val);
                     }
@@ -181,7 +179,7 @@ impl Index {
         for (rowk, icell) in self.cells.iter_mut().enumerate() {
             let mut row_removed: MaxMap<TableCell> = MaxMap::new();
             let mut redo_maxk = false;
-            let row = &mut icell.borrow_mut().vals;
+            let row = &mut icell.vals;
 
             // Remove specified columns and collect them
             for &colk in sorted_seq {
@@ -224,7 +222,7 @@ impl Index {
 
     pub(crate) fn move_cols(&mut self, full_new_idxs: &Vec<usize>) {
         for icell in self.cells.iter_mut() {
-            let max_map = &mut icell.borrow_mut().vals;
+            let max_map = &mut icell.vals;
             if max_map.is_empty() {
                 continue;
             }
@@ -250,9 +248,9 @@ impl Index {
                 .next()
                 .ok_or("Cycling counter should never end")?,
         );
-        if self.iid_to_row.contains_key(&iid) {
+        if self.iid_to_row.contains_key(iid.as_str()) {
             let mut cycles: usize = 0;
-            while self.iid_to_row.contains_key(&iid) {
+            while self.iid_to_row.contains_key(iid.as_str()) {
                 if cycles == usize::MAX {
                     return Err(str_err!("Row limit reached."));
                 }

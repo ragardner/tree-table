@@ -12,12 +12,10 @@ impl Table {
         &self,
         grid: &mut TableGrid,
         events: &Events,
-        validation_message: Option<ValidationMessage>,
+        message: ValidationMessage,
         event_data: &mut EventData,
     ) -> Result<(), String> {
-        if let Some(callback) = &events.bound_validation_fn
-            && let Some(message) = validation_message
-        {
+        if let Some(callback) = &events.bound_validation_fn {
             let response: ValidationMessage = callback(message)?;
             let num_rows = Self::acr_total_rows(&grid.index.cells);
             let num_cols = Self::acr_total_cols(&grid.header.cells);

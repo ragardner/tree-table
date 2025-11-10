@@ -8,7 +8,7 @@ use crate::args::GetDataYxArgs;
 
 impl Table {
     /// Gets row data using an array of row ids or positions.
-    pub fn get_data_iids(
+    pub fn get_data_iids_cloned(
         &self,
         kwargs: Option<GetDataIidsArgs>,
     ) -> Result<Vec<(String, Vec<(String, Val)>)>, String> {
@@ -57,12 +57,12 @@ impl Table {
                     let mut row_result: Vec<(String, Val)> = Vec::new();
                     for cn in 0..num_cols {
                         row_result.push((
-                            Self::acr_borrow_ciid(&grid.header.cells, cn)?.clone(),
+                            Self::acr_borrow_ciid(&grid.header.cells, cn)?.to_string(),
                             Self::acr_tcell_val_cloned(&grid.index.cells, rn, cn)
                                 .unwrap_or(empty_val.clone()),
                         ))
                     }
-                    result.push((icell.borrow().iid.clone(), row_result));
+                    result.push((icell.iid.to_string(), row_result));
                 }
             }
         }
@@ -70,7 +70,7 @@ impl Table {
     }
 
     /// Gets table cell data using cell coordinates.
-    pub fn get_data_yx(
+    pub fn get_data_yx_cloned(
         &self,
         kwargs: Option<GetDataYxArgs>,
     ) -> Result<Vec<(CellKey, Val)>, String> {
@@ -104,7 +104,10 @@ impl Table {
     }
 
     /// Gets data as a 2d array using a key.
-    pub fn get_data_span(&self, kwargs: Option<GetDataSpanArgs>) -> Result<Vec<Vec<Val>>, String> {
+    pub fn get_data_span_cloned(
+        &self,
+        kwargs: Option<GetDataSpanArgs>,
+    ) -> Result<Vec<Vec<Val>>, String> {
         let kwargs = kwargs.unwrap_or(GetDataSpanArgs {
             key: SpanKey::None,
             index: true,

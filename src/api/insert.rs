@@ -11,7 +11,7 @@ use crate::args::{InsertArgs, InsertRow};
 use crate::statics::default_inherit;
 use crate::str_err;
 use crate::utils::consecutive_ranges::consecutive_ranges_owned;
-use std::cell::RefCell;
+use crate::utils::utils_fns::binary_search_ins_pos;
 use std::collections::HashSet;
 use std::ops::DerefMut;
 use std::rc::Rc;
@@ -54,7 +54,7 @@ impl Table {
         let tree_mode = opts.tree_mode;
 
         let mut event_data: EventData = self.cr_new_event(true, &opts, &sel);
-        let mut new_iids: HashSet<String> = HashSet::new();
+        let mut new_iids: HashSet<Rc<str>> = HashSet::new();
         let dim = Self::acr_get_default_row_dim(&opts);
         let ncols = Self::acr_total_cols(&grid.header.cells);
         // If parent is None set to root level
@@ -75,30 +75,14 @@ impl Table {
 
         let chn_splice_pos: Option<usize> = if !par.is_empty() {
             let chn = Self::acr_tree_iid_chn(&grid.index.cells, &grid.index.iid_to_row, &par)?;
-            // Parent has children, find Vec position to add new
-            if !chn.is_empty() {
-                let pos = chn
-                    .iter()
-                    .enumerate()
-                    .find(|(_, crc)| {
-                        grid.index
-                            .iid_to_row
-                            .get(&crc.borrow().iid)
-                            .map_or(false, |r| r >= &start_rn)
-                    })
-                    .map(|(i, _)| i)
-                    .unwrap_or(chn.len());
-                Some(pos)
-            // Parent has NO children
-            } else {
-                Some(0)
-            }
+            let pos = binary_search_ins_pos(&chn, &grid.index.iid_to_row, start_rn)?;
+            Some(pos)
         } else {
             None
         };
         // variable set up
         let splice_chn: bool = chn_splice_pos.is_some();
-        let mut chn_to_splice: Vec<Rc<RefCell<IndexCell>>> = Vec::with_capacity(rows.len());
+        let mut chn_to_splice: Vec<Rc<str>> = Vec::with_capacity(rows.len());
         let sorted_seq: Vec<usize> = (start_rn..start_rn + rows.len()).collect();
 
         // push existing hashmap row numbers
@@ -106,25 +90,16 @@ impl Table {
         grid.index.add_rows_just_push_hm(&sorted_seq);
 
         // get parent and determine new rows visibility
-        let parent_rc_opt = if !par.is_empty() {
-            if let Some(&row) = grid.index.iid_to_row.get(&par) {
-                Some(grid.index.cells[row].clone())
+        let (vis, par_rc) = if tree_mode {
+            if par.is_empty() {
+                (true, grid.index.empty_par.clone())
             } else {
-                return Err(str_err!("Parent not found"));
+                let par_row = Self::acr_pos(&grid.index.iid_to_row, par.as_str())?;
+                let par_cell = Self::acr_icell(&grid.index.cells, par_row)?;
+                (par_cell.vis && par_cell.open, par_cell.iid.clone())
             }
         } else {
-            None
-        };
-        let par_weak = parent_rc_opt.as_ref().map(Rc::downgrade);
-        let vis = if tree_mode {
-            if let Some(parent_rc) = &parent_rc_opt {
-                let borrow = parent_rc.borrow();
-                borrow.vis && borrow.open
-            } else {
-                true
-            }
-        } else {
-            true
+            (true, grid.index.empty_par.clone())
         };
 
         // Assess and create rows, index
@@ -133,14 +108,14 @@ impl Table {
             let rn = start_rn + i;
 
             // If iid is None generate a new one
-            let iid = if let Some(iid) = row_spec.iid {
+            let iid: Rc<str> = if let Some(iid) = row_spec.iid {
                 // Check if the provided iid already exists
-                if grid.index.iid_to_row.contains_key(&iid) {
+                if grid.index.iid_to_row.contains_key(iid.as_str()) {
                     return Err(str_err!(format!("iid already exists: {}", iid)));
                 }
-                iid
+                Rc::from(iid)
             } else {
-                grid.index.new_iid()?
+                Rc::from(grid.index.new_iid()?)
             };
             // Check for repetitions of iids
             if !new_iids.insert(iid.clone()) {
@@ -152,7 +127,7 @@ impl Table {
             let val = if let Some(val) = row_spec.val {
                 val
             } else if tree_mode {
-                Val::Str(iid.clone())
+                Val::Str(iid.to_string())
             } else {
                 empty_index_val.clone()
             };
@@ -199,28 +174,28 @@ impl Table {
                 }
             }
 
-            let new_icell = Rc::new(RefCell::new(IndexCell {
+            let new_icell = IndexCell {
                 iid: iid.clone(),
                 val,
                 vals: cols_map,
                 dim: row_spec.dim.unwrap_or(dim),
                 vis,
-                par: par_weak.clone(),
+                par: par_rc.clone(),
                 chn: Vec::new(),
                 open: row_spec.open,
                 props: index_props,
-            }));
+            };
 
             if splice_chn {
-                chn_to_splice.push(new_icell.clone());
+                chn_to_splice.push(iid.clone());
             }
 
-            grid.index.add_row(rn, iid, new_icell);
+            grid.index.add_row(rn, iid.clone(), new_icell);
         }
 
         // We don't need to record a tree change because undo -> del_rows() removes the spliced chn
         if let Some(chn_splice_pos) = chn_splice_pos {
-            let mut chn =
+            let chn =
                 Self::acr_tree_iid_chn_mut(&mut grid.index.cells, &grid.index.iid_to_row, &par)?;
             chn.splice(chn_splice_pos..chn_splice_pos, chn_to_splice.into_iter());
         }

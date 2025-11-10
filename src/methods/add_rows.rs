@@ -9,7 +9,6 @@ use crate::TableGrid;
 use crate::Val;
 use crate::statics::DEFAULT_INHERIT;
 use crate::str_err;
-use std::cell::RefCell;
 use std::rc::Rc;
 
 impl Table {
@@ -17,7 +16,7 @@ impl Table {
         &self,
         mut grid: &mut TableGrid,
         sel: &Selection,
-        index: Vec<(usize, Rc<RefCell<IndexCell>>)>,
+        index: Vec<(usize, IndexCell)>,
         sorted_seq: Vec<usize>,
         event_data: &mut EventData,
         mod_sel: bool,
@@ -62,13 +61,13 @@ impl Table {
         mut pos: usize,
         inherit: &str,
         vis: bool,
-    ) -> Result<(Vec<(usize, Rc<RefCell<IndexCell>>)>, Vec<usize>), String> {
+    ) -> Result<(Vec<(usize, IndexCell)>, Vec<usize>), String> {
         let ncols = Self::acr_total_cols(&grid.header.cells);
         if pos > Self::acr_total_rows(&grid.index.cells) {
             pos = Self::acr_total_rows(&grid.index.cells);
         }
         let end = pos.checked_add(iids.len()).ok_or(str_err!("Max. rows"))?;
-        let mut index: Vec<(usize, Rc<RefCell<IndexCell>>)> = Vec::new();
+        let mut index: Vec<(usize, IndexCell)> = Vec::new();
         let mut sorted_seq: Vec<usize> = Vec::new();
         let empty_val: &Val = &opts.empty_val;
         let empty_index_val: &Val = &opts.empty_val;
@@ -123,24 +122,20 @@ impl Table {
             } else {
                 empty_index_val.clone()
             };
-            let par_cell = {
-                let res =
-                    Self::acr_tree_par_cell_weak(&grid.index.cells, &grid.index.iid_to_row, &iid);
-                if let Ok(op) = res { op } else { None }
-            };
+            let par = Self::acr_tree_iid_par(&grid.index.cells, &grid.index.iid_to_row, &iid)?;
             index.push((
                 rn,
-                Rc::new(RefCell::new(IndexCell {
-                    iid,
+                IndexCell {
+                    iid: Rc::from(iid),
                     val,
                     vals: cols_map,
                     dim: default_dim,
                     vis: show_new_rows,
-                    par: par_cell,
+                    par: par,
                     chn: Vec::new(),
                     open: false,
                     props: index_props.clone(),
-                })),
+                },
             ));
         }
         Ok((index, sorted_seq))

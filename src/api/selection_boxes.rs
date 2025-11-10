@@ -78,12 +78,7 @@ impl Table {
         let (mut grid, opts, mut sel) = self.cr_mut_borrows();
         let mut grid = grid.deref_mut();
         let kwargs: SelectRowsColsArgs = kwargs.unwrap_or(SelectRowsColsArgs {
-            items: grid
-                .index
-                .cells
-                .iter()
-                .map(|c| c.borrow().iid.clone())
-                .collect(),
+            items: grid.index.cells.iter().map(|c| c.iid.to_string()).collect(),
             replace: false,
             current: true,
             emit: true,
@@ -206,7 +201,12 @@ impl Table {
         let mut grid = grid.deref_mut();
         // Deserialize kwargs
         let kwargs: SelectRowsColsArgs = kwargs.unwrap_or(SelectRowsColsArgs {
-            items: grid.header.cells.iter().map(|c| c.iid.clone()).collect(),
+            items: grid
+                .header
+                .cells
+                .iter()
+                .map(|c| c.iid.to_string())
+                .collect(),
             replace: false,
             current: true,
             emit: true,

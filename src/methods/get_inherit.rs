@@ -1,11 +1,12 @@
 use crate::Table;
 use crate::str_err;
 use std::collections::HashMap;
+use std::rc::Rc;
 
 impl Table {
     pub(crate) fn cr_get_inherit_row(
         &self,
-        iid_to_row: &HashMap<String, usize>,
+        iid_to_row: &HashMap<Rc<str>, usize>,
         pos: usize,
         inherit: &str,
     ) -> Result<Option<usize>, String> {
@@ -26,7 +27,7 @@ impl Table {
 
     pub(crate) fn cr_get_inherit_col(
         &self,
-        iid_to_col: &HashMap<String, usize>,
+        iid_to_col: &HashMap<Rc<str>, usize>,
         pos: usize,
         inherit: &str,
     ) -> Result<Option<usize>, String> {

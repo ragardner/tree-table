@@ -3,6 +3,7 @@ use crate::Val;
 use crate::args::{ItemArgs, ItemResult};
 use crate::str_err;
 use std::ops::DerefMut;
+use std::rc::Rc;
 
 impl Table {
     /// Modify a table item or get information about a table item.
@@ -68,14 +69,14 @@ impl Table {
         }
         // Deal with iid parameter, id rename
         if let Some(new_name) = kwargs.iid {
-            if grid.index.iid_to_row.get(&new_name).is_some() {
+            if grid.index.iid_to_row.get(new_name.as_str()).is_some() {
                 return Err(str_err!(format!(
                     "Cannot rename iid, new name already exists: {}",
                     new_name
                 )));
             }
-            Self::acr_tree_rename_iid(&mut grid.index, &iid, new_name.clone(), &mut event_data)?;
-            iid = new_name;
+            iid = new_name.clone();
+            Self::acr_tree_rename_iid(&mut grid.index, &iid, Rc::from(new_name), &mut event_data)?;
         }
         // Deal with undo stack
         if !event_data.table_cells.is_empty() || !event_data.index_cells.is_empty() {

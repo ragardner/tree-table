@@ -7,6 +7,7 @@ use crate::{SelectionKind, SelectionState};
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::ops::DerefMut;
+use std::rc::Rc;
 
 impl Table {
     pub fn move_items(&self, kwargs: MoveItemsArgs) -> Result<(), String> {
@@ -19,8 +20,8 @@ impl Table {
         // Item ids
         if let Some(items) = kwargs.items {
             // Parent
-            let new_par: String = match kwargs.parent {
-                Some(parent) => parent,
+            let new_par: String = match kwargs.par {
+                Some(par) => par,
                 None => "".to_string(),
             };
             if !new_par.is_empty() && !Self::acr_tree_exists(&grid.index.iid_to_row, &new_par) {
@@ -28,7 +29,7 @@ impl Table {
             };
 
             // Check items
-            let mut hash_items: HashSet<String> = HashSet::new();
+            let mut hash_items: HashSet<Rc<str>> = HashSet::new();
             for iid in items.into_iter() {
                 if !Self::acr_tree_exists(&grid.index.iid_to_row, &iid) {
                     return Err(str_err!(format!("iid does not exist: {}", &iid)));
@@ -44,7 +45,7 @@ impl Table {
                         &iid, new_par
                     )));
                 }
-                hash_items.insert(iid);
+                hash_items.insert(Rc::from(iid));
             }
 
             // Create a new event
@@ -53,7 +54,7 @@ impl Table {
             // Set up TreeMove object
             let move_op: TreeMove = TreeMove {
                 iids: hash_items,
-                new_par,
+                new_par: Rc::from(new_par),
                 pos: kwargs.pos,
             };
 

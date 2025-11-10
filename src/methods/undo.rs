@@ -266,19 +266,20 @@ impl Table {
         event_data.selected = to_undo.selected.clone();
 
         if undo_type == UndoType::Undo {
-            let to_validate = self.cr_edit_cells_using_change(
+            if let Some(to_validate) = self.cr_edit_cells_using_change(
                 &mut grid,
                 &events,
                 &opts,
                 &mut to_undo,
                 &mut event_data,
-            )?;
-            self.cr_bulk_edit_validation(
-                &mut grid,
-                &self.events.borrow(),
-                to_validate,
-                &mut event_data,
-            )?;
+            )? {
+                self.cr_bulk_edit_validation(
+                    &mut grid,
+                    &self.events.borrow(),
+                    to_validate,
+                    &mut event_data,
+                )?;
+            }
         }
 
         if !to_undo.moved_cols.is_empty() {
@@ -348,19 +349,20 @@ impl Table {
         }
 
         if undo_type == UndoType::Redo {
-            let to_validate = self.cr_edit_cells_using_change(
+            if let Some(to_validate) = self.cr_edit_cells_using_change(
                 &mut grid,
                 &events,
                 &opts,
                 &mut to_undo,
                 &mut event_data,
-            )?;
-            self.cr_bulk_edit_validation(
-                &mut grid,
-                &self.events.borrow(),
-                to_validate,
-                &mut event_data,
-            )?;
+            )? {
+                self.cr_bulk_edit_validation(
+                    &mut grid,
+                    &self.events.borrow(),
+                    to_validate,
+                    &mut event_data,
+                )?;
+            }
         }
 
         // TODO: Handle selection boxes

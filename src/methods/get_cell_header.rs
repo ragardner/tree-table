@@ -10,12 +10,13 @@ use crate::Table;
 use crate::Val;
 use crate::str_err;
 use std::collections::HashMap;
+use std::rc::Rc;
 
 impl Table {
     #[inline]
     pub(crate) fn acr_col_iid_is_vis<'v>(
         cells: &Vec<HeaderCell>,
-        iid_to_col: &HashMap<String, usize>,
+        iid_to_col: &HashMap<Rc<str>, usize>,
         iid: &str,
     ) -> Result<bool, String> {
         let col = Self::acr_pos(&iid_to_col, &iid)?;
@@ -28,7 +29,7 @@ impl Table {
     pub(crate) fn acr_borrow_ciid<'v>(
         v: &'v Vec<HeaderCell>,
         pos: usize,
-    ) -> Result<&'v String, String> {
+    ) -> Result<&'v Rc<str>, String> {
         v.get(pos)
             .map(|cell| &cell.iid)
             .ok_or(str_err!(format!("pos out of bounds: {}", pos)))
@@ -36,10 +37,9 @@ impl Table {
 
     /// Get Result<iid, String> using col
     #[inline]
-    pub(crate) fn acr_copy_ciid<'v>(v: &'v Vec<HeaderCell>, pos: usize) -> Result<String, String> {
+    pub(crate) fn acr_copy_ciid<'v>(v: &'v Vec<HeaderCell>, pos: usize) -> Result<Rc<str>, String> {
         v.get(pos)
-            .map(|cell| &cell.iid)
-            .cloned()
+            .map(|cell| cell.iid.clone())
             .ok_or(str_err!(format!("pos out of bounds: {}", pos)))
     }
 
@@ -81,11 +81,11 @@ impl Table {
     pub(crate) fn acr_hcell_align<'v>(
         cells: &'v Vec<HeaderCell>,
         cn: usize,
-    ) -> Result<&'v Option<String>, String> {
+    ) -> Result<Option<&'v String>, String> {
         let cell = cells
             .get(cn)
             .ok_or(str_err!(format!("Col not found: {}", cn)))?;
-        Ok(cell.props.as_ref().map_or(&None, |props| &props.align))
+        Ok(cell.props.as_ref().and_then(|props| props.align.as_ref()))
     }
 
     /// Get borrowed borders from HeaderCell props.
@@ -93,11 +93,11 @@ impl Table {
     pub(crate) fn acr_hcell_borders<'v>(
         cells: &'v Vec<HeaderCell>,
         cn: usize,
-    ) -> Result<&'v Option<CellBorders>, String> {
+    ) -> Result<Option<&'v CellBorders>, String> {
         let cell = cells
             .get(cn)
             .ok_or(str_err!(format!("Col not found: {}", cn)))?;
-        Ok(cell.props.as_ref().map_or(&None, |props| &props.borders))
+        Ok(cell.props.as_ref().and_then(|props| props.borders.as_ref()))
     }
 
     /// Get borrowed checkbox from HeaderCell props.
@@ -105,11 +105,14 @@ impl Table {
     pub(crate) fn acr_hcell_checkbox<'v>(
         cells: &'v Vec<HeaderCell>,
         cn: usize,
-    ) -> Result<&'v Option<Checkbox>, String> {
+    ) -> Result<Option<&'v Checkbox>, String> {
         let cell = cells
             .get(cn)
             .ok_or(str_err!(format!("Col not found: {}", cn)))?;
-        Ok(cell.props.as_ref().map_or(&None, |props| &props.checkbox))
+        Ok(cell
+            .props
+            .as_ref()
+            .and_then(|props| props.checkbox.as_ref()))
     }
 
     /// Get borrowed data_format from HeaderCell props.
@@ -117,14 +120,14 @@ impl Table {
     pub(crate) fn acr_hcell_data_format<'v>(
         cells: &'v Vec<HeaderCell>,
         cn: usize,
-    ) -> Result<&'v Option<DataFormat>, String> {
+    ) -> Result<Option<&'v DataFormat>, String> {
         let cell = cells
             .get(cn)
             .ok_or(str_err!(format!("Col not found: {}", cn)))?;
         Ok(cell
             .props
             .as_ref()
-            .map_or(&None, |props| &props.data_format))
+            .and_then(|props| props.data_format.as_ref()))
     }
 
     /// Get borrowed dropdown from HeaderCell props.
@@ -132,11 +135,14 @@ impl Table {
     pub(crate) fn acr_hcell_dropdown<'v>(
         cells: &'v Vec<HeaderCell>,
         cn: usize,
-    ) -> Result<&'v Option<Dropdown>, String> {
+    ) -> Result<Option<&'v Dropdown>, String> {
         let cell = cells
             .get(cn)
             .ok_or(str_err!(format!("Col not found: {}", cn)))?;
-        Ok(cell.props.as_ref().map_or(&None, |props| &props.dropdown))
+        Ok(cell
+            .props
+            .as_ref()
+            .and_then(|props| props.dropdown.as_ref()))
     }
 
     /// Get borrowed highlight from HeaderCell props.
@@ -144,11 +150,14 @@ impl Table {
     pub(crate) fn acr_hcell_highlight<'v>(
         cells: &'v Vec<HeaderCell>,
         cn: usize,
-    ) -> Result<&'v Option<Highlight>, String> {
+    ) -> Result<Option<&'v Highlight>, String> {
         let cell = cells
             .get(cn)
             .ok_or(str_err!(format!("Col not found: {}", cn)))?;
-        Ok(cell.props.as_ref().map_or(&None, |props| &props.highlight))
+        Ok(cell
+            .props
+            .as_ref()
+            .and_then(|props| props.highlight.as_ref()))
     }
 
     /// Get borrowed note from HeaderCell props.
@@ -156,11 +165,11 @@ impl Table {
     pub(crate) fn acr_hcell_note<'v>(
         cells: &'v Vec<HeaderCell>,
         cn: usize,
-    ) -> Result<&'v Option<Note>, String> {
+    ) -> Result<Option<&'v Note>, String> {
         let cell = cells
             .get(cn)
             .ok_or(str_err!(format!("Col not found: {}", cn)))?;
-        Ok(cell.props.as_ref().map_or(&None, |props| &props.note))
+        Ok(cell.props.as_ref().and_then(|props| props.note.as_ref()))
     }
 
     /// Get borrowed progress_bar from HeaderCell props.
@@ -168,14 +177,14 @@ impl Table {
     pub(crate) fn acr_hcell_progress_bar<'v>(
         cells: &'v Vec<HeaderCell>,
         cn: usize,
-    ) -> Result<&'v Option<ProgressBar>, String> {
+    ) -> Result<Option<&'v ProgressBar>, String> {
         let cell = cells
             .get(cn)
             .ok_or(str_err!(format!("Col not found: {}", cn)))?;
         Ok(cell
             .props
             .as_ref()
-            .map_or(&None, |props| &props.progress_bar))
+            .and_then(|props| props.progress_bar.as_ref()))
     }
 
     /// Get borrowed readonly from HeaderCell props.

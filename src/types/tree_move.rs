@@ -1,10 +1,10 @@
 // use serde::{Deserialize, Serialize};
-use std::collections::HashSet;
+use std::{collections::HashSet, rc::Rc};
 
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone, PartialEq)]
 pub struct TreeMove {
-    pub iids: HashSet<String>,
-    pub new_par: String,
+    pub iids: HashSet<Rc<str>>,
+    pub new_par: Rc<str>,
     pub pos: Option<u64>,
 }

@@ -11,7 +11,7 @@ impl Table {
     /// Checks if a val is valid for the table's current table cell at coords.
     #[inline]
     pub(crate) fn acr_val_valid_t(
-        cells: &Vec<Rc<RefCell<IndexCell>>>,
+        cells: &Vec<IndexCell>,
         row: &usize,
         col: &usize,
         val: &Val,
@@ -23,7 +23,7 @@ impl Table {
     /// Checks if a val is valid for the index's current index cell at coords.
     #[inline]
     pub(crate) fn acr_val_valid_i(
-        cells: &Vec<Rc<RefCell<IndexCell>>>,
+        cells: &Vec<IndexCell>,
         pos: &usize,
         val: &Val,
         readonly: bool,

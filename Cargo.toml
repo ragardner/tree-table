@@ -18,7 +18,7 @@ chrono = { version = "0.4" }
 bigdecimal = { version = "0.4.8" }
 rust_decimal = { version = "1.38.0"}
 num-bigint = { version = "0.4.6" }
-serde = { version = "1", optional = true, features = ["derive"] }
+serde = { version = "1", optional = true, features = ["derive", "rc"] }
 
 [features]
 serde = ["dep:serde"]

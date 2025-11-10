@@ -6,7 +6,7 @@ use std::collections::HashSet;
 #[derive(Debug, Clone, PartialEq)]
 pub struct MoveItemsArgs {
     pub items: Option<HashSet<String>>,
-    pub parent: Option<String>,
+    pub par: Option<String>,
     pub pos: Option<u64>,
     #[cfg_attr(feature = "serde", serde(default))]
     pub select: bool,
@@ -20,7 +20,7 @@ impl Default for MoveItemsArgs {
     fn default() -> Self {
         MoveItemsArgs {
             items: None,
-            parent: None,
+            par: None,
             pos: None,
             select: false,
             emit: default_emit_event_for_api(),

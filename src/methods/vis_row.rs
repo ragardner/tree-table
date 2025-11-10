@@ -1,12 +1,10 @@
 use crate::EventData;
 use crate::IndexCell;
 use crate::Table;
-use std::cell::RefCell;
-use std::rc::Rc;
 
 impl Table {
     pub(crate) fn acr_set_row_vis<'a, I>(
-        cells: &Vec<Rc<RefCell<IndexCell>>>,
+        cells: &mut Vec<IndexCell>,
         iter: I,
         vis: bool,
         event_data: Option<&mut EventData>,
@@ -16,7 +14,7 @@ impl Table {
     {
         if let Some(event_data) = event_data {
             for pos in iter {
-                let mut cell = Self::acr_icell_mut(cells, pos)?;
+                let cell = Self::acr_icell_mut(cells, pos)?;
                 event_data.add_change_icells(pos, cell.record_set_vis(vis));
             }
         } else {

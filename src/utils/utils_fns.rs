@@ -1,9 +1,9 @@
-use crate::IndexCell;
 use chrono::Duration;
 use core::sync::atomic::{AtomicU32, Ordering};
-use std::cell::RefCell;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
+
+use crate::GetResultExt;
 
 static WIDGET_ID_COUNTER: AtomicU32 = AtomicU32::new(0);
 
@@ -20,31 +20,21 @@ const ALPHABET: [char; 62] = [
 ];
 
 pub(crate) fn remove_duplicates_outside_section(
-    items: Vec<Rc<RefCell<IndexCell>>>,
+    items: Vec<Rc<str>>,
     section_start: usize,
     section_size: usize,
-) -> Vec<Rc<RefCell<IndexCell>>> {
+) -> Vec<Rc<str>> {
     if section_start == 0 && section_size >= items.len() {
         return items;
     }
     let section_end = section_start + section_size;
-    let keep: Vec<bool> = {
-        let section_set: std::collections::HashSet<String> = items[section_start..section_end]
-            .iter()
-            .map(|rc| rc.borrow().iid.clone())
-            .collect();
-        (0..items.len())
-            .map(|i| {
-                i >= section_start && i < section_end
-                    || !section_set.contains(&items[i].borrow().iid)
-            })
-            .collect()
-    };
+    let section_set: HashSet<Rc<str>> = items[section_start..section_end].iter().cloned().collect();
+    let len = items.len();
     items
         .into_iter()
-        .enumerate()
-        .filter(|(i, _)| keep[*i])
-        .map(|(_, s)| s)
+        .zip(0..len)
+        .filter(|(s, i)| *i >= section_start && *i < section_end || !section_set.contains(s))
+        .map(|(s, _)| s)
         .collect()
 }
 
@@ -289,4 +279,26 @@ pub fn parse_duration(s: &str) -> Duration {
     }
 
     Duration::nanoseconds(total_ns as i64)
+}
+
+/// Performs a binary search on a sorted vec of child IIDs to find the leftmost insertion point
+/// where the child's row >= target_row. Assumes the vec is sorted by row numbers.
+/// Returns the insertion index or an error if any accessed IID lacks a row mapping.
+pub fn binary_search_ins_pos(
+    chn: &[Rc<str>],
+    iid_to_row: &HashMap<Rc<str>, usize>,
+    target_row: usize,
+) -> Result<usize, String> {
+    let mut lo = 0;
+    let mut hi = chn.len();
+    while lo < hi {
+        let mid = lo + (hi - lo) / 2;
+        let child_row = *iid_to_row.get_res(&chn[mid])?;
+        if child_row < target_row {
+            lo = mid + 1;
+        } else {
+            hi = mid;
+        }
+    }
+    Ok(lo)
 }

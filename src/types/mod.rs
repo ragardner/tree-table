@@ -44,7 +44,7 @@ pub use data_format::{DataFormat, string_to_data_format};
 pub use dropdown::Dropdown;
 pub use event_callbacks::ValidationMessage;
 pub use event_data::EventData;
-pub use extensions::{GetCellResultExt, GetResultExt, UpgradeResultExt};
+pub use extensions::{GetCellMutResultExt, GetCellResultExt, GetResultExt};
 pub use header::Header;
 pub use header_cell::HeaderCell;
 pub use highlight::Highlight;

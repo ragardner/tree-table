@@ -12,6 +12,7 @@ use crate::Table;
 use crate::Val;
 use crate::str_err;
 use std::collections::HashMap;
+use std::rc::Rc;
 
 // Enum for changes to HeaderCell fields. Each variant stores the *old* value,
 // since the new value is already in the Table. Inversion will fetch current (new) as old for the inverse.
@@ -22,7 +23,7 @@ pub enum ChangeHeaderCell {
     SetVal(Val),               // Old val
     SetDim(u64),               // Old dim
     SetVis(bool),              // Old vis
-    SetIid(String),            // Old iid
+    SetIid(Rc<str>),           // Old iid
     SetProps(ChangeCellProps), // Imported sub-enum for props changes
 }
 
@@ -33,7 +34,7 @@ impl ChangeHeaderCell {
     pub fn invert(
         &self,
         mut cells: &mut Vec<HeaderCell>,
-        iid_to_col: &mut HashMap<String, usize>,
+        iid_to_col: &mut HashMap<Rc<str>, usize>,
         col: usize,
     ) -> Result<ChangeHeaderCell, String> {
         match self {
@@ -99,8 +100,8 @@ impl ChangeHeaderCell {
 impl HeaderCell {
     pub fn record_set_iid(
         &mut self,
-        new_iid: String,
-        iid_to_col: &mut HashMap<String, usize>,
+        new_iid: Rc<str>,
+        iid_to_col: &mut HashMap<Rc<str>, usize>,
     ) -> Result<ChangeHeaderCell, String> {
         let current_iid = std::mem::replace(&mut self.iid, new_iid.clone());
         let removed_pos = iid_to_col

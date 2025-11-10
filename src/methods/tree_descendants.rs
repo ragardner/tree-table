@@ -4,22 +4,21 @@ use crate::GetResultExt;
 use crate::IndexCell;
 use crate::Table;
 use crate::TableGrid;
-use std::cell::RefCell;
 use std::collections::HashMap;
 use std::collections::{HashSet, VecDeque};
 use std::rc::Rc;
 
 impl Table {
     pub(crate) fn acr_tree_descendants_rows<'a>(
-        cells: &'a Vec<Rc<RefCell<IndexCell>>>,
-        iid_to_row: &'a HashMap<String, usize>,
+        cells: &'a Vec<IndexCell>,
+        iid_to_row: &'a HashMap<Rc<str>, usize>,
         rn: usize,
         check_open: bool,
     ) -> impl Iterator<Item = Result<usize, String>> + 'a {
         // Define the custom iterator struct
         struct DescendantIterator<'a> {
-            cells: &'a Vec<Rc<RefCell<IndexCell>>>,
-            iid_to_row: &'a HashMap<String, usize>,
+            cells: &'a Vec<IndexCell>,
+            iid_to_row: &'a HashMap<Rc<str>, usize>,
             stack: Vec<usize>, // Stack of row numbers
             check_open: bool,
             error: Option<String>, // Holds an initialization error, if any
@@ -39,21 +38,19 @@ impl Table {
                 if !self.initialized {
                     self.initialized = true;
 
-                    let rc = match self.cells.get(self.rn) {
+                    let icell = match self.cells.get(self.rn) {
                         Some(r) => r,
                         None => {
                             return Some(Err(format!("Row not found: {}", self.rn)));
                         }
                     };
-                    let cell_ref = rc.borrow();
 
                     // Push initial children in reverse order
-                    for child_rc in cell_ref.chn.iter().rev() {
-                        let child_iid = child_rc.borrow().iid.clone();
-                        let child_rn = match self.iid_to_row.get(&child_iid) {
+                    for ciid in icell.chn.iter().rev() {
+                        let child_rn = match self.iid_to_row.get(ciid) {
                             Some(&r) => r,
                             None => {
-                                return Some(Err(format!("iid not found: {}", child_iid)));
+                                return Some(Err(format!("iid not found: {}", ciid)));
                             }
                         };
                         self.stack.push(child_rn);
@@ -61,35 +58,31 @@ impl Table {
                 }
 
                 // Iterate through the stack
-                while !self.stack.is_empty() {
-                    let current = self.stack.pop().unwrap();
-
+                while let Some(current) = self.stack.pop() {
                     // Get the cell for the current row
-                    let rc = match self.cells.get(current) {
+                    let icell = match self.cells.get(current) {
                         Some(r) => r,
                         None => {
                             return Some(Err(format!("Row not found: {}", current)));
                         }
                     };
-                    let cell_ref = rc.borrow();
 
                     // Determine if we should expand children
-                    let should_expand = if cell_ref.chn.is_empty() {
+                    let should_expand = if icell.chn.is_empty() {
                         false
                     } else if !self.check_open {
                         true
                     } else {
-                        cell_ref.open
+                        icell.open
                     };
 
                     if should_expand {
                         // Push children in reverse order
-                        for child_rc in cell_ref.chn.iter().rev() {
-                            let child_iid = child_rc.borrow().iid.clone();
-                            let child_rn = match self.iid_to_row.get(&child_iid) {
+                        for ciid in icell.chn.iter().rev() {
+                            let child_rn = match self.iid_to_row.get(ciid) {
                                 Some(&r) => r,
                                 None => {
-                                    return Some(Err(format!("iid not found: {}", child_iid)));
+                                    return Some(Err(format!("iid not found: {}", ciid)));
                                 }
                             };
                             self.stack.push(child_rn);
@@ -131,32 +124,30 @@ impl Table {
     }
 
     pub(crate) fn acr_tree_descendants_set_vis(
-        cells: &Vec<Rc<RefCell<IndexCell>>>,
-        iid_to_row: &HashMap<String, usize>,
+        mut cells: &mut Vec<IndexCell>,
+        iid_to_row: &HashMap<Rc<str>, usize>,
         iid: &str,
         vis: bool,
         event_data: Option<&mut EventData>,
     ) -> Result<(), String> {
         let mut stack: VecDeque<usize> = VecDeque::new();
         let start_row = Self::acr_pos(&iid_to_row, iid)?;
-        let start_cell = Self::acr_icell_mut(&cells, start_row)?;
+        let start_cell = Self::acr_icell_mut(&mut cells, start_row)?;
 
         // If the starting cell has children, add their row numbers to the stack
         if !start_cell.chn.is_empty() && start_cell.open {
-            for child in &start_cell.chn {
-                let child_row = *iid_to_row.get_res(child.borrow().iid.as_str())?;
-                stack.push_back(child_row);
+            for ciid in &start_cell.chn {
+                let c_row = *iid_to_row.get_res(ciid)?;
+                stack.push_back(c_row);
             }
         }
         if let Some(event_data) = event_data {
             while let Some(rn) = stack.pop_front() {
-                Self::acr_event_data_set_ivis(&cells, rn, vis, event_data)?;
-                let cell = Self::acr_icell_mut(&cells, rn)?;
+                Self::acr_event_data_set_ivis(&mut cells, rn, vis, event_data)?;
+                let cell = Self::acr_icell_mut(&mut cells, rn)?;
                 // If the cell has children and is open, add their row numbers to the stack
                 if !cell.chn.is_empty() && cell.open {
-                    for crc in &cell.chn {
-                        let cb = crc.borrow();
-                        let ciid = cb.iid.as_str();
+                    for ciid in &cell.chn {
                         stack.push_back(*iid_to_row.get_res(ciid)?);
                     }
                 }
@@ -164,12 +155,10 @@ impl Table {
         } else {
             // No event data, just set vis
             while let Some(rn) = stack.pop_front() {
-                let mut cell = Self::acr_icell_mut(&cells, rn)?;
+                let cell = Self::acr_icell_mut(&mut cells, rn)?;
                 cell.vis = vis;
                 if !cell.chn.is_empty() && cell.open {
-                    for crc in &cell.chn {
-                        let cb = crc.borrow();
-                        let ciid = cb.iid.as_str();
+                    for ciid in &cell.chn {
                         stack.push_back(*iid_to_row.get_res(ciid)?);
                     }
                 }
@@ -182,7 +171,7 @@ impl Table {
     /// the highest level items remain.
     pub(crate) fn cr_tree_remove_descendants(
         &self,
-        iids: HashSet<String>,
+        iids: HashSet<Rc<str>>,
     ) -> Result<Vec<usize>, String> {
         let grid = &*self.grid.borrow_mut();
         let mut res: Vec<usize> = Vec::new();
@@ -191,8 +180,7 @@ impl Table {
             for ancestor in grid.index.ancestor_rows(iid) {
                 let anc_rn = ancestor?;
                 let anc_cell = grid.index.cells.get_res(anc_rn)?;
-                let anc_cb = anc_cell.borrow();
-                if iids.contains(&anc_cb.iid) {
+                if iids.contains(&anc_cell.iid) {
                     has_ancestor_in_set = true;
                     break;
                 }
@@ -210,7 +198,7 @@ impl Table {
     /// Effectively validates rows to be deleted
     pub(crate) fn cr_tree_remove_and_add_descendants(
         &self,
-        iids: HashSet<String>,
+        iids: HashSet<Rc<str>>,
     ) -> Result<Vec<usize>, String> {
         let grid = &*self.grid.borrow_mut();
         let mut res: Vec<usize> = Vec::new();
@@ -219,8 +207,7 @@ impl Table {
             for ancestor in grid.index.ancestor_rows(iid) {
                 let anc_rn = ancestor?;
                 let anc_cell = grid.index.cells.get_res(anc_rn)?;
-                let anc_cb = anc_cell.borrow();
-                if iids.contains(&anc_cb.iid) {
+                if iids.contains(&anc_cell.iid) {
                     has_ancestor_in_set = true;
                     break;
                 }

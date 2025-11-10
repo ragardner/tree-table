@@ -11,7 +11,6 @@ use crate::Table;
 use crate::TableCell;
 use crate::Val;
 use crate::str_err;
-use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
 
@@ -23,9 +22,9 @@ pub enum ChangeIndexCell {
     SetVal(Val),                                               // Old val
     SetDim(u64),                                               // Old dim
     SetVis(bool),                                              // Old vis
-    SetIid(String),                                            // Old iid (for renames, etc.)
-    SetPar(String),                                            // Old par
-    SetChn(Vec<String>),       // Old chn (clone is fine assuming small)
+    SetIid(Rc<str>),                                           // Old iid (for renames, etc.)
+    SetPar(Rc<str>),                                           // Old par
+    SetChn(Vec<Rc<str>>),      // Old chn (clone is fine assuming small)
     SetOpen(bool),             // Old open
     SetProps(ChangeCellProps), // Sub-enum for props changes
     SetTableCellVal { col: usize, val: Val }, // For vals map: Old val per col
@@ -54,80 +53,38 @@ pub enum ChangeCellProps {
 impl ChangeIndexCell {
     pub fn invert(
         &self,
-        cells: &Vec<Rc<RefCell<IndexCell>>>,
-        iid_to_row: &mut HashMap<String, usize>,
+        cells: &mut Vec<IndexCell>,
+        iid_to_row: &mut HashMap<Rc<str>, usize>,
         row: usize,
     ) -> Result<ChangeIndexCell, String> {
         match self {
             ChangeIndexCell::SetPar(old_par_iid) => {
-                let mut cell = Table::acr_icell_mut(cells, row)?;
-                // Get current par iid
-                let current_par_iid = cell
-                    .par
-                    .as_ref()
-                    .and_then(|w| w.upgrade())
-                    .map(|rc| rc.borrow().iid.clone())
-                    .unwrap_or_default();
-
-                // Set to old par (lookup Rc by iid and set Weak)
-                cell.par = if old_par_iid.is_empty() {
-                    None
-                } else {
-                    let par_row = *iid_to_row
-                        .get(old_par_iid)
-                        .ok_or(str_err!(format!("Old par iid not found: {}", old_par_iid)))?;
-                    let par_rc = cells
-                        .get(par_row)
-                        .ok_or(str_err!(format!("Old par row not found: {}", par_row)))?
-                        .clone();
-                    Some(Rc::downgrade(&par_rc))
-                };
-
+                let cell = Table::acr_icell_mut(cells, row)?;
+                let current_par_iid = std::mem::replace(&mut cell.par, old_par_iid.clone());
                 Ok(ChangeIndexCell::SetPar(current_par_iid))
             }
             ChangeIndexCell::SetChn(old_chn_iids) => {
-                let mut cell = Table::acr_icell_mut(cells, row)?;
-                // Get current chn iids
-                let current_chn_iids: Vec<String> =
-                    cell.chn.iter().map(|rc| rc.borrow().iid.clone()).collect();
-
-                // Set to old chn (lookup Rc by each iid)
-                cell.chn = old_chn_iids
-                    .iter()
-                    .map(|iid| {
-                        if iid.is_empty() {
-                            return Err(str_err!(format!("Empty iid in old chn")));
-                        }
-                        let child_row = *iid_to_row
-                            .get(iid)
-                            .ok_or(str_err!(format!("Old chn iid not found: {}", iid)))?;
-                        let child_rc = cells
-                            .get(child_row)
-                            .ok_or(str_err!(format!("Old chn row not found: {}", child_row)))?
-                            .clone();
-                        Ok(child_rc)
-                    })
-                    .collect::<Result<Vec<_>, _>>()?;
-
+                let cell = Table::acr_icell_mut(cells, row)?;
+                let current_chn_iids = std::mem::replace(&mut cell.chn, old_chn_iids.clone());
                 Ok(ChangeIndexCell::SetChn(current_chn_iids))
             }
             ChangeIndexCell::SetVal(old_val) => {
-                let mut cell = Table::acr_icell_mut(cells, row)?;
+                let cell = Table::acr_icell_mut(cells, row)?;
                 let current_val = std::mem::replace(&mut cell.val, old_val.clone());
                 Ok(ChangeIndexCell::SetVal(current_val))
             }
             ChangeIndexCell::SetDim(old_dim) => {
-                let mut cell = Table::acr_icell_mut(cells, row)?;
+                let cell = Table::acr_icell_mut(cells, row)?;
                 let current_dim = std::mem::replace(&mut cell.dim, *old_dim);
                 Ok(ChangeIndexCell::SetDim(current_dim))
             }
             ChangeIndexCell::SetVis(old_vis) => {
-                let mut cell = Table::acr_icell_mut(cells, row)?;
+                let cell = Table::acr_icell_mut(cells, row)?;
                 let current_vis = std::mem::replace(&mut cell.vis, *old_vis);
                 Ok(ChangeIndexCell::SetVis(current_vis))
             }
             ChangeIndexCell::SetIid(old_iid) => {
-                let mut cell = Table::acr_icell_mut(cells, row)?;
+                let cell = Table::acr_icell_mut(cells, row)?;
                 let current_iid = std::mem::replace(&mut cell.iid, old_iid.clone());
                 let removed_pos = iid_to_row
                     .remove(&current_iid)
@@ -136,12 +93,12 @@ impl ChangeIndexCell {
                 Ok(ChangeIndexCell::SetIid(current_iid))
             }
             ChangeIndexCell::SetOpen(old_open) => {
-                let mut cell = Table::acr_icell_mut(cells, row)?;
+                let cell = Table::acr_icell_mut(cells, row)?;
                 let current_open = std::mem::replace(&mut cell.open, *old_open);
                 Ok(ChangeIndexCell::SetOpen(current_open))
             }
             ChangeIndexCell::SetProps(change) => {
-                let mut cell = Table::acr_icell_mut(cells, row)?;
+                let cell = Table::acr_icell_mut(cells, row)?;
                 if let Some(props) = cell.props.as_mut() {
                     let inverted = change.invert(props);
                     Ok(ChangeIndexCell::SetProps(inverted))
@@ -150,9 +107,8 @@ impl ChangeIndexCell {
                 }
             }
             ChangeIndexCell::SetTableCellVal { col, val: old_val } => {
-                let mut cell = Table::acr_icell_mut(cells, row)?;
+                let cell = Table::acr_icell_mut(cells, row)?;
                 if let Some(table_cell) = cell.vals.get_mut(col) {
-                    // Assuming vals: MaxMap<TableCell> with get_mut(&usize) -> Option<&mut TableCell>
                     let current_val = std::mem::replace(&mut table_cell.val, old_val.clone());
                     Ok(ChangeIndexCell::SetTableCellVal {
                         col: *col,
@@ -166,7 +122,7 @@ impl ChangeIndexCell {
                 }
             }
             ChangeIndexCell::SetTableCellProps { col, change } => {
-                let mut cell = Table::acr_icell_mut(cells, row)?;
+                let cell = Table::acr_icell_mut(cells, row)?;
                 if let Some(table_cell) = cell.vals.get_mut(col) {
                     if let Some(props) = table_cell.props.as_mut() {
                         let inverted = change.invert(props);
@@ -245,8 +201,8 @@ impl ChangeCellProps {
 impl IndexCell {
     pub fn record_set_iid(
         &mut self,
-        new_iid: String,
-        iid_to_row: &mut HashMap<String, usize>,
+        new_iid: Rc<str>,
+        iid_to_row: &mut HashMap<Rc<str>, usize>,
     ) -> Result<ChangeIndexCell, String> {
         let current_iid = std::mem::replace(&mut self.iid, new_iid.clone());
         let removed_pos = iid_to_row
@@ -264,64 +220,13 @@ impl IndexCell {
     pub fn record_set_vis(&mut self, new_vis: bool) -> ChangeIndexCell {
         ChangeIndexCell::SetVis(std::mem::replace(&mut self.vis, new_vis))
     }
-    pub fn record_set_par(
-        &mut self,
-        new_par: String,
-        iid_to_row: &HashMap<String, usize>,
-        cells: &Vec<Rc<RefCell<IndexCell>>>,
-    ) -> Result<ChangeIndexCell, String> {
-        let current_par_iid = self
-            .par
-            .as_ref()
-            .and_then(|w| w.upgrade())
-            .map(|rc| rc.borrow().iid.clone())
-            .unwrap_or_default();
-
-        self.par = if new_par.is_empty() {
-            None
-        } else {
-            let par_row = *iid_to_row
-                .get(&new_par)
-                .ok_or(str_err!(format!("New par iid not found: {}", new_par)))?;
-            let par_rc = cells
-                .get(par_row)
-                .ok_or(str_err!(format!("New par row not found: {}", par_row)))?
-                .clone();
-            Some(Rc::downgrade(&par_rc))
-        };
-
+    pub fn record_set_par(&mut self, new_par: Rc<str>) -> Result<ChangeIndexCell, String> {
+        let current_par_iid = std::mem::replace(&mut self.par, new_par);
         Ok(ChangeIndexCell::SetPar(current_par_iid))
     }
-    pub fn record_set_chn(
-        &mut self,
-        new_chn: Vec<String>,
-        iid_to_row: &HashMap<String, usize>,
-        cells: &Vec<Rc<RefCell<IndexCell>>>,
-        collect_current: bool,
-    ) -> Result<Option<ChangeIndexCell>, String> {
-        if collect_current {
-            let current_chn_iids: Vec<String> =
-                self.chn.iter().map(|rc| rc.borrow().iid.clone()).collect();
-            self.chn = new_chn
-                .iter()
-                .map(|iid| {
-                    if iid.is_empty() {
-                        return Err(format!("Empty iid in new chn"));
-                    }
-                    let child_row = *iid_to_row
-                        .get(iid)
-                        .ok_or_else(|| format!("New chn iid not found: {}", iid))?;
-                    let child_rc = cells
-                        .get(child_row)
-                        .ok_or_else(|| format!("New chn row not found: {}", child_row))?
-                        .clone();
-                    Ok(child_rc)
-                })
-                .collect::<Result<Vec<_>, _>>()?;
-            return Ok(Some(ChangeIndexCell::SetChn(current_chn_iids)));
-        } else {
-            return Ok(None);
-        };
+    pub fn record_set_chn(&mut self, new_chn: Vec<Rc<str>>) -> Result<ChangeIndexCell, String> {
+        let current_chn_iids = std::mem::replace(&mut self.chn, new_chn);
+        return Ok(ChangeIndexCell::SetChn(current_chn_iids));
     }
     pub fn record_set_open(&mut self, new_open: bool) -> ChangeIndexCell {
         ChangeIndexCell::SetOpen(std::mem::replace(&mut self.open, new_open))

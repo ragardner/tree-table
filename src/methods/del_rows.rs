@@ -3,6 +3,7 @@ use crate::Options;
 use crate::Table;
 use crate::TableGrid;
 use std::collections::HashSet;
+use std::rc::Rc;
 
 impl Table {
     pub(crate) fn cr_del_rows(
@@ -25,7 +26,7 @@ impl Table {
                     positions
                         .iter()
                         .filter_map(|rn| Self::acr_copy_riid(&grid.index.cells, *rn).ok())
-                        .collect::<HashSet<String>>(),
+                        .collect::<HashSet<Rc<str>>>(),
                 )?;
             }
             Self::acr_tree_del_rows(

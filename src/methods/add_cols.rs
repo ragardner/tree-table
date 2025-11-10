@@ -11,6 +11,7 @@ use crate::Val;
 use crate::statics::DEFAULT_INHERIT;
 use crate::str_err;
 use std::collections::HashMap;
+use std::rc::Rc;
 
 impl Table {
     pub(crate) fn cr_add_cols(
@@ -117,7 +118,7 @@ impl Table {
                 cn,
                 HeaderCell {
                     val: Val::Str(iid.clone()),
-                    iid,
+                    iid: Rc::from(iid),
                     dim: default_dim,
                     vis,
                     props: header_props.clone(),

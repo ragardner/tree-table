@@ -11,13 +11,13 @@ impl Table {
         }
         let kwargs = kwargs.unwrap_or(DelArgs {
             items: Some(vec![
-                Self::acr_borrow_riid(&grid.index.cells, num_rows.saturating_sub(1))?.clone(),
+                Self::acr_borrow_riid(&grid.index.cells, num_rows.saturating_sub(1))?.to_string(),
             ]),
             emit: true,
             undo: true,
         });
         let items = kwargs.items.unwrap_or(vec![
-            Self::acr_borrow_riid(&grid.index.cells, num_rows.saturating_sub(1))?.clone(),
+            Self::acr_borrow_riid(&grid.index.cells, num_rows.saturating_sub(1))?.to_string(),
         ]);
         let mut event_data = self.cr_new_event(true, &opts, &sel);
         let mut positions: Vec<usize> = Vec::new();

@@ -2,37 +2,49 @@ use crate::Index;
 use crate::IndexCell;
 use crate::Table;
 use crate::TableGrid;
-use std::cell::RefCell;
 use std::collections::HashMap;
-use std::rc::Weak;
+use std::rc::Rc;
 
 // Custom iterator for traversing ancestor rows
-// Custom iterator for traversing ancestor rows
 struct AncestorRowIterator<'a> {
-    iid_to_row: &'a HashMap<String, usize>,
-    current: Option<Weak<RefCell<IndexCell>>>,
+    iid_to_row: &'a HashMap<Rc<str>, usize>,
+    cells: &'a Vec<IndexCell>,
+    current: Option<Rc<str>>,
 }
 
 impl<'a> Iterator for AncestorRowIterator<'a> {
     type Item = Result<usize, String>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if let Some(weak) = self.current.take() {
-            if let Some(rc) = weak.upgrade() {
-                let cell = rc.borrow();
-                let iid = &cell.iid;
-                let row = match self.iid_to_row.get(iid) {
-                    Some(&r) => r,
-                    None => return Some(Err(format!("IID {} not found in iid_to_row", iid))),
-                };
-                self.current = cell.par.clone();
-                Some(Ok(row))
-            } else {
-                Some(Err("Failed to upgrade weak reference to parent".to_string()))
-            }
+        let current_iid = if let Some(iid) = self.current.take() {
+            iid
         } else {
+            return None;
+        };
+
+        // Look up row for current IID
+        let row = match self.iid_to_row.get(&current_iid) {
+            Some(&r) => r,
+            None => {
+                return Some(Err(format!(
+                    "IID {} not found in iid_to_row",
+                    &*current_iid
+                )));
+            }
+        };
+
+        // Get cell and extract next parent IID
+        let cell = match self.cells.get(row) {
+            Some(c) => c,
+            None => return Some(Err(format!("Cell not found at row {}", row))),
+        };
+        self.current = if cell.par.is_empty() {
             None
-        }
+        } else {
+            Some(cell.par.clone())
+        }; // Cheap Rc clone if present
+
+        Some(Ok(row))
     }
 }
 
@@ -40,36 +52,40 @@ impl Index {
     /// Returns an iterator over the row numbers of the ancestors of the given `iid`, from direct parent to root.
     pub(crate) fn ancestor_rows<'a>(
         &'a self,
-        iid: &str,
+        iid: &Rc<str>, // Accept &Rc<str> for efficiency (avoids conversion); can add &str overload if needed
     ) -> Box<dyn Iterator<Item = Result<usize, String>> + 'a> {
-        let first_parent: Option<Weak<RefCell<IndexCell>>> = match self.iid_to_row.get(iid) {
+        // Look up row for the given IID
+        let row = match self.iid_to_row.get(iid) {
             None => {
                 return Box::new(std::iter::once(Err(format!(
                     "IID {} not found in iid_to_row",
-                    iid
+                    &*iid
                 ))));
             }
-            Some(&row) => match self.cells.get(row) {
-                None => {
-                    return Box::new(std::iter::once(Err(format!(
-                        "Cell not found for IID {} at row {}",
-                        iid, row
-                    ))));
-                }
-                Some(rc) => {
-                    let cell = rc.borrow();
-                    cell.par.clone()
-                }
-            },
+            Some(&r) => r,
         };
-        if let Some(first_par) = first_parent {
-            Box::new(AncestorRowIterator {
-                iid_to_row: &self.iid_to_row,
-                current: Some(first_par),
-            })
-        } else {
-            Box::new(std::iter::empty())
-        }
+
+        // Get cell and extract first parent IID
+        let first_parent = match self.cells.get(row) {
+            None => {
+                return Box::new(std::iter::once(Err(format!(
+                    "Cell not found for IID {} at row {}",
+                    &*iid, row
+                ))));
+            }
+            Some(cell) => {
+                if cell.par.is_empty() {
+                    return Box::new(std::iter::empty());
+                }
+                cell.par.clone() // Cheap Rc clone
+            }
+        };
+
+        Box::new(AncestorRowIterator {
+            iid_to_row: &self.iid_to_row,
+            cells: &self.cells,
+            current: Some(first_parent),
+        })
     }
 }
 
@@ -80,7 +96,7 @@ impl Table {
     pub(crate) fn cr_tree_ancestors_all_open(
         &self,
         grid: &TableGrid,
-        iid: &str,
+        iid: &Rc<str>, // Updated to match; adjust caller if needed
         stop_at: &str,
     ) -> Result<bool, String> {
         let stop_at_provided = !stop_at.is_empty();
@@ -93,11 +109,11 @@ impl Table {
                 Some(c) => c,
                 None => return Err(format!("Cell not found for ancestor row {}", ancestor_row)),
             };
-            let cb = cell.borrow();
-            if !cb.open {
+            // No borrow needed; direct access
+            if !cell.open {
                 return Ok(false);
             }
-            if stop_at_provided && cb.iid.as_str() == stop_at {
+            if stop_at_provided && &*cell.iid == stop_at {
                 return Ok(true);
             }
         }

@@ -1,10 +1,12 @@
+use std::rc::Rc;
+
 use super::cell_props::CellProps;
 use super::val::Val;
 
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone, PartialEq)]
 pub struct HeaderCell {
-    pub iid: String,
+    pub iid: Rc<str>,
     pub val: Val,
     pub dim: u64,
     pub vis: bool,
@@ -12,7 +14,7 @@ pub struct HeaderCell {
 }
 
 impl HeaderCell {
-    pub fn new(val: Val, iid: String, dim: u64, vis: bool) -> Self {
+    pub fn new(val: Val, iid: Rc<str>, dim: u64, vis: bool) -> Self {
         HeaderCell {
             iid,
             val,

@@ -1,6 +1,6 @@
 use crate::args::{AddArgs, AddNumArgs};
 use crate::utils::consecutive_ranges::consecutive_ranges_owned;
-use crate::{EventData, log, str_err};
+use crate::{EventData, str_err};
 use crate::{Options, Selection, Table, TableGrid};
 use crate::{SelectionKind, SelectionState};
 use std::collections::HashSet;
@@ -22,7 +22,7 @@ impl Table {
             if !iid_set.insert(iid.clone()) {
                 return Err(str_err!(format!("Duplicate row iid: {}", iid)));
             }
-            if grid.index.iid_to_row.get(iid).is_some() {
+            if grid.index.iid_to_row.get(iid.as_str()).is_some() {
                 return Err(str_err!(format!("Row iid already exists: {}", iid)));
             }
         }

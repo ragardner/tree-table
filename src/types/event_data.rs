@@ -8,7 +8,6 @@ use crate::SelectionBox;
 use crate::TableCell;
 #[cfg(feature = "serde")]
 use serde::{Serialize, Serializer};
-use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
 
@@ -35,8 +34,7 @@ pub struct EventData {
     pub added_rows: Vec<usize>,
     pub added_cols: Vec<usize>,
     pub added_progress_bars: HashMap<String, (usize, usize)>,
-    #[cfg_attr(feature = "serde", serde(serialize_with = "serialize_removed_index"))]
-    pub removed_index: Vec<(usize, Rc<RefCell<IndexCell>>)>,
+    pub removed_index: Vec<(usize, IndexCell)>,
     pub removed_header: Vec<(usize, HeaderCell)>,
     pub removed_table_cells: HashMap<usize, MaxMap<TableCell>>,
     pub removed_progress_bars: HashMap<String, (usize, usize)>,
@@ -52,23 +50,7 @@ pub struct EventData {
     pub index_data: HashMap<usize, Vec<ChangeIndexCell>>,
     pub header_data: HashMap<usize, Vec<ChangeHeaderCell>>,
     // FOR UNDO, cells that were modified by a change
-    pub tree_changes: HashMap<String, TreeChange>,
-}
-
-#[cfg(feature = "serde")]
-fn serialize_removed_index<S>(
-    removed: &Vec<(usize, Rc<RefCell<IndexCell>>)>,
-    serializer: S,
-) -> Result<S::Ok, S::Error>
-where
-    S: Serializer,
-{
-    // Serialize as Vec<(usize, IndexCell)> by cloning a flat snapshot (clones props/etc. here, but only on serialize)
-    let flat: Vec<(usize, IndexCell)> = removed
-        .iter()
-        .map(|(pos, rc)| (*pos, rc.borrow().clone()))
-        .collect();
-    flat.serialize(serializer)
+    pub tree_changes: HashMap<Rc<str>, TreeChange>,
 }
 
 impl EventData {
@@ -120,7 +102,7 @@ impl EventData {
             self.header_data.insert(key, vec![change]);
         }
     }
-    pub fn tree_change_required(&self, iid: &str, kind: TreeChangeKind) -> bool {
+    pub fn tree_change_required(&self, iid: &Rc<str>, kind: TreeChangeKind) -> bool {
         if let Some(tree_change) = self.tree_changes.get(iid) {
             match kind {
                 TreeChangeKind::Par => tree_change.par.is_none(),
@@ -131,7 +113,7 @@ impl EventData {
         }
     }
     #[inline]
-    pub fn add_tree_change(&mut self, iid: &str, change: ChangeIndexCell) {
+    pub fn add_tree_change(&mut self, iid: &Rc<str>, change: ChangeIndexCell) {
         if let Some(tree_change) = self.tree_changes.get_mut(iid) {
             match change {
                 ChangeIndexCell::SetPar(_) => {
@@ -150,7 +132,7 @@ impl EventData {
             match change {
                 ChangeIndexCell::SetPar(_) => {
                     self.tree_changes.insert(
-                        iid.to_string(),
+                        iid.clone(),
                         TreeChange {
                             par: Some(change),
                             chn: None,
@@ -159,7 +141,7 @@ impl EventData {
                 }
                 ChangeIndexCell::SetChn(_) => {
                     self.tree_changes.insert(
-                        iid.to_string(),
+                        iid.clone(),
                         TreeChange {
                             par: None,
                             chn: Some(change),

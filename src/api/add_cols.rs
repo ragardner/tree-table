@@ -23,7 +23,7 @@ impl Table {
             if !iid_set.insert(iid.clone()) {
                 return Err(str_err!(format!("Duplicate col iid: {}", iid)));
             }
-            if grid.header.iid_to_col.get(iid).is_some() {
+            if grid.header.iid_to_col.get(iid.as_str()).is_some() {
                 return Err(str_err!(format!("Col iid already exists: {}", iid)));
             }
         }
