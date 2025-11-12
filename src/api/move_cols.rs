@@ -61,7 +61,7 @@ impl Table {
 
         let mut event_data = self.cr_new_event(true, &opts, &sel);
         event_data.moved_cols = old_to_new;
-        self.cr_move_cols(&mut grid, &mut event_data, &new_to_old)?;
+        self.cr_move_cols(&mut grid, &opts, &mut event_data, &new_to_old)?;
 
         if kwargs.select {
             Self::acr_deselect_all(&mut sel);

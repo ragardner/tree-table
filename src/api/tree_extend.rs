@@ -58,10 +58,10 @@ fn tree_extend_check_inf_loop(
 impl Table {
     /// Builds table cells for a given row specification, handling both provided values and inherited properties.
     #[inline]
-    fn build_row_cells(
+    pub(crate) fn build_row_cells(
         icells: &Vec<IndexCell>,
         header: &Header,
-        vals: Vec<(String, Val)>,
+        vals: Option<Vec<(String, Val)>>,
         inherit_row: usize,
         do_inherit: bool,
         empty_val: &Val,
@@ -70,10 +70,12 @@ impl Table {
         let mut cols_map: MaxMap<TableCell> = MaxMap::new();
         if do_inherit {
             let mut provided: Vec<Option<Val>> = vec![None; ncols];
-            for (key, val) in vals.into_iter() {
-                let cn = Self::acr_pos(&header.iid_to_col, &key)?;
-                // Last value wins if duplicate positions
-                provided.try_set(cn, Some(val))?;
+            if let Some(vals) = vals {
+                for (key, val) in vals.into_iter() {
+                    let cn = Self::acr_pos(&header.iid_to_col, &key)?;
+                    // Last value wins if duplicate positions
+                    provided.try_set(cn, Some(val))?;
+                }
             }
             for (cn, opt_val) in provided.into_iter().enumerate() {
                 let props = Self::acr_tcell_props(icells, inherit_row, cn).cloned();
@@ -94,9 +96,11 @@ impl Table {
             }
         } else {
             // Process cells provided by row_spec.vals
-            for (key, val) in vals.into_iter() {
-                let cn = Self::acr_pos(&header.iid_to_col, &key)?;
-                cols_map.set_cell(cn, TableCell { val, props: None });
+            if let Some(vals) = vals {
+                for (key, val) in vals.into_iter() {
+                    let cn = Self::acr_pos(&header.iid_to_col, &key)?;
+                    cols_map.set_cell(cn, TableCell { val, props: None });
+                }
             }
         }
         Ok(cols_map)
@@ -226,7 +230,7 @@ impl Table {
                 vals: Self::build_row_cells(
                     &grid.index.cells,
                     &grid.header,
-                    row_spec.vals.take().unwrap_or_default(),
+                    row_spec.vals.take(),
                     inherit_row,
                     do_inherit,
                     &empty_val,
@@ -317,7 +321,7 @@ impl Table {
             let cols_map = Self::build_row_cells(
                 &grid.index.cells,
                 &grid.header,
-                vec![],
+                None,
                 inherit_row,
                 do_inherit,
                 &empty_val,

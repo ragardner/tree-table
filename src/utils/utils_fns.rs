@@ -1,9 +1,8 @@
+use crate::GetResultExt;
 use chrono::Duration;
 use core::sync::atomic::{AtomicU32, Ordering};
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
-
-use crate::GetResultExt;
 
 static WIDGET_ID_COUNTER: AtomicU32 = AtomicU32::new(0);
 
@@ -281,24 +280,48 @@ pub fn parse_duration(s: &str) -> Duration {
     Duration::nanoseconds(total_ns as i64)
 }
 
-/// Performs a binary search on a sorted vec of child IIDs to find the leftmost insertion point
-/// where the child's row >= target_row. Assumes the vec is sorted by row numbers.
+/// Performs a binary search on a sorted vec of IIDs to find the leftmost insertion point
+/// where the row >= target_row. Assumes the vec is sorted by row numbers.
 /// Returns the insertion index or an error if any accessed IID lacks a row mapping.
 pub fn binary_search_ins_pos(
-    chn: &[Rc<str>],
+    v: &[Rc<str>],
     iid_to_row: &HashMap<Rc<str>, usize>,
     target_row: usize,
 ) -> Result<usize, String> {
     let mut lo = 0;
-    let mut hi = chn.len();
+    let mut hi = v.len();
     while lo < hi {
         let mid = lo + (hi - lo) / 2;
-        let child_row = *iid_to_row.get_res(&chn[mid])?;
-        if child_row < target_row {
+        let row = *iid_to_row.get_res(&v[mid])?;
+        if row < target_row {
             lo = mid + 1;
         } else {
             hi = mid;
         }
     }
     Ok(lo)
+}
+
+/// Performs a binary search on a sorted vec of IIDs to find the exact position
+/// where the row == target_row. Assumes the vec is sorted by row numbers.
+/// Returns Some(pos) if found, None if not present, or an error if any accessed IID lacks a row mapping.
+pub fn binary_search_exact_pos(
+    v: &[Rc<str>],
+    iid_to_row: &HashMap<Rc<str>, usize>,
+    target_row: usize,
+) -> Result<Option<usize>, String> {
+    let mut lo = 0;
+    let mut hi = v.len();
+    while lo < hi {
+        let mid = lo + (hi - lo) / 2;
+        let row = *iid_to_row.get_res(&v[mid])?;
+        if row < target_row {
+            lo = mid + 1;
+        } else if row > target_row {
+            hi = mid;
+        } else {
+            return Ok(Some(mid));
+        }
+    }
+    Ok(None)
 }

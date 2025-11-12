@@ -17,6 +17,7 @@ impl Table {
     pub(crate) fn cr_add_cols(
         &self,
         grid: &mut TableGrid,
+        opts: &Options,
         sel: &Selection,
         cols: HashMap<usize, MaxMap<TableCell>>,
         header: Vec<(usize, HeaderCell)>,
@@ -44,6 +45,7 @@ impl Table {
                 &mut grid.canvas_cols,
                 &mut grid.disp_cols,
                 &grid.header.cells,
+                opts.vertical_grid_line_width.clone(),
             );
         }
 
@@ -158,6 +160,7 @@ impl Table {
             )?;
             self.cr_add_cols(
                 &mut grid,
+                &opts,
                 &sel,
                 cols,
                 header,

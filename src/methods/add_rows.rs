@@ -15,6 +15,7 @@ impl Table {
     pub(crate) fn cr_add_rows(
         &self,
         mut grid: &mut TableGrid,
+        opts: &Options,
         sel: &Selection,
         index: Vec<(usize, IndexCell)>,
         sorted_seq: Vec<usize>,
@@ -41,6 +42,7 @@ impl Table {
                 &mut grid.canvas_rows,
                 &mut grid.disp_rows,
                 &grid.index.cells,
+                opts.horizontal_grid_line_width.clone(),
             );
         }
 
@@ -171,6 +173,7 @@ impl Table {
             )?;
             self.cr_add_rows(
                 &mut grid,
+                &opts,
                 &sel,
                 index,
                 sorted_seq,

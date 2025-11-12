@@ -1,4 +1,5 @@
 use crate::EventData;
+use crate::Options;
 use crate::Table;
 use crate::TableGrid;
 use crate::utils::utils_fns::get_full_move_map;
@@ -9,6 +10,7 @@ impl Table {
     pub(crate) fn cr_move_cols(
         &self,
         grid: &mut TableGrid,
+        opts: &Options,
         event_data: &mut EventData,
         new_to_old: &HashMap<usize, usize>,
     ) -> Result<(), String> {
@@ -23,6 +25,7 @@ impl Table {
             &mut grid.canvas_cols,
             &mut grid.disp_cols,
             &grid.header.cells,
+            opts.vertical_grid_line_width.clone(),
         );
         Ok(())
     }

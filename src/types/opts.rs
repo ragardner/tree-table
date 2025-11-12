@@ -141,6 +141,8 @@ define_options! {
     validation_includes_undo: bool, "validation_includes_undo" => false,
 
     // Appearance
+    horizontal_grid_line_width: u64, "horizontal_grid_line_width" => 1,
+    vertical_grid_line_width: u64, "vertical_grid_line_width" => 1,
     show_row_numbering: String, "show_row_numbering" => "numbers".to_string(),
     show_col_numbering: String, "show_col_numbering" => "letters".to_string(),
     show_index: bool, "show_index" => true,

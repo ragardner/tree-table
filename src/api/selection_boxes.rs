@@ -141,6 +141,7 @@ impl Table {
             &mut grid.canvas_rows,
             &mut grid.disp_rows,
             &grid.index.cells,
+            opts.horizontal_grid_line_width.clone(),
         );
 
         // Save prior selection boxes for potential undo
@@ -239,6 +240,7 @@ impl Table {
             &mut grid.canvas_cols,
             &mut grid.disp_cols,
             &grid.header.cells,
+            opts.vertical_grid_line_width.clone(),
         );
 
         // Save prior selection boxes for potential undo

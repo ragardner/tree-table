@@ -90,6 +90,7 @@ impl Table {
 
         self.cr_add_rows(
             &mut grid,
+            &opts,
             &sel,
             index,
             sorted_seq,

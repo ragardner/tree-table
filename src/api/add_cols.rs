@@ -91,6 +91,7 @@ impl Table {
 
         self.cr_add_cols(
             &mut grid,
+            &opts,
             &sel,
             cols,
             header,

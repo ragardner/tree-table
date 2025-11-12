@@ -30,7 +30,7 @@ impl Table {
             positions.sort_unstable();
             positions.dedup();
         }
-        self.cr_del_cols(&mut grid, positions, &mut event_data)?;
+        self.cr_del_cols(&mut grid, &opts, positions, &mut event_data)?;
         self.cr_event_modified(
             &mut grid,
             &self.events.borrow(),

@@ -1,6 +1,7 @@
 use crate::EventData;
 use crate::Table;
 use crate::ValidationMessage;
+use crate::log;
 use crate::statics::EVENT_CLIPBOARD;
 use crate::statics::EVENT_MODIFIED;
 use crate::statics::EVENT_SELECT;

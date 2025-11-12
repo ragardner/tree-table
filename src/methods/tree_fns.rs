@@ -8,6 +8,7 @@ use crate::TableGrid;
 use crate::str_err;
 use crate::types::TreeMove;
 use crate::types::event_data::TreeChangeKind;
+use crate::utils::utils_fns::binary_search_exact_pos;
 use crate::utils::utils_fns::binary_search_ins_pos;
 use crate::utils::utils_fns::{offset_move_indices, remove_duplicates_outside_section};
 use std::collections::{HashMap, HashSet};
@@ -227,7 +228,7 @@ impl Table {
                                 &grid.index.iid_to_row,
                                 iid,
                                 &new_par,
-                            )? && move_to_pos > Self::acr_tree_pos(&grid.index, &iid, false)?
+                            )? && move_to_pos > Self::acr_tree_pos(&grid.index, &iid)?
                             {
                                 let cx = new_par_chn.get(move_to_pos).ok_or(str_err!(format!(
                                     "Vec index out of range: {} for iid: {} vec: {:?}",
@@ -306,7 +307,7 @@ impl Table {
                     insert_row = if min_from <= min_to { max_to } else { min_to };
                     move_to_iid = Self::acr_borrow_riid(&grid.index.cells, insert_row)?.clone();
                 }
-                move_to_pos = Self::acr_tree_pos(&grid.index, &move_to_iid, false)?;
+                move_to_pos = Self::acr_tree_pos(&grid.index, &move_to_iid)?;
                 new_par = Self::acr_tree_iid_par(
                     &grid.index.cells,
                     &grid.index.iid_to_row,
@@ -523,7 +524,7 @@ impl Table {
         Self::acr_icell_mut(&mut index.cells, iid_row)?.chn = chn;
 
         // Update parent's chn list if parent exists
-        let pos = Self::acr_tree_pos(&index, &old_rc, false)?;
+        let pos = Self::acr_tree_pos(&index, &old_rc)?;
         let par_cell_opt =
             Self::acr_tree_par_cell_mut(&mut index.cells, &index.iid_to_row, &old_rc)?;
         if let Some(par_cell) = par_cell_opt {
@@ -574,28 +575,27 @@ impl Table {
 
     pub(crate) fn acr_tree_top_iids<'v>(
         cells: &'v Vec<IndexCell>,
-    ) -> impl Iterator<Item = &'v Rc<str>> + 'v {
+    ) -> impl Iterator<Item = Result<&'v Rc<str>, String>> + 'v {
         struct TopIidsIter<'v> {
             cells: &'v Vec<IndexCell>,
             index: usize,
         }
 
         impl<'v> Iterator for TopIidsIter<'v> {
-            type Item = &'v Rc<str>;
+            type Item = Result<&'v Rc<str>, String>;
 
             fn next(&mut self) -> Option<Self::Item> {
                 while self.index < self.cells.len() {
-                    // Assuming `get_res` returns `Result<&'v IndexCell, _>`; adjust if it's custom
-                    // If it's actually `self.cells.get(self.index)`, change to `let opt_icell = self.cells.get(self.index);`
                     let res = self.cells.get_res(self.index);
                     self.index += 1;
-                    let icell = match res {
-                        Ok(cell) => cell,
-                        Err(_) => continue, // Skip invalid cells
-                    };
-                    if icell.par.is_empty() {
-                        // Check for no parent (empty Rc<str>)
-                        return Some(&icell.iid);
+                    match res {
+                        Ok(icell) => {
+                            if icell.par.is_empty() {
+                                return Some(Ok(&icell.iid));
+                            }
+                            // Continue to the next cell if not a top-level
+                        }
+                        Err(e) => return Some(Err(e)),
                     }
                 }
                 None
@@ -610,47 +610,58 @@ impl Table {
         iid_to_row: &HashMap<Rc<str>, usize>,
         pos: usize,
     ) -> Option<usize> {
-        let iid_ref = Self::acr_tree_top_iids(cells).nth(pos)?;
-        iid_to_row.get(&*iid_ref).copied()
+        let iid_res = Self::acr_tree_top_iids(cells).nth(pos)?;
+        match iid_res {
+            Ok(iid) => iid_to_row.get(&*iid).copied(),
+            Err(_) => None,
+        }
     }
 
     /// Determines the index of an iid amongst its siblings.
-    pub(crate) fn acr_tree_pos(
-        index: &Index,
-        iid: &Rc<str>,
-        safety: bool,
-    ) -> Result<usize, String> {
+    pub(crate) fn acr_tree_pos(index: &Index, iid: &Rc<str>) -> Result<usize, String> {
+        // Get the target row for binary search
+        let target_row = index
+            .iid_to_row
+            .get(iid)
+            .ok_or_else(|| format!("Missing row mapping for IID: {}", &*iid))?
+            .to_owned();
+
         // Get the parent item ID; returns Result<Rc<str>, String>
         let par = Self::acr_tree_iid_par(&index.cells, &index.iid_to_row, iid)?;
 
         if !par.is_empty() {
             // Item has a parent
-            if !safety {
-                // Fast path using row numbers
-                let iid_row = Self::acr_pos(&index.iid_to_row, iid)?;
-                let par_row = Self::acr_pos(&index.iid_to_row, &par)?;
-                let pos = iid_row - par_row - 1;
-                Ok(pos)
-            } else {
-                // Safe path using the parent's children list
-                let par_cell = Self::acr_tree_par_cell(&index.cells, &index.iid_to_row, &par)?;
-                if let Some(par_cell) = par_cell {
-                    let pos = par_cell
-                        .chn
-                        .iter()
-                        .position(|c| c == iid)
-                        .ok_or(str_err!(format!("iid: {} not in parent's children", &*iid)))?;
-                    Ok(pos)
+            let par_cell = Self::acr_tree_par_cell(&index.cells, &index.iid_to_row, &par)?;
+            if let Some(par_cell) = par_cell {
+                // Binary search for exact pos by row
+                if let Some(pos) =
+                    binary_search_exact_pos(&par_cell.chn, &index.iid_to_row, target_row)?
+                {
+                    // Verify it's the correct IID (extra safety, though rows should be unique)
+                    if &par_cell.chn[pos] == iid {
+                        Ok(pos)
+                    } else {
+                        Err(str_err!(format!(
+                            "Row match found but IID mismatch for: {}",
+                            &*iid
+                        )))
+                    }
                 } else {
-                    Err(str_err!("Par cell unexpectedly empty."))
+                    Err(str_err!(format!("iid: {} not in parent's children", &*iid)))
                 }
+            } else {
+                Err(str_err!("Par cell unexpectedly empty."))
             }
         } else {
             // Item is a top-level item
-            let pos = Self::acr_tree_top_iids(&index.cells)
-                .position(|i| i == iid)
-                .ok_or(str_err!(format!("iid: {} not in top-level iids", &*iid)))?;
-            Ok(pos)
+            let mut pos = 0usize;
+            for res in Self::acr_tree_top_iids(&index.cells) {
+                if res? == iid {
+                    return Ok(pos);
+                }
+                pos += 1;
+            }
+            Err(str_err!(format!("iid: {} not in top-level iids", &*iid)))
         }
     }
 

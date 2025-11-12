@@ -41,6 +41,7 @@ impl Table {
                 &mut grid.canvas_rows,
                 &mut grid.disp_rows,
                 &grid.index.cells,
+                opts.horizontal_grid_line_width.clone(),
             );
         }
         if !event_data.index_cells.is_empty() && opts.enabled_undo && kwargs.undo {

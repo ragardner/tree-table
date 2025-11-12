@@ -1,11 +1,9 @@
 use crate::CellProps;
 use crate::EventData;
 use crate::IndexCell;
-use crate::MaxMap;
 use crate::SelectionKind;
 use crate::SelectionState;
 use crate::Table;
-use crate::TableCell;
 use crate::Val;
 use crate::args::{InsertArgs, InsertRow};
 use crate::statics::default_inherit;
@@ -50,7 +48,7 @@ impl Table {
         let (mut grid, opts, mut sel) = self.cr_mut_borrows();
         let mut grid = grid.deref_mut();
         let empty_val: Val = opts.empty_val.clone();
-        let empty_index_val: Val = opts.empty_val.clone();
+        let empty_index_val: Val = opts.empty_index_val.clone();
         let tree_mode = opts.tree_mode;
 
         let mut event_data: EventData = self.cr_new_event(true, &opts, &sel);
@@ -138,46 +136,18 @@ impl Table {
             };
 
             // Table
-            let mut cols_map: MaxMap<TableCell> = MaxMap::new();
-            // Do the cells provided by kwargs first
-            // Then if inherit do the ones we haven't visited
-            // Which can be identified by the cols not in cols_map
-            if let Some(col_vals) = row_spec.vals {
-                for (key, val) in col_vals.into_iter() {
-                    let cn = Self::acr_pos(&grid.header.iid_to_col, &key)?;
-                    let props = if do_inherit {
-                        Self::acr_tcell_props(&grid.index.cells, inherit_row, cn)
-                            .map(|rp| (*rp).clone())
-                    } else {
-                        None
-                    };
-                    cols_map.set_cell(cn, TableCell { val, props });
-                }
-            }
-            // Lastly if we're inheriting for this row we need to check for cells we've
-            // missed that have props, don't overwrite
-            if do_inherit {
-                for cn in 0..ncols {
-                    if !cols_map.contains_key(&cn) {
-                        if let Some(props) =
-                            Self::acr_tcell_props(&grid.index.cells, inherit_row, cn)
-                        {
-                            cols_map.set_cell(
-                                cn,
-                                TableCell {
-                                    val: empty_val.clone(),
-                                    props: Some(props.clone()),
-                                },
-                            );
-                        }
-                    }
-                }
-            }
-
             let new_icell = IndexCell {
                 iid: iid.clone(),
                 val,
-                vals: cols_map,
+                vals: Self::build_row_cells(
+                    &grid.index.cells,
+                    &grid.header,
+                    row_spec.vals,
+                    inherit_row,
+                    do_inherit,
+                    &empty_val,
+                    ncols,
+                )?,
                 dim: row_spec.dim.unwrap_or(dim),
                 vis,
                 par: par_rc.clone(),
@@ -190,7 +160,7 @@ impl Table {
                 chn_to_splice.push(iid.clone());
             }
 
-            grid.index.add_row(rn, iid.clone(), new_icell);
+            grid.index.add_row(rn, iid, new_icell);
         }
 
         // We don't need to record a tree change because undo -> del_rows() removes the spliced chn
@@ -205,6 +175,7 @@ impl Table {
             &mut grid.canvas_rows,
             &mut grid.disp_rows,
             &grid.index.cells,
+            opts.horizontal_grid_line_width.clone(),
         );
         // Update event_data
         event_data.added_rows = sorted_seq;

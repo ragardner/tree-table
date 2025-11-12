@@ -285,7 +285,7 @@ impl Table {
         if !to_undo.moved_cols.is_empty() {
             let new_to_old = std::mem::take(&mut to_undo.moved_cols);
             event_data.moved_cols = new_to_old.iter().map(|(k, v)| (*v, *k)).collect();
-            self.cr_move_cols(&mut grid, &mut event_data, &new_to_old)?;
+            self.cr_move_cols(&mut grid, &opts, &mut event_data, &new_to_old)?;
         }
 
         if !to_undo.moved_rows.is_empty() {
@@ -305,6 +305,7 @@ impl Table {
         if !to_undo.added_cols.is_empty() {
             self.cr_del_cols(
                 &mut grid,
+                &opts,
                 std::mem::take(&mut to_undo.added_cols),
                 &mut event_data,
             )?;
@@ -324,6 +325,7 @@ impl Table {
             let sorted_seq = to_undo.removed_header.iter().map(|t| t.0.clone()).collect();
             self.cr_add_cols(
                 &mut grid,
+                &opts,
                 &sel,
                 std::mem::take(&mut to_undo.removed_table_cells),
                 std::mem::take(&mut to_undo.removed_header),
@@ -338,6 +340,7 @@ impl Table {
             let sorted_seq = to_undo.removed_index.iter().map(|t| t.0.clone()).collect();
             self.cr_add_rows(
                 &mut grid,
+                &opts,
                 &sel,
                 std::mem::take(&mut to_undo.removed_index),
                 sorted_seq,

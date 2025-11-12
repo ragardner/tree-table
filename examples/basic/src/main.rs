@@ -162,7 +162,7 @@ fn main() {
         }))
         .ok();
 
-    let rows = generate_large_tree(100_000);
+    let rows = generate_large_tree(1);
     let args = TreeExtendArgs {
         rows,
         ..Default::default()
