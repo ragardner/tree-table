@@ -95,17 +95,16 @@ impl Table {
     /// If `stop_at` is empty, returns `true` if all ancestors are open.
     pub(crate) fn cr_tree_ancestors_all_open(
         &self,
-        grid: &TableGrid,
         iid: &Rc<str>, // Updated to match; adjust caller if needed
         stop_at: &str,
     ) -> Result<bool, String> {
         let stop_at_provided = !stop_at.is_empty();
-        for ancestor in grid.index.ancestor_rows(iid) {
+        for ancestor in self.grid.index.ancestor_rows(iid) {
             let ancestor_row = match ancestor {
                 Ok(row) => row,
                 Err(e) => return Err(e),
             };
-            let cell = match grid.index.cells.get(ancestor_row) {
+            let cell = match self.grid.index.cells.get(ancestor_row) {
                 Some(c) => c,
                 None => return Err(format!("Cell not found for ancestor row {}", ancestor_row)),
             };

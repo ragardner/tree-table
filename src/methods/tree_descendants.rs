@@ -173,20 +173,19 @@ impl Table {
         &self,
         iids: HashSet<Rc<str>>,
     ) -> Result<Vec<usize>, String> {
-        let grid = &*self.grid.borrow_mut();
         let mut res: Vec<usize> = Vec::new();
         for iid in iids.iter() {
             let mut has_ancestor_in_set = false;
-            for ancestor in grid.index.ancestor_rows(iid) {
+            for ancestor in self.grid.index.ancestor_rows(iid) {
                 let anc_rn = ancestor?;
-                let anc_cell = grid.index.cells.get_res(anc_rn)?;
+                let anc_cell = self.grid.index.cells.get_res(anc_rn)?;
                 if iids.contains(&anc_cell.iid) {
                     has_ancestor_in_set = true;
                     break;
                 }
             }
             if !has_ancestor_in_set {
-                res.push(Self::acr_pos(&grid.index.iid_to_row, iid)?);
+                res.push(Self::acr_pos(&self.grid.index.iid_to_row, iid)?);
             }
         }
         Ok(res)
@@ -200,24 +199,23 @@ impl Table {
         &self,
         iids: HashSet<Rc<str>>,
     ) -> Result<Vec<usize>, String> {
-        let grid = &*self.grid.borrow_mut();
         let mut res: Vec<usize> = Vec::new();
         for iid in iids.iter() {
             let mut has_ancestor_in_set = false;
-            for ancestor in grid.index.ancestor_rows(iid) {
+            for ancestor in self.grid.index.ancestor_rows(iid) {
                 let anc_rn = ancestor?;
-                let anc_cell = grid.index.cells.get_res(anc_rn)?;
+                let anc_cell = self.grid.index.cells.get_res(anc_rn)?;
                 if iids.contains(&anc_cell.iid) {
                     has_ancestor_in_set = true;
                     break;
                 }
             }
             if !has_ancestor_in_set {
-                let rn = Self::acr_pos(&grid.index.iid_to_row, iid)?;
+                let rn = Self::acr_pos(&self.grid.index.iid_to_row, iid)?;
                 res.push(rn);
                 let desc: Result<Vec<usize>, String> = Self::acr_tree_descendants_rows(
-                    &grid.index.cells,
-                    &grid.index.iid_to_row,
+                    &self.grid.index.cells,
+                    &self.grid.index.iid_to_row,
                     rn,
                     false,
                 )

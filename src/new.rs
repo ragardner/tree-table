@@ -1,12 +1,11 @@
 use crate::{Events, Options, PartialOptions, Selection, TableGrid};
-use std::cell::RefCell;
 
 #[derive(Debug)]
 pub struct Table {
-    pub(crate) grid: RefCell<TableGrid>,
-    pub(crate) opts: RefCell<Options>,
-    pub(crate) sel: RefCell<Selection>,
-    pub(crate) events: RefCell<Events>,
+    pub(crate) grid: TableGrid,
+    pub(crate) opts: Options,
+    pub(crate) sel: Selection,
+    pub(crate) events: Events,
 }
 
 impl Table {
@@ -19,10 +18,10 @@ impl Table {
         };
         opts.default_row_dim = row_dim;
         Table {
-            grid: RefCell::new(TableGrid::new(opts.max_undos.clone())),
-            opts: RefCell::new(opts),
-            sel: RefCell::new(Selection::new()),
-            events: RefCell::new(Events::new()),
+            grid: TableGrid::new(opts.max_undos.clone()),
+            opts,
+            sel: Selection::new(),
+            events: Events::new(),
         }
     }
 }

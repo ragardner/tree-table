@@ -55,10 +55,9 @@ macro_rules! define_options {
 
         macro_rules! merge_self_opts_fields {
             ($self:expr, $partial:ident) => {
-                let mut opts = $self.opts.borrow_mut();
                 $(
                     if let Some(val) = $partial.$field {
-                        opts.$field = val;
+                        $self.opts.$field = val;
                     }
                 )*
             }
@@ -213,7 +212,7 @@ impl Table {
     }
 
     /// Validates input before applying settings changes to table.
-    pub fn cr_merge_opts(&self, mut partial: PartialOptions) -> Result<(), String> {
+    pub fn cr_merge_opts(&mut self, mut partial: PartialOptions) -> Result<(), String> {
         Self::acr_validate_partial_opts(&mut partial)?;
         merge_self_opts_fields!(self, partial);
         Ok(())

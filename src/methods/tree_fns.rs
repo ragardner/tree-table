@@ -48,16 +48,16 @@ impl Table {
 
     pub(crate) fn cr_tree_get_iid_insert_row(
         &self,
-        grid: &TableGrid,
         pos: Option<usize>,
         par: &str,
     ) -> Result<usize, String> {
         if !par.is_empty() {
-            let chn = Self::acr_tree_iid_chn(&grid.index.cells, &grid.index.iid_to_row, par)?;
+            let chn =
+                Self::acr_tree_iid_chn(&self.grid.index.cells, &self.grid.index.iid_to_row, par)?;
             if let Some(idx) = pos {
                 let idx = idx.min(chn.len());
                 if idx == 0 {
-                    let parent_rn = Self::acr_pos(&grid.index.iid_to_row, par)?;
+                    let parent_rn = Self::acr_pos(&self.grid.index.iid_to_row, par)?;
                     return Ok(parent_rn + 1);
                 } else {
                     let prev_chld = chn.get(idx - 1).ok_or(str_err!(format!(
@@ -65,8 +65,8 @@ impl Table {
                         idx - 1,
                         par
                     )))?;
-                    let prev_chld_rn = Self::acr_pos(&grid.index.iid_to_row, prev_chld)?;
-                    let num_desc = Self::acr_tree_descendants_num(&grid, prev_chld_rn, false)?;
+                    let prev_chld_rn = Self::acr_pos(&self.grid.index.iid_to_row, prev_chld)?;
+                    let num_desc = Self::acr_tree_descendants_num(&self.grid, prev_chld_rn, false)?;
                     return Ok(prev_chld_rn + num_desc + 1);
                 }
             } else {
@@ -74,11 +74,11 @@ impl Table {
                     let last_chld = chn
                         .last()
                         .ok_or(str_err!(format!("Could not get last child of: {}", par)))?;
-                    let last_chld_rn = Self::acr_pos(&grid.index.iid_to_row, last_chld)?;
-                    let num_desc = Self::acr_tree_descendants_num(&grid, last_chld_rn, false)?;
+                    let last_chld_rn = Self::acr_pos(&self.grid.index.iid_to_row, last_chld)?;
+                    let num_desc = Self::acr_tree_descendants_num(&self.grid, last_chld_rn, false)?;
                     return Ok(last_chld_rn + num_desc + 1);
                 } else {
-                    let parent_rn = Self::acr_pos(&grid.index.iid_to_row, par)?;
+                    let parent_rn = Self::acr_pos(&self.grid.index.iid_to_row, par)?;
                     return Ok(parent_rn + 1);
                 }
             }
@@ -88,17 +88,17 @@ impl Table {
                     return Ok(0);
                 } else {
                     if let Some(datarn) = Self::acr_tree_top_iid_rn_at_pos(
-                        &grid.index.cells,
-                        &grid.index.iid_to_row,
+                        &self.grid.index.cells,
+                        &self.grid.index.iid_to_row,
                         idx,
                     ) {
                         return Ok(datarn);
                     } else {
-                        return Ok(Self::acr_total_rows(&grid.index.cells));
+                        return Ok(Self::acr_total_rows(&self.grid.index.cells));
                     }
                 }
             } else {
-                return Ok(Self::acr_total_rows(&grid.index.cells));
+                return Ok(Self::acr_total_rows(&self.grid.index.cells));
             }
         }
     }
@@ -151,8 +151,7 @@ impl Table {
     }
 
     pub(crate) fn cr_tree_move_rows_mod_cells(
-        &self,
-        grid: &mut TableGrid,
+        &mut self,
         mut event_data: &mut EventData,
         new_to_old: &mut HashMap<usize, usize>,
         tree_undo_data: Option<&mut EventData>,
@@ -165,7 +164,7 @@ impl Table {
         // Caller was originally an undo
         if let Some(undo_data) = tree_undo_data {
             from_undo = true;
-            Self::acr_tree_restore_cells(&mut grid.index, undo_data, Some(&mut event_data))?;
+            Self::acr_tree_restore_cells(&mut self.grid.index, undo_data, Some(&mut event_data))?;
 
         // Caller was not originally an undo
         } else if !event_data.moved_rows.is_empty() || tree_move.is_some() {
@@ -183,8 +182,8 @@ impl Table {
                 // New parent exists
                 if !new_par.is_empty() {
                     let new_par_chn = Self::acr_tree_iid_chn(
-                        &grid.index.cells,
-                        &grid.index.iid_to_row,
+                        &self.grid.index.cells,
+                        &self.grid.index.iid_to_row,
                         &new_par,
                     )?;
                     let new_par_chn_len = new_par_chn.len();
@@ -196,7 +195,7 @@ impl Table {
                     // Determine insert row & move_to_pos
                     // New parent has no children
                     if new_par_chn_len == 0 {
-                        insert_row = Self::acr_pos(&grid.index.iid_to_row, &new_par)? + 1;
+                        insert_row = Self::acr_pos(&self.grid.index.iid_to_row, &new_par)? + 1;
 
                     // New parent has children, move_to_position is end
                     } else if move_to_pos >= new_par_chn_len {
@@ -204,8 +203,9 @@ impl Table {
                             "Could not get last child of: {}",
                             new_par
                         )))?;
-                        let last_chld_rn = Self::acr_pos(&grid.index.iid_to_row, last_chld)?;
-                        let num_desc = Self::acr_tree_descendants_num(&grid, last_chld_rn, false)?;
+                        let last_chld_rn = Self::acr_pos(&self.grid.index.iid_to_row, last_chld)?;
+                        let num_desc =
+                            Self::acr_tree_descendants_num(&self.grid, last_chld_rn, false)?;
                         insert_row = last_chld_rn + num_desc + 1;
 
                     // New parent has children, move_to_position is not end
@@ -215,28 +215,28 @@ impl Table {
                             "Vec index out of range: {} for vec: {:?}",
                             move_to_pos, new_par_chn
                         )))?;
-                        insert_row = Self::acr_pos(&grid.index.iid_to_row, cx)?;
+                        insert_row = Self::acr_pos(&self.grid.index.iid_to_row, cx)?;
 
                         // If any iids are merely moving index
                         // & the index (pos) is > than their current index
                         // then we have to adjust the insert_row and move_to_pos
                         // to accurately drop the rows being moved
                         for rn in to_move.iter() {
-                            let iid = Self::acr_borrow_riid(&grid.index.cells, *rn)?;
+                            let iid = Self::acr_borrow_riid(&self.grid.index.cells, *rn)?;
                             if Self::acr_tree_pars_equal(
-                                &grid.index.cells,
-                                &grid.index.iid_to_row,
+                                &self.grid.index.cells,
+                                &self.grid.index.iid_to_row,
                                 iid,
                                 &new_par,
-                            )? && move_to_pos > Self::acr_tree_pos(&grid.index, &iid)?
+                            )? && move_to_pos > Self::acr_tree_pos(&self.grid.index, &iid)?
                             {
                                 let cx = new_par_chn.get(move_to_pos).ok_or(str_err!(format!(
                                     "Vec index out of range: {} for iid: {} vec: {:?}",
                                     move_to_pos, iid, new_par_chn
                                 )))?;
                                 let num_desc = Self::acr_tree_descendants_num(
-                                    &grid,
-                                    Self::acr_pos(&grid.index.iid_to_row, cx)?,
+                                    &self.grid,
+                                    Self::acr_pos(&self.grid.index.iid_to_row, cx)?,
                                     false,
                                 )?;
                                 insert_row += 1 + num_desc;
@@ -250,12 +250,12 @@ impl Table {
 
                 // NO new parent
                 } else {
-                    let num_top = Self::acr_tree_top_iids(&grid.index.cells).count();
+                    let num_top = Self::acr_tree_top_iids(&self.grid.index.cells).count();
                     move_to_pos = match move_op.pos {
                         None => num_top,
                         Some(pos) => num_top.min(pos as usize),
                     };
-                    insert_row = self.cr_tree_get_iid_insert_row(&grid, Some(move_to_pos), "")?;
+                    insert_row = self.cr_tree_get_iid_insert_row(Some(move_to_pos), "")?;
                 };
 
             // There is NO TreeMove object, use event_data to determine move
@@ -266,7 +266,7 @@ impl Table {
                         .moved_rows
                         .iter()
                         .filter_map(|(rn, _)| {
-                            Self::acr_borrow_riid(&grid.index.cells, *rn)
+                            Self::acr_borrow_riid(&self.grid.index.cells, *rn)
                                 .ok()
                                 .map(|r| r.clone())
                         })
@@ -275,13 +275,14 @@ impl Table {
 
                 // event_data.row is Some, it's a displayed row number
                 if let Some(drop_row) = event_data.row {
-                    if drop_row >= grid.disp_rows.len() {
-                        insert_row = Self::acr_total_rows(&grid.index.cells);
+                    if drop_row >= self.grid.disp_rows.len() {
+                        insert_row = Self::acr_total_rows(&self.grid.index.cells);
                     } else {
-                        insert_row = Self::acr_disp_to_data_row(&&grid.disp_rows, drop_row.clone())?
+                        insert_row =
+                            Self::acr_disp_to_data_row(&&self.grid.disp_rows, drop_row.clone())?
                     }
-                    let _get_rn = insert_row.min(Self::acr_total_rows(&grid.index.cells) - 1);
-                    move_to_iid = Self::acr_borrow_riid(&grid.index.cells, _get_rn)?.clone();
+                    let _get_rn = insert_row.min(Self::acr_total_rows(&self.grid.index.cells) - 1);
+                    move_to_iid = Self::acr_borrow_riid(&self.grid.index.cells, _get_rn)?.clone();
 
                 // event_data.row is None, we'll have to use event_data.moved_rows to
                 // find the insert_row etc
@@ -305,22 +306,23 @@ impl Table {
                         .ok_or(str_err!("event_data.moved_rows unexpectedly empty"))?
                         .clone();
                     insert_row = if min_from <= min_to { max_to } else { min_to };
-                    move_to_iid = Self::acr_borrow_riid(&grid.index.cells, insert_row)?.clone();
+                    move_to_iid =
+                        Self::acr_borrow_riid(&self.grid.index.cells, insert_row)?.clone();
                 }
-                move_to_pos = Self::acr_tree_pos(&grid.index, &move_to_iid)?;
+                move_to_pos = Self::acr_tree_pos(&self.grid.index, &move_to_iid)?;
                 new_par = Self::acr_tree_iid_par(
-                    &grid.index.cells,
-                    &grid.index.iid_to_row,
+                    &self.grid.index.cells,
+                    &self.grid.index.iid_to_row,
                     &move_to_iid,
                 )?;
 
                 // Check for recursive loops
                 let mut causes_recursive_loop: Option<(Rc<str>, Rc<str>)> = None;
                 for &row in to_move.iter() {
-                    let iid = Self::acr_borrow_riid(&grid.index.cells, row)?;
+                    let iid = Self::acr_borrow_riid(&self.grid.index.cells, row)?;
                     if Self::acr_tree_move_pid_causes_recursive_loop(
-                        &grid.index.cells,
-                        &grid.index.iid_to_row,
+                        &self.grid.index.cells,
+                        &self.grid.index.iid_to_row,
                         &iid,
                         &new_par,
                     )? {
@@ -346,28 +348,36 @@ impl Table {
             new_loc_displayed = if new_par.is_empty() {
                 true
             } else {
-                Self::acr_tree_iid_is_open(&grid.index.cells, &grid.index.iid_to_row, &new_par)?
-                    && Self::acr_row_iid_is_vis(
-                        &grid.index.cells,
-                        &grid.index.iid_to_row,
-                        &new_par,
-                    )?
+                Self::acr_tree_iid_is_open(
+                    &self.grid.index.cells,
+                    &self.grid.index.iid_to_row,
+                    &new_par,
+                )? && Self::acr_row_iid_is_vis(
+                    &self.grid.index.cells,
+                    &self.grid.index.iid_to_row,
+                    &new_par,
+                )?
             };
 
             // Move the iids
             let mut iids: Vec<Rc<str>> = Vec::new();
             for rn in to_move.iter() {
-                let iid = Self::acr_copy_riid(&grid.index.cells, *rn)?;
-                row_ctr =
-                    Self::acr_tree_move_iid(&mut grid.index, event_data, &iid, &new_par, row_ctr)?;
+                let iid = Self::acr_copy_riid(&self.grid.index.cells, *rn)?;
+                row_ctr = Self::acr_tree_move_iid(
+                    &mut self.grid.index,
+                    event_data,
+                    &iid,
+                    &new_par,
+                    row_ctr,
+                )?;
                 iids.push(iid);
             }
 
             // If new parent, add the new iids to the new parent's children
             if !new_par.is_empty() {
                 let parent = Self::acr_icell_mut(
-                    &mut grid.index.cells,
-                    *grid.index.iid_to_row.get_res(&new_par)?,
+                    &mut self.grid.index.cells,
+                    *self.grid.index.iid_to_row.get_res(&new_par)?,
                 )?;
                 let mut chn = std::mem::take(&mut parent.chn);
                 let iids_len = iids.len();
@@ -392,7 +402,7 @@ impl Table {
             if !new_loc_displayed {
                 // New location is hidden, hide all moved rows
                 Self::acr_set_row_vis(
-                    &mut grid.index.cells,
+                    &mut self.grid.index.cells,
                     event_data
                         .moved_rows
                         .keys()
@@ -407,12 +417,17 @@ impl Table {
                 let mut rows_to_show = Vec::new();
                 for &k in event_data.moved_rows.keys() {
                     let row = k;
-                    let iid = Self::acr_borrow_riid(&grid.index.cells, row)?;
-                    if self.cr_tree_ancestors_all_open(&grid, &iid, "")? {
+                    let iid = Self::acr_borrow_riid(&self.grid.index.cells, row)?;
+                    if self.cr_tree_ancestors_all_open(&iid, "")? {
                         rows_to_show.push(row);
                     }
                 }
-                Self::acr_set_row_vis(&mut grid.index.cells, rows_to_show.into_iter(), true, None)?;
+                Self::acr_set_row_vis(
+                    &mut self.grid.index.cells,
+                    rows_to_show.into_iter(),
+                    true,
+                    None,
+                )?;
             }
         };
         Ok(())
@@ -689,8 +704,7 @@ impl Table {
 
     // Sets IndexCells to open/close and returns a Set of rows to show/hide.
     pub(crate) fn cr_tree_open_close<I>(
-        &self,
-        grid: &mut TableGrid,
+        &mut self,
         rows: I,
         open: bool,
         event_data: Option<&mut EventData>,
@@ -706,12 +720,12 @@ impl Table {
         match event_data {
             Some(event_data_mut) => {
                 for rn in rows {
-                    let cell = Self::acr_icell_mut(&mut grid.index.cells, rn)?;
+                    let cell = Self::acr_icell_mut(&mut self.grid.index.cells, rn)?;
                     event_data_mut.add_change_icells(rn, cell.record_set_open(open));
                     if !cell.chn.is_empty() && cell.vis || vis_check.contains(&rn) {
                         for res in Self::acr_tree_descendants_rows(
-                            &grid.index.cells,
-                            &grid.index.iid_to_row,
+                            &self.grid.index.cells,
+                            &self.grid.index.iid_to_row,
                             rn,
                             true,
                         ) {
@@ -726,12 +740,12 @@ impl Table {
             }
             None => {
                 for rn in rows {
-                    let cell = Self::acr_icell_mut(&mut grid.index.cells, rn)?;
+                    let cell = Self::acr_icell_mut(&mut self.grid.index.cells, rn)?;
                     cell.open = open;
                     if !cell.chn.is_empty() && cell.vis || vis_check.contains(&rn) {
                         for res in Self::acr_tree_descendants_rows(
-                            &grid.index.cells,
-                            &grid.index.iid_to_row,
+                            &self.grid.index.cells,
+                            &self.grid.index.iid_to_row,
                             rn,
                             true,
                         ) {

@@ -1,36 +1,31 @@
-use crate::Options;
+use crate::Table;
 use crate::args::{AddArgs, AddNumArgs};
 use crate::utils::consecutive_ranges::consecutive_ranges_owned;
 use crate::{EventData, str_err};
-use crate::{Selection, Table, TableGrid};
 use crate::{SelectionKind, SelectionState};
 use std::collections::HashSet;
 
 impl Table {
     /// Add new cols with the provided item ids to the Table.
-    pub fn add_cols(&self, kwargs: Option<AddArgs>) -> Result<Vec<String>, String> {
-        let (mut grid, opts, mut sel) = self.cr_mut_borrows();
+    pub fn add_cols(&mut self, kwargs: Option<AddArgs>) -> Result<Vec<String>, String> {
         let kwargs: AddArgs = kwargs.unwrap_or_default();
-        let event_data = self.cr_new_event(false, &opts, &sel);
+        let event_data = self.cr_new_event(false);
         let pos = if let Some(pos) = kwargs.pos {
             pos as usize
         } else {
-            Self::acr_total_cols(&grid.header.cells)
+            Self::acr_total_cols(&self.grid.header.cells)
         };
-        let iids = kwargs.items.unwrap_or(vec![grid.header.new_iid()?]);
+        let iids = kwargs.items.unwrap_or(vec![self.grid.header.new_iid()?]);
         let mut iid_set = HashSet::new();
         for iid in &iids {
             if !iid_set.insert(iid.clone()) {
                 return Err(str_err!(format!("Duplicate col iid: {}", iid)));
             }
-            if grid.header.iid_to_col.get(iid.as_str()).is_some() {
+            if self.grid.header.iid_to_col.get(iid.as_str()).is_some() {
                 return Err(str_err!(format!("Col iid already exists: {}", iid)));
             }
         }
         self._add_cols(
-            &mut grid,
-            &mut sel,
-            &opts,
             iids,
             pos,
             kwargs.inherit,
@@ -43,23 +38,19 @@ impl Table {
     }
 
     /// Add a number of new cols with auto-generated item ids to the Table.
-    pub fn add_num_cols(&self, kwargs: Option<AddNumArgs>) -> Result<Vec<String>, String> {
-        let (mut grid, opts, mut sel) = self.cr_mut_borrows();
+    pub fn add_num_cols(&mut self, kwargs: Option<AddNumArgs>) -> Result<Vec<String>, String> {
         let kwargs: AddNumArgs = kwargs.unwrap_or_default();
-        let event_data = self.cr_new_event(false, &opts, &sel);
+        let event_data = self.cr_new_event(false);
         let pos = if let Some(pos) = kwargs.pos {
             pos as usize
         } else {
-            Self::acr_total_cols(&grid.header.cells)
+            Self::acr_total_cols(&self.grid.header.cells)
         };
         let num = kwargs.num.unwrap_or(1);
         let iids: Vec<String> = (0..num)
-            .map(|_| grid.header.new_iid())
+            .map(|_| self.grid.header.new_iid())
             .collect::<Result<_, _>>()?;
         self._add_cols(
-            &mut grid,
-            &mut sel,
-            &opts,
             iids,
             pos,
             kwargs.inherit,
@@ -73,10 +64,7 @@ impl Table {
 
     #[inline]
     fn _add_cols(
-        &self,
-        mut grid: &mut TableGrid,
-        mut sel: &mut Selection,
-        opts: &Options,
+        &mut self,
         iids: Vec<String>,
         pos: usize,
         inherit: String,
@@ -87,31 +75,21 @@ impl Table {
         mut event_data: EventData,
     ) -> Result<Vec<String>, String> {
         let (cols, header, sorted_seq) =
-            self.cr_add_cols_get_args(&grid, &opts, iids.clone(), pos, inherit.as_str(), vis)?;
+            self.cr_add_cols_get_args(iids.clone(), pos, inherit.as_str(), vis)?;
 
-        self.cr_add_cols(
-            &mut grid,
-            &opts,
-            &sel,
-            cols,
-            header,
-            sorted_seq,
-            &mut event_data,
-            true,
-            true,
-        )?;
+        self.cr_add_cols(cols, header, sorted_seq, &mut event_data, true, true)?;
 
         if select {
-            Self::acr_deselect_all(&mut sel);
+            Self::acr_deselect_all(&mut self.sel);
             for (start, end) in consecutive_ranges_owned(
                 event_data
                     .added_cols
                     .iter()
-                    .filter_map(|n| Self::acr_data_to_disp_opt(&grid.disp_cols, *n)),
+                    .filter_map(|n| Self::acr_data_to_disp_opt(&self.grid.disp_cols, *n)),
             ) {
                 Self::acr_add_selection_box(
-                    &mut sel,
-                    &grid,
+                    &mut self.sel,
+                    &self.grid,
                     0,
                     None,
                     start,
@@ -123,10 +101,10 @@ impl Table {
             }
         }
 
-        self.cr_event_modified(&mut grid, &self.events.borrow(), &event_data, emit, true)?;
+        self.cr_event_modified(&event_data, emit, true)?;
 
-        if opts.enabled_undo && undo {
-            grid.undo_stack.push_back(event_data);
+        if self.opts.enabled_undo && undo {
+            self.grid.undo_stack.push_back(event_data);
         }
         Ok(iids)
     }

@@ -1,27 +1,23 @@
 use crate::ChangeHeaderCell;
 use crate::ChangeIndexCell;
 use crate::EventData;
-use crate::Events;
 use crate::Table;
-use crate::TableGrid;
 use crate::ValidationMessage;
 use crate::str_err;
 
 impl Table {
     pub(crate) fn cr_bulk_edit_validation(
-        &self,
-        grid: &mut TableGrid,
-        events: &Events,
+        &mut self,
         message: ValidationMessage,
         event_data: &mut EventData,
     ) -> Result<(), String> {
-        if let Some(callback) = &events.bound_validation_fn {
+        if let Some(callback) = &self.events.bound_validation_fn {
             let response: ValidationMessage = callback(message)?;
-            let num_rows = Self::acr_total_rows(&grid.index.cells);
-            let num_cols = Self::acr_total_cols(&grid.header.cells);
+            let num_rows = Self::acr_total_rows(&self.grid.index.cells);
+            let num_cols = Self::acr_total_cols(&self.grid.header.cells);
             // Header
-            let mut cells = &mut grid.header.cells;
-            let mut iid_to_col = &mut grid.header.iid_to_col;
+            let mut cells = &mut self.grid.header.cells;
+            let mut iid_to_col = &mut self.grid.header.iid_to_col;
             for (pos, changes) in response.header_data.into_iter() {
                 let pos = pos as usize;
                 if pos < num_cols {
@@ -55,8 +51,8 @@ impl Table {
                 }
             }
             // Index
-            let mut cells = &mut grid.index.cells;
-            let mut iid_to_row = &mut grid.index.iid_to_row;
+            let mut cells = &mut self.grid.index.cells;
+            let mut iid_to_row = &mut self.grid.index.iid_to_row;
             for (pos, changes) in response.index_data.into_iter() {
                 let pos = pos as usize;
                 if pos < num_rows {
@@ -90,8 +86,8 @@ impl Table {
                 }
             }
             // Table
-            let mut cells = &mut grid.index.cells;
-            let mut iid_to_row = &mut grid.index.iid_to_row;
+            let mut cells = &mut self.grid.index.cells;
+            let mut iid_to_row = &mut self.grid.index.iid_to_row;
             for (pos, changes) in response.table_data.into_iter() {
                 let pos = pos as usize;
                 if pos < num_rows {

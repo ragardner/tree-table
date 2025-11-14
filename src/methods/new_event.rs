@@ -1,14 +1,12 @@
 use crate::EventData;
-use crate::Options;
-use crate::Selection;
 use crate::Table;
 use std::collections::HashMap;
 
 impl Table {
-    pub(crate) fn cr_new_event(&self, boxes: bool, opts: &Options, sel: &Selection) -> EventData {
+    pub(crate) fn cr_new_event(&self, boxes: bool) -> EventData {
         EventData {
-            widget_name: opts.widget_name.clone(),
-            widget_id: opts.widget_id.clone(),
+            widget_name: self.opts.widget_name.clone(),
+            widget_id: self.opts.widget_id.clone(),
             table_cells: HashMap::new(),
             index_cells: HashMap::new(),
             header_cells: HashMap::new(),
@@ -22,11 +20,15 @@ impl Table {
             moved_rows: HashMap::new(),
             moved_cols: HashMap::new(),
             selection_boxes: if boxes {
-                sel.selection_boxes.clone()
+                self.sel.selection_boxes.clone()
             } else {
                 Vec::new()
             },
-            selected: if boxes { sel.selected.clone() } else { None },
+            selected: if boxes {
+                self.sel.selected.clone()
+            } else {
+                None
+            },
             key: None,
             tree_changes: HashMap::new(),
             row: None,

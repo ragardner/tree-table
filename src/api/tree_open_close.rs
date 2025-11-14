@@ -6,13 +6,11 @@ use crate::args::TreeOpenArgs;
 
 impl Table {
     pub(crate) fn tree_set_open_or_closed(
-        &self,
+        &mut self,
         kwargs: TreeOpenArgs,
         open: bool,
     ) -> Result<(), String> {
-        let (mut grid, opts, sel) = self.cr_mut_borrows();
-        let mut grid = grid.deref_mut();
-        let mut event_data: EventData = self.cr_new_event(true, &opts, &sel);
+        let mut event_data: EventData = self.cr_new_event(true);
         let to_show = if kwargs.rows.is_empty() {
             let end_row = Self::acr_total_rows(&grid.index.cells);
             self.cr_tree_open_close(

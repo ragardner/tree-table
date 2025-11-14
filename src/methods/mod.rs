@@ -1,6 +1,5 @@
 pub mod add_cols;
 pub mod add_rows;
-pub mod borrow;
 pub mod bulk_edit_validation;
 pub mod del_cols;
 pub mod del_rows;
