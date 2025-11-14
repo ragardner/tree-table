@@ -12,9 +12,9 @@ impl Table {
     ) -> Result<(), String> {
         let mut event_data: EventData = self.cr_new_event(true);
         let to_show = if kwargs.rows.is_empty() {
-            let end_row = Self::acr_total_rows(&grid.index.cells);
+            let end_row = Self::acr_total_rows(&self.grid.index.cells);
             self.cr_tree_open_close(
-                &mut grid,
+                &mut self.grid,
                 (0..end_row).into_iter(),
                 open,
                 Some(&mut event_data),
@@ -22,11 +22,16 @@ impl Table {
         } else {
             let mut rows = Vec::new();
             for iid in kwargs.rows.into_iter() {
-                rows.push(Self::acr_pos(&grid.index.iid_to_row, &iid)?);
+                rows.push(Self::acr_pos(&self.grid.index.iid_to_row, &iid)?);
             }
             rows.sort_unstable();
             rows.dedup();
-            self.cr_tree_open_close(&mut grid, rows.into_iter(), open, Some(&mut event_data))?
+            self.cr_tree_open_close(
+                &mut self.grid,
+                rows.into_iter(),
+                open,
+                Some(&mut event_data),
+            )?
         };
         if !to_show.is_empty() {
             Self::acr_set_row_vis(
