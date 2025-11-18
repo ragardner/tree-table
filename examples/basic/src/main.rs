@@ -1,7 +1,7 @@
 use std::time::Instant;
 use tree_table_core::{
-    PartialOptions, Table, Val,
-    args::{AddArgs, TreeExtendArgs, TreeExtendRow},
+    PartialOptions, SpanKey, Table, Val,
+    args::{AddArgs, GetDataSpanArgs, TreeExtendArgs, TreeExtendRow},
 };
 
 // fn generate_large_tree(num_nodes: usize) -> Vec<TreeExtendRow> {
@@ -147,7 +147,7 @@ fn generate_large_tree(num_nodes: usize) -> Vec<TreeExtendRow> {
 }
 
 fn main() {
-    let table = Table::new(
+    let mut table = Table::new(
         30,
         Some(PartialOptions {
             tree_mode: Some(true),
@@ -162,7 +162,7 @@ fn main() {
         }))
         .ok();
 
-    let rows = generate_large_tree(1);
+    let rows = generate_large_tree(100_000);
     let args = TreeExtendArgs {
         rows,
         ..Default::default()
@@ -175,4 +175,10 @@ fn main() {
     let duration = start.elapsed();
     println!("Time taken for tree_extend: {:?}", duration);
     println!("Total rows: {:?}", table.total_rows());
+
+    let data = table.get_data_span(Some(GetDataSpanArgs {
+        key: SpanKey::Tuple4(Some(0), Some(0), Some(2), Some(2)),
+        ..Default::default()
+    }));
+    println!("{:?}", data);
 }

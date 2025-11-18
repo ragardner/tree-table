@@ -107,7 +107,7 @@ impl Table {
     }
 
     /// Extend the tree by adding new rows.
-    pub fn tree_extend(&self, kwargs: Option<TreeExtendArgs>) -> Result<(), String> {
+    pub fn tree_extend(&mut self, kwargs: Option<TreeExtendArgs>) -> Result<(), String> {
         let kwargs = kwargs.unwrap_or_default();
         let empty_id_handling = kwargs.empty_ids;
         let duplicate_id_handling = kwargs.duplicate_ids;
@@ -117,23 +117,20 @@ impl Table {
         let mut tops: Vec<Rc<str>> = Vec::with_capacity(kwargs.rows.len() / 2);
         // parents added to the tree_map but which never have their own rows as iids
         let mut par_stubs: HashMap<Rc<str>, Vec<Rc<str>>> = HashMap::new();
-        let mut grid = &mut *self.grid.borrow_mut();
-        let opts = self.opts.borrow();
-        let sel_ref = self.sel.borrow();
-        let empty_val: Val = opts.empty_val.clone();
-        let empty_ival: Val = opts.empty_index_val.clone();
-        let default_dim = Self::acr_get_default_row_dim(&opts);
-        let mut event_data: EventData = self.cr_new_event(true, &opts, &sel_ref);
-        let ncols = Self::acr_total_cols(&grid.header.cells);
-        let mut row_ctr = Self::acr_total_rows(&grid.index.cells);
+        let empty_val: Val = self.opts.empty_val.clone();
+        let empty_ival: Val = self.opts.empty_index_val.clone();
+        let default_dim = self.cr_get_default_row_dim();
+        let mut event_data: EventData = self.cr_new_event(true);
+        let ncols = Self::acr_total_cols(&self.grid.header.cells);
+        let mut row_ctr = Self::acr_total_rows(&self.grid.index.cells);
 
         // Determine which row to inherit cell props from
         let opt_inherit_row =
-            self.cr_get_inherit_row(&grid.index.iid_to_row, row_ctr, &kwargs.inherit)?;
+            self.cr_get_inherit_row(&self.grid.index.iid_to_row, row_ctr, &kwargs.inherit)?;
         let do_inherit = opt_inherit_row.is_some();
         let inherit_row = opt_inherit_row.unwrap_or(0);
         let index_props = if do_inherit {
-            grid.index.clone_props(&inherit_row)
+            self.grid.index.clone_props(&inherit_row)
         } else {
             None
         };
@@ -154,15 +151,20 @@ impl Table {
                     }
                     EmptyIdHandling::New => {
                         // new_iid() guarantees a new id
-                        let mut new = grid.index.new_iid()?;
+                        let mut new = self.grid.index.new_iid()?;
                         while tree_map.contains_key(new.as_str()) {
-                            new = grid.index.new_iid()?;
+                            new = self.grid.index.new_iid()?;
                         }
                         Rc::from(new)
                     }
                 }
             // iid should not already be in Table
-            } else if grid.index.iid_to_row.contains_key(row_spec.iid.as_str()) {
+            } else if self
+                .grid
+                .index
+                .iid_to_row
+                .contains_key(row_spec.iid.as_str())
+            {
                 match duplicate_id_handling {
                     DuplicateIdHandling::Error => {
                         return Err(str_err!(format!("iid already exists: {}", row_spec.iid)));
@@ -171,7 +173,7 @@ impl Table {
                         let mut n: u64 = 1;
                         let iid = row_spec.iid.as_str();
                         let mut new = format!("{iid}_{n}");
-                        while grid.index.iid_to_row.contains_key(new.as_str()) {
+                        while self.grid.index.iid_to_row.contains_key(new.as_str()) {
                             n += 1;
                             new = format!("{iid}_{n}");
                         }
@@ -184,7 +186,7 @@ impl Table {
 
             let mut par: Rc<str> = Rc::from(row_spec.par);
             // par should not already be in Table
-            if grid.index.iid_to_row.contains_key(&par) {
+            if self.grid.index.iid_to_row.contains_key(&par) {
                 match duplicate_id_handling {
                     DuplicateIdHandling::Error => {
                         return Err(str_err!(format!("parent already exists: {}", par)));
@@ -192,7 +194,7 @@ impl Table {
                     DuplicateIdHandling::Rename => {
                         let mut n: u64 = 1;
                         let mut new = format!("{par}_{n}");
-                        while grid.index.iid_to_row.contains_key(new.as_str()) {
+                        while self.grid.index.iid_to_row.contains_key(new.as_str()) {
                             n += 1;
                             new = format!("{par}_{n}");
                         }
@@ -212,7 +214,7 @@ impl Table {
                         let mut new = format!("{iid}_{n}");
                         // Have to check a 2nd time if iid_to_row contains newly renamed iid
                         while tree_map.contains_key(new.as_str())
-                            || grid.index.iid_to_row.contains_key(new.as_str())
+                            || self.grid.index.iid_to_row.contains_key(new.as_str())
                         {
                             n += 1;
                             new = format!("{iid}_{n}");
@@ -228,8 +230,8 @@ impl Table {
                 iid: iid.clone(),
                 val: row_spec.val.unwrap_or(empty_ival.clone()),
                 vals: Self::build_row_cells(
-                    &grid.index.cells,
-                    &grid.header,
+                    &self.grid.index.cells,
+                    &self.grid.header,
                     row_spec.vals.take(),
                     inherit_row,
                     do_inherit,
@@ -238,7 +240,7 @@ impl Table {
                 )?,
                 dim: row_spec.dim.unwrap_or(default_dim),
                 vis: false,
-                par: grid.index.empty_par.clone(),
+                par: self.grid.index.empty_par.clone(),
                 chn: Vec::new(),
                 open: row_spec.open,
                 props: index_props.clone(),
@@ -263,7 +265,7 @@ impl Table {
                     CycleHandling::OnlyPrior => {
                         break;
                     }
-                    _ => par = grid.index.empty_par.clone(),
+                    _ => par = self.grid.index.empty_par.clone(),
                 }
             }
             if check_for_cycles {
@@ -281,7 +283,7 @@ impl Table {
                             continue;
                         }
                         CycleHandling::Clear => {
-                            par = grid.index.empty_par.clone();
+                            par = self.grid.index.empty_par.clone();
                         }
                         CycleHandling::OnlyPrior => {
                             break;
@@ -319,8 +321,8 @@ impl Table {
         // Drain remaining stub ids into tree_map as top-level with defaults
         for (iid, chn) in par_stubs.into_iter() {
             let cols_map = Self::build_row_cells(
-                &grid.index.cells,
-                &grid.header,
+                &self.grid.index.cells,
+                &self.grid.header,
                 None,
                 inherit_row,
                 do_inherit,
@@ -333,7 +335,7 @@ impl Table {
                 vals: cols_map,
                 dim: default_dim,
                 vis: true,
-                par: grid.index.empty_par.clone(),
+                par: self.grid.index.empty_par.clone(),
                 chn,
                 open: false,
                 props: index_props.clone(),
@@ -350,10 +352,10 @@ impl Table {
         let mut sorted_seq: Vec<usize> = Vec::with_capacity(tree_map.len());
 
         // self.cr_remake_rows()
-        let mut acc: u64 = grid.canvas_rows.last().cloned().unwrap_or(0);
+        let mut acc: u64 = self.grid.canvas_rows.last().cloned().unwrap_or(0);
         let mut stack: Vec<(Rc<str>, bool, Rc<str>)> = Vec::with_capacity(100);
-        grid.index.cells.reserve(tree_map.len());
-        grid.index.iid_to_row.reserve(tree_map.len());
+        self.grid.index.cells.reserve(tree_map.len());
+        self.grid.index.iid_to_row.reserve(tree_map.len());
         for top in tops.into_iter() {
             sorted_seq.push(row_ctr);
             let icell = tree_map.remove(&top).ok_or(str_err!(format!(
@@ -364,10 +366,10 @@ impl Table {
             for child in icell.chn.iter().rev().cloned() {
                 stack.push((child, child_vis, top.clone()));
             }
-            grid.disp_rows.push(row_ctr);
+            self.grid.disp_rows.push(row_ctr);
             acc += icell.dim;
-            grid.canvas_rows.push(acc);
-            grid.index.push_row(row_ctr, icell.iid.clone(), icell);
+            self.grid.canvas_rows.push(acc);
+            self.grid.index.push_row(row_ctr, icell.iid.clone(), icell);
             row_ctr += 1;
 
             while let Some((not_top, inherited_vis, par_iid)) = stack.pop() {
@@ -384,33 +386,31 @@ impl Table {
                 }
                 // Row grid lines, self.cr_remake_rows()
                 if inherited_vis {
-                    grid.disp_rows.push(row_ctr);
+                    self.grid.disp_rows.push(row_ctr);
                     acc += icell.dim;
-                    grid.canvas_rows.push(acc);
+                    self.grid.canvas_rows.push(acc);
                 }
                 // Push cell to index, self.grid.index.add_rows()
-                grid.index.push_row(row_ctr, icell.iid.clone(), icell);
+                self.grid.index.push_row(row_ctr, icell.iid.clone(), icell);
                 row_ctr += 1;
             }
         }
         event_data.added_rows = sorted_seq;
-        event_data.selection_boxes = sel_ref.selection_boxes.clone();
-        event_data.selected = sel_ref.selected.clone();
-        drop(sel_ref);
+        event_data.selection_boxes = self.sel.selection_boxes.clone();
+        event_data.selected = self.sel.selected.clone();
 
         // Select the added rows
         if kwargs.select {
-            let mut sel = self.sel.borrow_mut();
-            Self::acr_deselect_all(&mut sel);
+            Self::acr_deselect_all(&mut self.sel);
             for (start, end) in consecutive_ranges_owned(
                 event_data
                     .added_rows
                     .iter()
-                    .filter_map(|n| Self::acr_data_to_disp_opt(&grid.disp_rows, *n)),
+                    .filter_map(|n| Self::acr_data_to_disp_opt(&self.grid.disp_rows, *n)),
             ) {
                 Self::acr_add_selection_box(
-                    &mut sel,
-                    &grid,
+                    &mut self.sel,
+                    &self.grid,
                     start,
                     Some(end),
                     0,
@@ -423,17 +423,11 @@ impl Table {
         }
 
         // Sheet has been modified
-        self.cr_event_modified(
-            &mut grid,
-            &self.events.borrow(),
-            &event_data,
-            kwargs.emit,
-            true,
-        )?;
+        self.cr_event_modified(&event_data, kwargs.emit, true)?;
 
         // Add to undo stack if undo is enabled and undo is true in kwargs
-        if opts.enabled_undo && kwargs.undo {
-            grid.undo_stack.push_back(event_data);
+        if self.opts.enabled_undo && kwargs.undo {
+            self.grid.undo_stack.push_back(event_data);
         }
         Ok(())
     }

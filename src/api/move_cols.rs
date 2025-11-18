@@ -5,13 +5,10 @@ use crate::args::MoveArgs;
 use crate::str_err;
 use crate::utils::consecutive_ranges::consecutive_ranges_borrowed;
 use std::collections::{HashMap, HashSet};
-use std::ops::DerefMut;
 
 impl Table {
-    pub fn move_cols(&self, kwargs: Option<MoveArgs>) -> Result<(), String> {
-        let (mut grid, opts, mut sel) = self.cr_mut_borrows();
-        let mut grid = grid.deref_mut();
-        let num_cols = Self::acr_total_cols(&grid.header.cells) as u64;
+    pub fn move_cols(&mut self, kwargs: Option<MoveArgs>) -> Result<(), String> {
+        let num_cols = Self::acr_total_cols(&self.grid.header.cells) as u64;
         if num_cols == 0 {
             return Ok(());
         }
@@ -59,23 +56,23 @@ impl Table {
             }
         }
 
-        let mut event_data = self.cr_new_event(true, &opts, &sel);
+        let mut event_data = self.cr_new_event(true);
         event_data.moved_cols = old_to_new;
-        self.cr_move_cols(&mut grid, &opts, &mut event_data, &new_to_old)?;
+        self.cr_move_cols(&mut event_data, &new_to_old)?;
 
         if kwargs.select {
-            Self::acr_deselect_all(&mut sel);
+            Self::acr_deselect_all(&mut self.sel);
             let mut sorted_moved: Vec<usize> = event_data
                 .moved_cols
                 .values()
-                .filter_map(|n| Self::acr_data_to_disp_col_opt(&grid.disp_cols, *n))
+                .filter_map(|n| Self::acr_data_to_disp_col_opt(&self.grid.disp_cols, *n))
                 .collect();
             if !sorted_moved.is_empty() {
                 sorted_moved.sort_unstable();
                 for (start, end) in consecutive_ranges_borrowed(sorted_moved.iter()) {
                     Self::acr_add_selection_box(
-                        &mut sel,
-                        &grid,
+                        &mut self.sel,
+                        &self.grid,
                         start,
                         Some(end),
                         0,
@@ -87,15 +84,9 @@ impl Table {
                 }
             }
         }
-        self.cr_event_modified(
-            &mut grid,
-            &self.events.borrow(),
-            &event_data,
-            kwargs.emit,
-            true,
-        )?;
-        if opts.enabled_undo && kwargs.undo {
-            grid.undo_stack.push_back(event_data);
+        self.cr_event_modified(&event_data, kwargs.emit, true)?;
+        if self.opts.enabled_undo && kwargs.undo {
+            self.grid.undo_stack.push_back(event_data);
         }
         Ok(())
     }

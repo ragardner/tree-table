@@ -1,7 +1,6 @@
 use crate::Index;
 use crate::IndexCell;
 use crate::Table;
-use crate::TableGrid;
 use std::collections::HashMap;
 use std::rc::Rc;
 

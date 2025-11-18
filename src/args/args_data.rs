@@ -43,6 +43,18 @@ pub struct GetDataSpanArgs {
     pub table: bool,
 }
 
+impl Default for GetDataSpanArgs {
+    fn default() -> Self {
+        GetDataSpanArgs {
+            key: SpanKey::None,
+            index: false,
+            header: false,
+            transpose: false,
+            table: true,
+        }
+    }
+}
+
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone, PartialEq)]
 pub struct GetDataIidsArgs {
