@@ -1,9 +1,8 @@
 [package]
-authors = ["ragardner"]
-edition = "2024"
 name = "basic"
-publish = false
 version = "0.1.0"
+edition = "2024"
+publish = false
 
 [dependencies]
 tree-table-core = { path = "../.." }
