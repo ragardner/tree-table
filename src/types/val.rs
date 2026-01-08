@@ -4,6 +4,7 @@ use num_bigint::BigInt as NumBigInt;
 use rust_decimal::Decimal;
 use std::fmt;
 
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(PartialEq, Debug, Clone)]
 pub enum Val {
     Str(String),

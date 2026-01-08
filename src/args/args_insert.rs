@@ -6,6 +6,7 @@ use crate::statics::default_inherit;
 #[cfg(feature = "serde")]
 use crate::statics::default_undo_for_api;
 
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone, PartialEq)]
 pub struct InsertRow {
     pub iid: Option<String>,
@@ -16,6 +17,7 @@ pub struct InsertRow {
     pub dim: Option<u64>,
 }
 
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone, PartialEq)]
 pub struct InsertArgs {
     pub rows: Option<Vec<InsertRow>>,
