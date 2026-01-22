@@ -1,11 +1,11 @@
 pub mod api;
 pub mod args;
 mod methods;
-pub mod new;
+pub mod table;
 pub mod types;
 pub mod utils;
 
-pub use new::Table;
+pub use table::Table;
 pub use types::{
     Border, BoundedDeque, CellBorders, CellKey, CellProps, ChangeCellProps, ChangeHeaderCell,
     ChangeIndexCell, Checkbox, Color3, Coords, CyclingCounter, DataFormat, Dropdown, EventData,
