@@ -5,6 +5,12 @@ pub mod table;
 pub mod types;
 pub mod utils;
 
+pub use args::{
+    AddArgs, AddNumArgs, AddProgressBarArgs, AddSelectionArgs, DataFormatArgs, DelArgs,
+    FillDataArgs, GetDataIidsArgs, GetDataSpanArgs, GetDataYxArgs, HighlightArgs, InsertArgs,
+    ItemArgs, ItemResult, MoveArgs, MoveItemsArgs, ResetArgs, SelectRowsColsArgs,
+    SelectionClearArgs, SetDataArgs, TreeExtendArgs, TreeOpenArgs, UndoRedoArgs,
+};
 pub use table::Table;
 pub use types::{
     Border, BoundedDeque, CellBorders, CellKey, CellProps, ChangeCellProps, ChangeHeaderCell,

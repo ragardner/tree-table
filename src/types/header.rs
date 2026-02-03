@@ -8,7 +8,7 @@ use crate::utils::utils_fns::push_n_add;
 use std::collections::HashMap;
 use std::rc::Rc;
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Header {
     pub iid_to_col: HashMap<Rc<str>, usize>,
     pub cells: Vec<HeaderCell>,

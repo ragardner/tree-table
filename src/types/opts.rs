@@ -5,6 +5,8 @@ use crate::utils::utils_fns::generate_unique_id;
 
 macro_rules! define_options {
     ($($field:ident: $ty:ty, $default_str:literal => $default:expr),* $(,)?) => {
+        #[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
+        #[cfg_attr(feature = "tsify", tsify(from_wasm_abi))]
         #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
         #[derive(Debug, Clone, PartialEq)]
         pub struct Options {
@@ -12,6 +14,8 @@ macro_rules! define_options {
                 pub $field: $ty
             ),*
         }
+        #[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
+        #[cfg_attr(feature = "tsify", tsify(from_wasm_abi))]
         #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
         #[derive(Debug, Clone, PartialEq)]
         pub struct PartialOptions {

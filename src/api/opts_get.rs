@@ -9,7 +9,6 @@ impl Table {
         Ok(default_opts)
     }
 
-    /// Returns a `Ref<Options>` guard that derefs to `&Options` and keeps the borrow alive.
     pub fn get_opts(&self) -> &Options {
         &self.opts
     }

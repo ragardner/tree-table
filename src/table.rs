@@ -1,6 +1,6 @@
 use crate::{Events, Options, PartialOptions, Selection, TableGrid};
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Table {
     pub(crate) grid: TableGrid,
     pub(crate) opts: Options,

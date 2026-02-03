@@ -5,6 +5,8 @@ use crate::statics::default_undo_for_api;
 #[cfg(feature = "serde")]
 use crate::statics::get_true;
 
+#[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
+#[cfg_attr(feature = "tsify", tsify(from_wasm_abi))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Default, Clone, Copy, PartialEq)]
 pub enum EmptyIdHandling {
@@ -14,6 +16,8 @@ pub enum EmptyIdHandling {
     Ignore,
 }
 
+#[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
+#[cfg_attr(feature = "tsify", tsify(from_wasm_abi))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Default, Clone, Copy, PartialEq)]
 pub enum DuplicateIdHandling {
@@ -22,6 +26,8 @@ pub enum DuplicateIdHandling {
     Error,
 }
 
+#[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
+#[cfg_attr(feature = "tsify", tsify(from_wasm_abi))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Default, Clone, Copy, PartialEq)]
 pub enum CycleHandling {
@@ -38,6 +44,8 @@ pub enum CycleHandling {
 /// - iid
 /// - par
 /// - vals of Vec<(String, Val)>
+#[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
+#[cfg_attr(feature = "tsify", tsify(from_wasm_abi))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone, PartialEq)]
 pub struct TreeExtendRow {
@@ -57,6 +65,8 @@ pub struct TreeExtendRow {
 /// - iid
 /// - par
 /// - vals of Vec<(String, Val)>
+#[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
+#[cfg_attr(feature = "tsify", tsify(from_wasm_abi))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone, PartialEq)]
 pub struct TreeExtendArgs {

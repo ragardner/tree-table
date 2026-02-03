@@ -6,26 +6,11 @@ use crate::SelectionState;
 use crate::Table;
 use crate::Val;
 use crate::args::{InsertArgs, InsertRow};
-use crate::statics::default_inherit;
 use crate::str_err;
 use crate::utils::consecutive_ranges::consecutive_ranges_owned;
 use crate::utils::utils_fns::binary_search_ins_pos;
 use std::collections::HashSet;
 use std::rc::Rc;
-
-impl Default for InsertArgs {
-    fn default() -> Self {
-        InsertArgs {
-            rows: None,
-            par: None,
-            pos: None,
-            inherit: default_inherit(),
-            select: false,
-            emit: true,
-            undo: true,
-        }
-    }
-}
 
 impl Table {
     /// Insert multiple new rows into the table.

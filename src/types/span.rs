@@ -23,6 +23,8 @@ static PATTERN_CELL_COL: OnceLock<Regex> = OnceLock::new();
 static PATTERN_CELL_ROW: OnceLock<Regex> = OnceLock::new();
 static PATTERN_ALL: OnceLock<Regex> = OnceLock::new();
 
+#[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
+#[cfg_attr(feature = "tsify", tsify(from_wasm_abi))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone, PartialEq)]
 pub enum SpanKey {
@@ -38,6 +40,8 @@ pub enum SpanKey {
     Str(String),
 }
 
+#[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
+#[cfg_attr(feature = "tsify", tsify(from_wasm_abi))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone, PartialEq)]
 pub struct Span {

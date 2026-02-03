@@ -4,6 +4,9 @@ use num_bigint::BigInt as NumBigInt;
 use rust_decimal::Decimal;
 use std::fmt;
 
+#[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
+// #[cfg_attr(feature = "tsify", tsify(from_wasm_abi))]
+#[cfg_attr(feature = "serde", serde(untagged))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(PartialEq, Debug, Clone)]
 pub enum Val {

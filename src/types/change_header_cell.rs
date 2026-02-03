@@ -17,6 +17,8 @@ use std::rc::Rc;
 // Enum for changes to HeaderCell fields. Each variant stores the *old* value,
 // since the new value is already in the Table. Inversion will fetch current (new) as old for the inverse.
 // Simpler than IndexCell: No par, chn, open, or vals map.
+#[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
+#[cfg_attr(feature = "tsify", tsify(from_wasm_abi))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone, PartialEq)]
 pub enum ChangeHeaderCell {

@@ -6,7 +6,7 @@ use crate::utils::utils_fns::pull_n;
 use crate::utils::utils_fns::push_n;
 use std::collections::HashMap;
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct TableGrid {
     pub index: Index,
     pub header: Header,

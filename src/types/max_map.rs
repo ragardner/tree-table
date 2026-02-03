@@ -11,6 +11,8 @@ use crate::Val;
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
 
+#[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
+#[cfg_attr(feature = "tsify", tsify(from_wasm_abi))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone, PartialEq)]
 pub struct MaxMap<T> {
