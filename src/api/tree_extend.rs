@@ -1,3 +1,4 @@
+use crate::Change;
 use crate::EventData;
 use crate::Header;
 use crate::IndexCell;
@@ -14,6 +15,7 @@ use crate::args::TreeExtendArgs;
 use crate::str_err;
 use crate::types::extensions::TrySetExt;
 use crate::utils::consecutive_ranges::consecutive_ranges_owned;
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
 
@@ -107,7 +109,10 @@ impl Table {
     }
 
     /// Extend the tree by adding new rows.
-    pub fn tree_extend(&mut self, kwargs: Option<TreeExtendArgs>) -> Result<(), String> {
+    pub fn tree_extend(
+        &mut self,
+        kwargs: Option<TreeExtendArgs>,
+    ) -> Result<Option<Rc<RefCell<EventData>>>, String> {
         let kwargs = kwargs.unwrap_or_default();
         let empty_id_handling = kwargs.empty_ids;
         let duplicate_id_handling = kwargs.duplicate_ids;
@@ -395,16 +400,15 @@ impl Table {
                 row_ctr += 1;
             }
         }
-        event_data.added_rows = sorted_seq;
-        event_data.selection_boxes = self.sel.selection_boxes.clone();
-        event_data.selected = self.sel.selected.clone();
 
+        let boxes = kwargs
+            .save_selection
+            .then_some(Self::acr_new_change_with_old_boxes(&self.sel));
         // Select the added rows
         if kwargs.select {
             Self::acr_deselect_all(&mut self.sel);
             for (start, end) in consecutive_ranges_owned(
-                event_data
-                    .added_rows
+                sorted_seq
                     .iter()
                     .filter_map(|n| Self::acr_data_to_disp_opt(&self.grid.disp_rows, *n)),
             ) {
@@ -422,13 +426,18 @@ impl Table {
             }
         }
 
-        // Sheet has been modified
-        self.cr_event_modified(&event_data, kwargs.emit, true)?;
+        event_data.changes.push(Change::AddRows(sorted_seq));
 
-        // Add to undo stack if undo is enabled and undo is true in kwargs
-        if self.opts.enabled_undo && kwargs.undo {
-            self.grid.undo_stack.push_back(event_data);
+        if let Some(mut boxes) = boxes {
+            Self::acr_change_set_new_boxes(&self.sel, &mut boxes);
+            event_data.changes.push(boxes);
         }
-        Ok(())
+
+        self.cr_event_modified(true)?;
+        let shared = Rc::new(RefCell::new(event_data));
+        if self.opts.enabled_undo && kwargs.undo && self.grid.undo_stack.get_maxlen() > 0 {
+            self.grid.undo_stack.push_back(shared.clone());
+        }
+        Ok(kwargs.emit.then_some(shared))
     }
 }

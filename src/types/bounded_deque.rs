@@ -80,4 +80,14 @@ impl<T> BoundedDeque<T> {
     pub fn clear(&mut self) {
         self.deque.clear();
     }
+
+    /// Returns a reference to the last (most recently added) item, if any.
+    pub fn last(&self) -> Option<&T> {
+        self.deque.back()
+    }
+
+    /// Returns a mutable reference to the last (most recently added) item, if any.
+    pub fn last_mut(&mut self) -> Option<&mut T> {
+        self.deque.back_mut()
+    }
 }

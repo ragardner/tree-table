@@ -1,16 +1,18 @@
+use crate::EventData;
 use crate::Table;
 use crate::Val;
 use crate::args::{ItemArgs, ItemResult};
 use crate::str_err;
+use std::cell::RefCell;
 use std::rc::Rc;
 
 impl Table {
-    /// Modify a table item or get information about a table item.
-    pub fn item(&mut self, kwargs: ItemArgs) -> Result<ItemResult, String> {
+    /// Modify a table item (row).
+    pub fn item(&mut self, kwargs: ItemArgs) -> Result<Option<Rc<RefCell<EventData>>>, String> {
         let mut iid: String = kwargs.item;
         let row = Self::acr_pos(&self.grid.index.iid_to_row, &iid)?;
-        let mut event_data = self.cr_new_event(true);
-        // Deal with open parameter, edits event_data.index_cells
+        let mut event_data = self.cr_new_event(kwargs.save_selection);
+        // Deal with open parameter
         if let Some(open) = kwargs.open {
             Self::acr_tree_iid_set_open(
                 &mut self.grid.index.cells,
@@ -42,7 +44,7 @@ impl Table {
                 );
             }
         }
-        // Deal with val parameter, edits event_data.index_cells
+        // Deal with val parameter
         if let Some(val) = kwargs.val {
             Self::acr_event_data_fmt_set_ival(
                 &mut self.grid.index.cells,
@@ -52,7 +54,7 @@ impl Table {
             )?;
         }
 
-        // Deal with row values parameter, edits event_data.table_cells
+        // Deal with row values parameter
         if let Some(vals) = kwargs.vals {
             let empty_val = &self.opts.empty_val;
             let table_ncols = Self::acr_total_cols(&self.grid.header.cells);
@@ -90,17 +92,25 @@ impl Table {
                 &mut event_data,
             )?;
         }
-        // Deal with undo stack
-        if !event_data.table_cells.is_empty() || !event_data.index_cells.is_empty() {
-            self.cr_event_modified(&event_data, true, true)?;
-            if self.opts.enabled_undo && kwargs.undo {
-                self.grid.undo_stack.push_back(event_data);
-            }
-            // TODO: set refresh timer
-        }
 
+        if event_data.has_non_selection_change(true) {
+            self.cr_event_modified(true)?;
+            let shared = Rc::new(RefCell::new(event_data));
+            if self.opts.enabled_undo && kwargs.undo && self.grid.undo_stack.get_maxlen() > 0 {
+                self.grid.undo_stack.push_back(shared.clone());
+            }
+            Ok(kwargs.emit.then_some(shared))
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// Get information about an item (row).
+    pub fn get_item(&mut self, iid: String) -> Result<ItemResult, String> {
+        let row = Self::acr_pos(&self.grid.index.iid_to_row, &iid)?;
         let empty_val = &self.opts.empty_val;
         Ok(ItemResult {
+            row: row as u64,
             val: (*Self::acr_icell_val(
                 &self.grid.index.cells,
                 Self::acr_pos(&self.grid.index.iid_to_row, &iid)?,

@@ -1,4 +1,5 @@
 use crate::CellBorders;
+use crate::Change;
 use crate::Checkbox;
 use crate::DataFormat;
 use crate::Dropdown;
@@ -31,10 +32,10 @@ impl Table {
                 val
             };
             let cell = Table::acr_icell_mut(cells, row)?;
-            event_data.add_change_tcells(
+            event_data.changes.push(Change::IndexCell {
                 row,
-                cell.record_set_table_cell_val(col, val, empty_val.clone()),
-            );
+                change: cell.record_set_table_cell_val(col, val, empty_val.clone()),
+            });
             Ok(true)
         } else {
             Ok(false)
@@ -57,7 +58,10 @@ impl Table {
                 val
             };
             let cell = Table::acr_icell_mut(cells, row)?;
-            event_data.add_change_icells(row, cell.record_set_val(formatted_val));
+            event_data.changes.push(Change::IndexCell {
+                row,
+                change: cell.record_set_val(formatted_val),
+            });
             Ok(true)
         } else {
             Ok(false)
@@ -79,7 +83,10 @@ impl Table {
                 val
             };
             let cell = Table::acr_hcell_mut(cells, col)?;
-            event_data.add_change_hcells(col, cell.record_set_val(val));
+            event_data.changes.push(Change::HeaderCell {
+                col,
+                change: cell.record_set_val(val),
+            });
             Ok(true)
         } else {
             Ok(false)
@@ -97,10 +104,10 @@ impl Table {
     ) -> Result<bool, String> {
         if Self::acr_val_valid_t(cells, &row, &col, &val, false) {
             let cell = Table::acr_icell_mut(cells, row)?;
-            event_data.add_change_tcells(
+            event_data.changes.push(Change::IndexCell {
                 row,
-                cell.record_set_table_cell_val(col, val, empty_val.clone()),
-            );
+                change: cell.record_set_table_cell_val(col, val, empty_val.clone()),
+            });
             Ok(true)
         } else {
             Ok(false)
@@ -116,7 +123,10 @@ impl Table {
     ) -> Result<bool, String> {
         if Self::acr_val_valid_i(cells, &row, &val, false) {
             let cell = Table::acr_icell_mut(cells, row)?;
-            event_data.add_change_icells(row, cell.record_set_val(val));
+            event_data.changes.push(Change::IndexCell {
+                row,
+                change: cell.record_set_val(val),
+            });
             Ok(true)
         } else {
             Ok(false)
@@ -132,7 +142,10 @@ impl Table {
     ) -> Result<bool, String> {
         if Self::acr_val_valid_h(cells, &col, &val, false) {
             let cell = Table::acr_hcell_mut(cells, col)?;
-            event_data.add_change_hcells(col, cell.record_set_val(val));
+            event_data.changes.push(Change::HeaderCell {
+                col,
+                change: cell.record_set_val(val),
+            });
             Ok(true)
         } else {
             Ok(false)
@@ -147,7 +160,25 @@ impl Table {
         event_data: &mut EventData,
     ) -> Result<(), String> {
         let cell = Table::acr_icell_mut(cells, row)?;
-        event_data.add_change_icells(row, cell.record_set_vis(vis));
+        event_data.changes.push(Change::IndexCell {
+            row,
+            change: cell.record_set_vis(vis),
+        });
+        Ok(())
+    }
+
+    #[inline]
+    pub(crate) fn acr_event_data_set_hvis(
+        cells: &mut Vec<HeaderCell>,
+        col: usize,
+        vis: bool,
+        event_data: &mut EventData,
+    ) -> Result<(), String> {
+        let cell = Table::acr_hcell_mut(cells, col)?;
+        event_data.changes.push(Change::HeaderCell {
+            col,
+            change: cell.record_set_vis(vis),
+        });
         Ok(())
     }
 
@@ -159,7 +190,10 @@ impl Table {
         event_data: &mut EventData,
     ) -> Result<(), String> {
         let cell = Table::acr_icell_mut(cells, row)?;
-        event_data.add_change_icells(row, cell.record_set_open(open));
+        event_data.changes.push(Change::IndexCell {
+            row,
+            change: cell.record_set_open(open),
+        });
         Ok(())
     }
 
@@ -173,10 +207,10 @@ impl Table {
         event_data: &mut EventData,
     ) -> Result<(), String> {
         let cell = Table::acr_icell_mut(cells, row)?;
-        event_data.add_change_tcells(
+        event_data.changes.push(Change::IndexCell {
             row,
-            cell.record_set_table_cell_props_align(col, prop, empty_val.clone()),
-        );
+            change: cell.record_set_table_cell_props_align(col, prop, empty_val.clone()),
+        });
         Ok(())
     }
 
@@ -190,10 +224,10 @@ impl Table {
         event_data: &mut EventData,
     ) -> Result<(), String> {
         let cell = Table::acr_icell_mut(cells, row)?;
-        event_data.add_change_tcells(
+        event_data.changes.push(Change::IndexCell {
             row,
-            cell.record_set_table_cell_props_borders(col, prop, empty_val.clone()),
-        );
+            change: cell.record_set_table_cell_props_borders(col, prop, empty_val.clone()),
+        });
         Ok(())
     }
 
@@ -207,10 +241,10 @@ impl Table {
         event_data: &mut EventData,
     ) -> Result<(), String> {
         let cell = Table::acr_icell_mut(cells, row)?;
-        event_data.add_change_tcells(
+        event_data.changes.push(Change::IndexCell {
             row,
-            cell.record_set_table_cell_props_checkbox(col, prop, empty_val.clone()),
-        );
+            change: cell.record_set_table_cell_props_checkbox(col, prop, empty_val.clone()),
+        });
         Ok(())
     }
 
@@ -225,10 +259,10 @@ impl Table {
     ) -> Result<(), String> {
         // TODO: adjust cell Val?
         let cell = Table::acr_icell_mut(cells, row)?;
-        event_data.add_change_tcells(
+        event_data.changes.push(Change::IndexCell {
             row,
-            cell.record_set_table_cell_props_data_format(col, prop, empty_val.clone()),
-        );
+            change: cell.record_set_table_cell_props_data_format(col, prop, empty_val.clone()),
+        });
         Ok(())
     }
 
@@ -242,10 +276,10 @@ impl Table {
         event_data: &mut EventData,
     ) -> Result<(), String> {
         let cell = Table::acr_icell_mut(cells, row)?;
-        event_data.add_change_tcells(
+        event_data.changes.push(Change::IndexCell {
             row,
-            cell.record_set_table_cell_props_dropdown(col, prop, empty_val.clone()),
-        );
+            change: cell.record_set_table_cell_props_dropdown(col, prop, empty_val.clone()),
+        });
         Ok(())
     }
 
@@ -259,10 +293,10 @@ impl Table {
         event_data: &mut EventData,
     ) -> Result<(), String> {
         let cell = Table::acr_icell_mut(cells, row)?;
-        event_data.add_change_tcells(
+        event_data.changes.push(Change::IndexCell {
             row,
-            cell.record_set_table_cell_props_highlight(col, prop, empty_val.clone()),
-        );
+            change: cell.record_set_table_cell_props_highlight(col, prop, empty_val.clone()),
+        });
         Ok(())
     }
 
@@ -276,10 +310,10 @@ impl Table {
         event_data: &mut EventData,
     ) -> Result<(), String> {
         let cell = Table::acr_icell_mut(cells, row)?;
-        event_data.add_change_tcells(
+        event_data.changes.push(Change::IndexCell {
             row,
-            cell.record_set_table_cell_props_note(col, prop, empty_val.clone()),
-        );
+            change: cell.record_set_table_cell_props_note(col, prop, empty_val.clone()),
+        });
         Ok(())
     }
 
@@ -293,10 +327,10 @@ impl Table {
         event_data: &mut EventData,
     ) -> Result<(), String> {
         let cell = Table::acr_icell_mut(cells, row)?;
-        event_data.add_change_tcells(
+        event_data.changes.push(Change::IndexCell {
             row,
-            cell.record_set_table_cell_props_progress_bar(col, prop, empty_val.clone()),
-        );
+            change: cell.record_set_table_cell_props_progress_bar(col, prop, empty_val.clone()),
+        });
         Ok(())
     }
 
@@ -310,10 +344,10 @@ impl Table {
         event_data: &mut EventData,
     ) -> Result<(), String> {
         let cell = Table::acr_icell_mut(cells, row)?;
-        event_data.add_change_tcells(
+        event_data.changes.push(Change::IndexCell {
             row,
-            cell.record_set_table_cell_props_readonly(col, prop, empty_val.clone()),
-        );
+            change: cell.record_set_table_cell_props_readonly(col, prop, empty_val.clone()),
+        });
         Ok(())
     }
 
@@ -325,7 +359,10 @@ impl Table {
         event_data: &mut EventData,
     ) -> Result<(), String> {
         let cell = Table::acr_icell_mut(cells, row)?;
-        event_data.add_change_icells(row, cell.record_set_props_align(prop));
+        event_data.changes.push(Change::IndexCell {
+            row,
+            change: cell.record_set_props_align(prop),
+        });
         Ok(())
     }
 
@@ -337,7 +374,10 @@ impl Table {
         event_data: &mut EventData,
     ) -> Result<(), String> {
         let cell = Table::acr_icell_mut(cells, row)?;
-        event_data.add_change_icells(row, cell.record_set_props_borders(prop));
+        event_data.changes.push(Change::IndexCell {
+            row,
+            change: cell.record_set_props_borders(prop),
+        });
         Ok(())
     }
 
@@ -349,7 +389,10 @@ impl Table {
         event_data: &mut EventData,
     ) -> Result<(), String> {
         let cell = Table::acr_icell_mut(cells, row)?;
-        event_data.add_change_icells(row, cell.record_set_props_checkbox(prop));
+        event_data.changes.push(Change::IndexCell {
+            row,
+            change: cell.record_set_props_checkbox(prop),
+        });
         Ok(())
     }
 
@@ -361,7 +404,10 @@ impl Table {
         event_data: &mut EventData,
     ) -> Result<(), String> {
         let cell = Table::acr_icell_mut(cells, row)?;
-        event_data.add_change_icells(row, cell.record_set_props_data_format(prop));
+        event_data.changes.push(Change::IndexCell {
+            row,
+            change: cell.record_set_props_data_format(prop),
+        });
         Ok(())
     }
 
@@ -373,7 +419,10 @@ impl Table {
         event_data: &mut EventData,
     ) -> Result<(), String> {
         let cell = Table::acr_icell_mut(cells, row)?;
-        event_data.add_change_icells(row, cell.record_set_props_dropdown(prop));
+        event_data.changes.push(Change::IndexCell {
+            row,
+            change: cell.record_set_props_dropdown(prop),
+        });
         Ok(())
     }
 
@@ -385,7 +434,10 @@ impl Table {
         event_data: &mut EventData,
     ) -> Result<(), String> {
         let cell = Table::acr_icell_mut(cells, row)?;
-        event_data.add_change_icells(row, cell.record_set_props_highlight(prop));
+        event_data.changes.push(Change::IndexCell {
+            row,
+            change: cell.record_set_props_highlight(prop),
+        });
         Ok(())
     }
 
@@ -397,7 +449,10 @@ impl Table {
         event_data: &mut EventData,
     ) -> Result<(), String> {
         let cell = Table::acr_icell_mut(cells, row)?;
-        event_data.add_change_icells(row, cell.record_set_props_note(prop));
+        event_data.changes.push(Change::IndexCell {
+            row,
+            change: cell.record_set_props_note(prop),
+        });
         Ok(())
     }
 
@@ -409,7 +464,10 @@ impl Table {
         event_data: &mut EventData,
     ) -> Result<(), String> {
         let cell = Table::acr_icell_mut(cells, row)?;
-        event_data.add_change_icells(row, cell.record_set_props_progress_bar(prop));
+        event_data.changes.push(Change::IndexCell {
+            row,
+            change: cell.record_set_props_progress_bar(prop),
+        });
         Ok(())
     }
 
@@ -421,7 +479,10 @@ impl Table {
         event_data: &mut EventData,
     ) -> Result<(), String> {
         let cell = Table::acr_icell_mut(cells, row)?;
-        event_data.add_change_icells(row, cell.record_set_props_readonly(prop));
+        event_data.changes.push(Change::IndexCell {
+            row,
+            change: cell.record_set_props_readonly(prop),
+        });
         Ok(())
     }
 
@@ -433,7 +494,10 @@ impl Table {
         event_data: &mut EventData,
     ) -> Result<(), String> {
         let cell = Table::acr_hcell_mut(cells, col)?;
-        event_data.add_change_hcells(col, cell.record_set_props_align(prop));
+        event_data.changes.push(Change::HeaderCell {
+            col,
+            change: cell.record_set_props_align(prop),
+        });
         Ok(())
     }
 
@@ -445,7 +509,10 @@ impl Table {
         event_data: &mut EventData,
     ) -> Result<(), String> {
         let cell = Table::acr_hcell_mut(cells, col)?;
-        event_data.add_change_hcells(col, cell.record_set_props_borders(prop));
+        event_data.changes.push(Change::HeaderCell {
+            col,
+            change: cell.record_set_props_borders(prop),
+        });
         Ok(())
     }
 
@@ -457,7 +524,10 @@ impl Table {
         event_data: &mut EventData,
     ) -> Result<(), String> {
         let cell = Table::acr_hcell_mut(cells, col)?;
-        event_data.add_change_hcells(col, cell.record_set_props_checkbox(prop));
+        event_data.changes.push(Change::HeaderCell {
+            col,
+            change: cell.record_set_props_checkbox(prop),
+        });
         Ok(())
     }
 
@@ -469,7 +539,10 @@ impl Table {
         event_data: &mut EventData,
     ) -> Result<(), String> {
         let cell = Table::acr_hcell_mut(cells, col)?;
-        event_data.add_change_hcells(col, cell.record_set_props_data_format(prop));
+        event_data.changes.push(Change::HeaderCell {
+            col,
+            change: cell.record_set_props_data_format(prop),
+        });
         Ok(())
     }
 
@@ -481,7 +554,10 @@ impl Table {
         event_data: &mut EventData,
     ) -> Result<(), String> {
         let cell = Table::acr_hcell_mut(cells, col)?;
-        event_data.add_change_hcells(col, cell.record_set_props_dropdown(prop));
+        event_data.changes.push(Change::HeaderCell {
+            col,
+            change: cell.record_set_props_dropdown(prop),
+        });
         Ok(())
     }
 
@@ -493,7 +569,10 @@ impl Table {
         event_data: &mut EventData,
     ) -> Result<(), String> {
         let cell = Table::acr_hcell_mut(cells, col)?;
-        event_data.add_change_hcells(col, cell.record_set_props_highlight(prop));
+        event_data.changes.push(Change::HeaderCell {
+            col,
+            change: cell.record_set_props_highlight(prop),
+        });
         Ok(())
     }
 
@@ -505,7 +584,10 @@ impl Table {
         event_data: &mut EventData,
     ) -> Result<(), String> {
         let cell = Table::acr_hcell_mut(cells, col)?;
-        event_data.add_change_hcells(col, cell.record_set_props_note(prop));
+        event_data.changes.push(Change::HeaderCell {
+            col,
+            change: cell.record_set_props_note(prop),
+        });
         Ok(())
     }
 
@@ -517,7 +599,10 @@ impl Table {
         event_data: &mut EventData,
     ) -> Result<(), String> {
         let cell = Table::acr_hcell_mut(cells, col)?;
-        event_data.add_change_hcells(col, cell.record_set_props_progress_bar(prop));
+        event_data.changes.push(Change::HeaderCell {
+            col,
+            change: cell.record_set_props_progress_bar(prop),
+        });
         Ok(())
     }
 
@@ -529,7 +614,10 @@ impl Table {
         event_data: &mut EventData,
     ) -> Result<(), String> {
         let cell = Table::acr_hcell_mut(cells, col)?;
-        event_data.add_change_hcells(col, cell.record_set_props_readonly(prop));
+        event_data.changes.push(Change::HeaderCell {
+            col,
+            change: cell.record_set_props_readonly(prop),
+        });
         Ok(())
     }
 }

@@ -4,6 +4,8 @@ use crate::Val;
 #[cfg(feature = "serde")]
 use crate::statics::default_emit_event_for_api;
 #[cfg(feature = "serde")]
+use crate::statics::default_save_selection_for_api;
+#[cfg(feature = "serde")]
 use crate::statics::default_undo_for_api;
 
 #[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
@@ -12,7 +14,8 @@ use crate::statics::default_undo_for_api;
 #[derive(Debug, Clone, PartialEq)]
 pub struct FillDataArgs {
     pub key: SpanKey,
-    pub val: Val,
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub val: Option<Val>,
     #[cfg_attr(feature = "serde", serde(default))]
     pub add_rows: bool,
     #[cfg_attr(feature = "serde", serde(default))]
@@ -21,6 +24,22 @@ pub struct FillDataArgs {
     pub emit: bool,
     #[cfg_attr(feature = "serde", serde(default = "default_undo_for_api"))]
     pub undo: bool,
+    #[cfg_attr(feature = "serde", serde(default = "default_save_selection_for_api"))]
+    pub save_selection: bool,
+}
+
+impl Default for FillDataArgs {
+    fn default() -> Self {
+        FillDataArgs {
+            key: SpanKey::None,
+            val: None,
+            undo: default_undo_for_api(),
+            emit: default_emit_event_for_api(),
+            add_rows: false,
+            add_cols: false,
+            save_selection: default_save_selection_for_api(),
+        }
+    }
 }
 
 #[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
@@ -35,6 +54,20 @@ pub struct SetDataArgs {
     pub emit: bool,
     #[cfg_attr(feature = "serde", serde(default = "default_undo_for_api"))]
     pub undo: bool,
+    #[cfg_attr(feature = "serde", serde(default = "default_save_selection_for_api"))]
+    pub save_selection: bool,
+}
+
+impl Default for SetDataArgs {
+    fn default() -> Self {
+        SetDataArgs {
+            data: vec![],
+            ignore_invalid: true,
+            emit: default_emit_event_for_api(),
+            undo: default_undo_for_api(),
+            save_selection: default_save_selection_for_api(),
+        }
+    }
 }
 
 #[cfg_attr(feature = "tsify", derive(tsify::Tsify))]

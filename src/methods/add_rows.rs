@@ -1,6 +1,10 @@
+use crate::Change;
+use crate::Coords;
 use crate::EventData;
 use crate::IndexCell;
 use crate::MaxMap;
+use crate::SelectionBox;
+use crate::SelectionKind;
 use crate::Table;
 use crate::TableCell;
 use crate::Val;
@@ -14,7 +18,6 @@ impl Table {
         index: Vec<(usize, IndexCell)>,
         sorted_seq: Vec<usize>,
         event_data: &mut EventData,
-        mod_sel: bool,
         mod_tree: bool,
         remake_rows: bool,
     ) -> Result<(), String> {
@@ -40,13 +43,30 @@ impl Table {
             );
         }
 
-        // Update event_data
-        event_data.added_rows = sorted_seq;
-        if mod_sel {
-            event_data.selection_boxes = self.sel.selection_boxes.clone();
-            event_data.selected = self.sel.selected.clone();
-        }
+        // Update event_data, but not selections
+        event_data.changes.push(Change::AddRows(sorted_seq));
         Ok(())
+    }
+
+    #[inline]
+    pub(crate) fn acr_compute_new_rows_visibility(
+        &self,
+        data_pos: usize,
+        requested_vis: bool,
+    ) -> bool {
+        if !self.opts.tree_mode {
+            return requested_vis;
+        }
+
+        // Tree mode: new rows are visible only if their parent is visible *and* open
+        match Self::acr_tree_row_par_cell(
+            &self.grid.index.cells,
+            &self.grid.index.iid_to_row,
+            data_pos,
+        ) {
+            Ok(Some(par_cell)) => par_cell.vis && par_cell.open,
+            _ => true, // no parent or error → top-level → always visible
+        }
     }
 
     pub(crate) fn cr_add_rows_get_args(
@@ -54,7 +74,7 @@ impl Table {
         iids: Vec<String>,
         mut pos: usize,
         inherit: &str,
-        vis: bool,
+        show_new_rows: bool,
     ) -> Result<(Vec<(usize, IndexCell)>, Vec<usize>), String> {
         let ncols = Self::acr_total_cols(&self.grid.header.cells);
         if pos > Self::acr_total_rows(&self.grid.index.cells) {
@@ -74,27 +94,8 @@ impl Table {
             None
         };
         let default_dim = self.cr_get_default_row_dim();
-
-        // Tree mode
         let tree_mode = self.opts.tree_mode;
-        let mut show_new_rows: bool = vis.clone();
-        // Determine parent of insert pos & whether new rows will be visible
-        if tree_mode {
-            let par_cell_res = Self::acr_tree_row_par_cell(
-                &self.grid.index.cells,
-                &self.grid.index.iid_to_row,
-                pos,
-            );
-            if let Ok(par_cell_opt) = par_cell_res {
-                if let Some(par_cell) = par_cell_opt {
-                    show_new_rows = par_cell.vis && par_cell.open;
-                } else {
-                    show_new_rows = true
-                }
-            } else {
-                show_new_rows = true
-            }
-        }
+
         // Create index
         for (rn, iid) in (pos..end).zip(iids.into_iter()) {
             sorted_seq.push(rn);
@@ -158,8 +159,85 @@ impl Table {
             let cr_add_rows_pos = Self::acr_total_rows(&self.grid.index.cells);
             let (index, sorted_seq) =
                 self.cr_add_rows_get_args(iids, cr_add_rows_pos, DEFAULT_INHERIT, true)?;
-            self.cr_add_rows(index, sorted_seq, event_data, false, false, remake_rows)?;
+            self.cr_add_rows(index, sorted_seq, event_data, false, remake_rows)?;
         };
         Ok(rows_to_add)
+    }
+
+    pub(crate) fn acr_adjust_selections_after_row_insert(
+        &mut self,
+        disp_insert_pos: usize, // insertion point in DISPLAYED coordinates
+        num_visible_added: usize,
+    ) {
+        if num_visible_added == 0 {
+            return;
+        }
+
+        // We may append while iterating → only process the boxes that existed before this call
+        let original_len = self.sel.selection_boxes.len();
+        let mut i = 0;
+
+        while i < original_len {
+            let b = &mut self.sel.selection_boxes[i];
+
+            if b.kind == SelectionKind::Cols {
+                i += 1;
+                continue;
+            }
+
+            let start = b.coords.row;
+            let end = b.coords.end_row.unwrap_or(start); // inclusive
+
+            if end < disp_insert_pos {
+                // completely before insertion point → untouched
+            } else if start >= disp_insert_pos {
+                // completely at/after insertion point → shift whole box
+                b.coords.row += num_visible_added;
+                if let Some(er) = &mut b.coords.end_row {
+                    *er += num_visible_added;
+                }
+            } else {
+                // straddles the insertion point → split the box
+                // (new rows are never selected)
+                let left_end = disp_insert_pos.saturating_sub(1);
+
+                if start <= left_end {
+                    // shorten existing box to left part (inclusive)
+                    b.coords.end_row = Some(left_end);
+
+                    // append new box for right part (shifted)
+                    let right_start = disp_insert_pos + num_visible_added;
+                    let right_end = end + num_visible_added;
+
+                    let new_coords = Coords::new(
+                        right_start,
+                        Some(right_end), // always inclusive — works for single or multi
+                        b.coords.col,
+                        b.coords.end_col,
+                    );
+
+                    let kind = b.kind.clone();
+                    let state = b.state.clone();
+                    self.sel.selection_boxes.push(SelectionBox {
+                        coords: new_coords,
+                        kind,
+                        state,
+                    });
+                }
+            }
+            i += 1;
+        }
+
+        // Adjust the focused cell (the "cursor")
+        // Shifts even on full-column selections
+        if let Some(sel) = &mut self.sel.selected {
+            if sel.row >= disp_insert_pos {
+                sel.row += num_visible_added;
+                sel.coords.row += num_visible_added;
+                if let Some(er) = &mut sel.coords.end_row {
+                    *er += num_visible_added;
+                }
+            }
+        }
     }
 }

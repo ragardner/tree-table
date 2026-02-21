@@ -1,13 +1,15 @@
 use crate::EventData;
 use crate::Table;
 use crate::args::TreeOpenArgs;
+use std::cell::RefCell;
+use std::rc::Rc;
 
 impl Table {
     pub(crate) fn tree_set_open_or_closed(
         &mut self,
         kwargs: TreeOpenArgs,
         open: bool,
-    ) -> Result<(), String> {
+    ) -> Result<Option<Rc<RefCell<EventData>>>, String> {
         let mut event_data: EventData = self.cr_new_event(true);
         let to_show = if kwargs.rows.is_empty() {
             let end_row = Self::acr_total_rows(&self.grid.index.cells);
@@ -35,22 +37,31 @@ impl Table {
                 self.opts.horizontal_grid_line_width.clone(),
             );
         }
-        if !event_data.index_cells.is_empty() && self.opts.enabled_undo && kwargs.undo {
-            // TODO: do we need a new event type for open/close/hide/unhide?
-            self.cr_event_modified(&event_data, kwargs.emit, true)?;
-            self.grid.undo_stack.push_back(event_data);
+        if !event_data.changes.is_empty() {
+            self.cr_event_modified(true)?;
+            let shared = Rc::new(RefCell::new(event_data));
+            if self.opts.enabled_undo && kwargs.undo && self.grid.undo_stack.get_maxlen() > 0 {
+                self.grid.undo_stack.push_back(shared.clone());
+            }
+            Ok(kwargs.emit.then_some(shared))
+        } else {
+            Ok(None)
         }
-        // TODO: set refresh timer
-        Ok(())
     }
 
     /// Sets items/rows to open. If used without args then all rows are opened.
-    pub fn tree_open(&mut self, kwargs: Option<TreeOpenArgs>) -> Result<(), String> {
+    pub fn tree_open(
+        &mut self,
+        kwargs: Option<TreeOpenArgs>,
+    ) -> Result<Option<Rc<RefCell<EventData>>>, String> {
         self.tree_set_open_or_closed(kwargs.unwrap_or_default(), true)
     }
 
     /// Sets items/rows to closed. If used without args then all rows are closed.
-    pub fn tree_close(&mut self, kwargs: Option<TreeOpenArgs>) -> Result<(), String> {
+    pub fn tree_close(
+        &mut self,
+        kwargs: Option<TreeOpenArgs>,
+    ) -> Result<Option<Rc<RefCell<EventData>>>, String> {
         self.tree_set_open_or_closed(kwargs.unwrap_or_default(), false)
     }
 }

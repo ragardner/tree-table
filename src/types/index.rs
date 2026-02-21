@@ -141,7 +141,7 @@ impl Index {
     // Insert multiple columns.
     pub(crate) fn add_cols(
         &mut self,
-        to_add: Option<HashMap<usize, MaxMap<TableCell>>>,
+        to_add: Option<Vec<(usize, Vec<(usize, TableCell)>)>>,
         sorted_seq: &Vec<usize>,
     ) {
         // Adjust existing HashMap indices
@@ -157,10 +157,10 @@ impl Index {
 
         // Add the new columns if provided
         if let Some(to_add) = to_add {
-            for (rowk, cols) in to_add {
-                if let Some(row) = self.cells.get_mut(rowk) {
-                    let index_row_vals = &mut row.vals;
-                    for (colk, val) in cols.hm {
+            for (colk, rows) in to_add {
+                for (rowk, val) in rows {
+                    if let Some(row) = self.cells.get_mut(rowk) {
+                        let index_row_vals: &mut MaxMap<TableCell> = &mut row.vals;
                         index_row_vals.insert(colk, val);
                     }
                 }
@@ -171,32 +171,30 @@ impl Index {
     pub(crate) fn del_cols(
         &mut self,
         sorted_seq: &Vec<usize>,
-    ) -> HashMap<usize, MaxMap<TableCell>> {
-        // Remove items and create HashMap of removed items
-        let mut removed: HashMap<usize, MaxMap<TableCell>> = HashMap::new();
+    ) -> Vec<(usize, Vec<(usize, TableCell)>)> {
+        let mut removed: Vec<(usize, Vec<(usize, TableCell)>)> = Vec::new();
 
         // Process each row
         for (rowk, icell) in self.cells.iter_mut().enumerate() {
-            let mut row_removed: MaxMap<TableCell> = MaxMap::new();
+            let mut row_removed: Vec<(usize, TableCell)> = Vec::new();
             let mut redo_maxk = false;
             let row = &mut icell.vals;
 
             // Remove specified columns and collect them
             for &colk in sorted_seq {
                 if let Some(val) = row.hm.remove(&colk) {
-                    row_removed.insert(colk, val);
+                    row_removed.push((colk, val));
                     if row.maxk == Some(colk) {
                         redo_maxk = true;
                     }
                 }
             }
 
-            // If we removed anything, store it in the removed map
+            // If we removed anything from this row, store it
             if !row_removed.is_empty() {
-                removed.insert(rowk, row_removed);
+                removed.push((rowk, row_removed));
             }
 
-            // Shift remaining keys down using pull_n
             row.hm = row
                 .hm
                 .drain()
@@ -213,7 +211,7 @@ impl Index {
                 }
                 row.maxk = new_maxk;
             } else {
-                row.maxk = row.maxk.map(|k| pull_n(k, &sorted_seq));
+                row.maxk = row.maxk.map(|k| pull_n(k, sorted_seq));
             }
         }
 

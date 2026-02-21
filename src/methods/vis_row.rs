@@ -4,7 +4,7 @@ use crate::Table;
 
 impl Table {
     pub(crate) fn acr_set_row_vis<'a, I>(
-        cells: &mut Vec<IndexCell>,
+        mut cells: &mut Vec<IndexCell>,
         iter: I,
         vis: bool,
         event_data: Option<&mut EventData>,
@@ -14,8 +14,7 @@ impl Table {
     {
         if let Some(event_data) = event_data {
             for pos in iter {
-                let cell = Self::acr_icell_mut(cells, pos)?;
-                event_data.add_change_icells(pos, cell.record_set_vis(vis));
+                Self::acr_event_data_set_ivis(&mut cells, pos, vis, event_data)?;
             }
         } else {
             for pos in iter {

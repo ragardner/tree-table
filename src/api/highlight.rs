@@ -1,21 +1,19 @@
 use crate::EventData;
 use crate::Highlight;
-use crate::SpanKey;
 use crate::Table;
 use crate::args::HighlightArgs;
 use crate::try_hex_to_color3;
+use std::cell::RefCell;
+use std::rc::Rc;
 
 impl Table {
-    pub fn highlight(&mut self, kwargs: Option<HighlightArgs>) -> Result<(), String> {
-        let kwargs: HighlightArgs = kwargs.unwrap_or(HighlightArgs {
-            key: SpanKey::None,
-            bg: None,
-            fg: None,
-            emit: true,
-            undo: true,
-        });
+    pub fn highlight(
+        &mut self,
+        kwargs: Option<HighlightArgs>,
+    ) -> Result<Option<Rc<RefCell<EventData>>>, String> {
+        let kwargs: HighlightArgs = kwargs.unwrap_or_default();
         let span = self.cr_key_to_span(kwargs.key)?;
-        let mut event_data: EventData = self.cr_new_event(true);
+        let mut event_data: EventData = self.cr_new_event(kwargs.save_selection);
         self.cr_ensure_widget_nrows(span.max_row(&self.grid), &mut event_data, true)?;
         self.cr_ensure_widget_ncols(span.max_col(&self.grid), &mut event_data, true)?;
         let highlight = if kwargs.bg.is_none() && kwargs.fg.is_none() {
@@ -41,13 +39,15 @@ impl Table {
                 )?;
             }
         }
-        self.cr_event_modified(&event_data, kwargs.emit, true)?;
-        if !event_data.table_cells.is_empty() {
-            if self.opts.enabled_undo && kwargs.undo {
-                self.grid.undo_stack.push_back(event_data);
+        if event_data.has_non_selection_change(true) {
+            self.cr_event_modified(true)?;
+            let shared = Rc::new(RefCell::new(event_data));
+            if self.opts.enabled_undo && kwargs.undo && self.grid.undo_stack.get_maxlen() > 0 {
+                self.grid.undo_stack.push_back(shared.clone());
             }
-            // TODO: set refresh timer
+            Ok(kwargs.emit.then_some(shared))
+        } else {
+            Ok(None)
         }
-        Ok(())
     }
 }

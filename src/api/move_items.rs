@@ -1,19 +1,26 @@
+use crate::Change;
+use crate::EventData;
 use crate::Table;
 use crate::TreeMove;
 use crate::args::MoveItemsArgs;
 use crate::str_err;
 use crate::utils::consecutive_ranges::consecutive_ranges_borrowed;
 use crate::{SelectionKind, SelectionState};
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::rc::Rc;
 
 impl Table {
-    pub fn move_items(&mut self, kwargs: MoveItemsArgs) -> Result<(), String> {
+    pub fn move_items(
+        &mut self,
+        kwargs: MoveItemsArgs,
+    ) -> Result<Option<Rc<RefCell<EventData>>>, String> {
         let num_rows = Self::acr_total_rows(&self.grid.index.cells);
         if num_rows == 0 {
-            return Ok(());
+            return Ok(None);
         }
+
         // Item ids
         if let Some(items) = kwargs.items {
             // Parent
@@ -57,19 +64,32 @@ impl Table {
             };
 
             // Perform move operation
-            self.cr_move_rows(&mut event_data, HashMap::new(), None, Some(move_op), true)?;
+            self.cr_move_rows(
+                &mut event_data,
+                HashSet::new(),
+                Vec::new(),
+                HashMap::new(),
+                None,
+                Some(move_op),
+                true,
+            )?;
 
             // Select moved rows if true
             if kwargs.select {
                 Self::acr_deselect_all(&mut self.sel);
-                let mut sorted_moved: Vec<usize> = event_data
-                    .moved_rows
-                    .values()
-                    .filter_map(|n| Self::acr_data_to_disp_row_opt(&self.grid.disp_rows, *n))
+                let mut moved: Vec<usize> = event_data
+                    .changes
+                    .iter()
+                    .filter_map(|change| match change {
+                        Change::MoveRows(moves) => Some(moves.iter().map(|&(_, to)| to)),
+                        _ => None,
+                    })
+                    .flatten()
+                    .filter_map(|n| Self::acr_data_to_disp_row_opt(&self.grid.disp_rows, n))
                     .collect();
-                if !sorted_moved.is_empty() {
-                    sorted_moved.sort_unstable();
-                    for (start, end) in consecutive_ranges_borrowed(sorted_moved.iter()) {
+                if !moved.is_empty() {
+                    moved.sort_unstable();
+                    for (start, end) in consecutive_ranges_borrowed(moved.iter()) {
                         Self::acr_add_selection_box(
                             &mut self.sel,
                             &self.grid,
@@ -85,15 +105,16 @@ impl Table {
                 }
             }
 
-            // Sheet has been modified
-            self.cr_event_modified(&event_data, kwargs.emit, true)?;
+            self.cr_event_modified(true)?;
+            let shared = Rc::new(RefCell::new(event_data));
 
-            // Add to undo stack if undo is enabled and undo is true in kwargs
-            if self.opts.enabled_undo && kwargs.undo {
-                self.grid.undo_stack.push_back(event_data);
+            if self.opts.enabled_undo && kwargs.undo && self.grid.undo_stack.get_maxlen() > 0 {
+                self.grid.undo_stack.push_back(shared.clone());
             }
+
+            return Ok(kwargs.emit.then_some(shared));
         }
 
-        Ok(())
+        Ok(None)
     }
 }

@@ -17,7 +17,7 @@ pub mod args_undo;
 pub use args_add::{AddArgs, AddNumArgs};
 pub use args_data::{FillDataArgs, GetDataIidsArgs, GetDataSpanArgs, GetDataYxArgs, SetDataArgs};
 pub use args_data_format::DataFormatArgs;
-pub use args_del::DelArgs;
+pub use args_del::{DelArgs, DelPosArgs};
 pub use args_highlight::HighlightArgs;
 pub use args_insert::{InsertArgs, InsertRow};
 pub use args_item::{ItemArgs, ItemResult};

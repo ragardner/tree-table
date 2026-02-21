@@ -1,12 +1,20 @@
-use crate::Table;
 use crate::args::UndoRedoArgs;
+use crate::{EventData, Table};
+use std::cell::RefCell;
+use std::rc::Rc;
 
 impl Table {
-    pub fn undo(&mut self, kwargs: Option<UndoRedoArgs>) -> Result<(), String> {
+    pub fn undo(
+        &mut self,
+        kwargs: Option<UndoRedoArgs>,
+    ) -> Result<Option<Rc<RefCell<EventData>>>, String> {
         self.cr_undo(kwargs)
     }
 
-    pub fn redo(&mut self, kwargs: Option<UndoRedoArgs>) -> Result<(), String> {
+    pub fn redo(
+        &mut self,
+        kwargs: Option<UndoRedoArgs>,
+    ) -> Result<Option<Rc<RefCell<EventData>>>, String> {
         self.cr_redo(kwargs)
     }
 }

@@ -1,9 +1,9 @@
-use crate::Val;
 #[cfg(feature = "serde")]
 use crate::statics::default_emit_event_for_api;
 use crate::statics::default_inherit;
 #[cfg(feature = "serde")]
 use crate::statics::default_undo_for_api;
+use crate::{Val, statics::default_save_selection_for_api};
 
 #[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
 #[cfg_attr(feature = "tsify", tsify(from_wasm_abi))]
@@ -34,6 +34,8 @@ pub struct InsertArgs {
     pub emit: bool,
     #[cfg_attr(feature = "serde", serde(default = "default_undo_for_api"))]
     pub undo: bool,
+    #[cfg_attr(feature = "serde", serde(default = "default_save_selection_for_api"))]
+    pub save_selection: bool,
 }
 
 impl Default for InsertArgs {
@@ -44,8 +46,9 @@ impl Default for InsertArgs {
             pos: None,
             inherit: default_inherit(),
             select: false,
-            emit: true,
-            undo: true,
+            emit: default_emit_event_for_api(),
+            undo: default_undo_for_api(),
+            save_selection: default_save_selection_for_api(),
         }
     }
 }

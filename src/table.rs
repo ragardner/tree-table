@@ -1,11 +1,10 @@
-use crate::{Events, Options, PartialOptions, Selection, TableGrid};
+use crate::{EventData, Options, PartialOptions, Selection, TableGrid};
+use std::{cell::RefCell, rc::Rc};
 
-#[derive(Clone, Debug)]
 pub struct Table {
     pub(crate) grid: TableGrid,
     pub(crate) opts: Options,
     pub(crate) sel: Selection,
-    pub(crate) events: Events,
 }
 
 impl Table {
@@ -21,7 +20,6 @@ impl Table {
             grid: TableGrid::new(opts.max_undos.clone()),
             opts,
             sel: Selection::new(),
-            events: Events::new(),
         }
     }
 }

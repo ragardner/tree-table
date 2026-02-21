@@ -1,42 +1,55 @@
 use crate::EventData;
 use crate::SelectionKind;
 use crate::SelectionState;
-use crate::SpanKey;
 use crate::Table;
 use crate::args::AddSelectionArgs;
 use crate::args::SelectRowsColsArgs;
 use crate::args::SelectionClearArgs;
-use crate::statics::get_true;
+
 use crate::utils::consecutive_ranges::consecutive_ranges_owned;
+use std::cell::RefCell;
 use std::collections::HashSet;
+use std::rc::Rc;
 
 impl Table {
     /// Clear all selections.
-    pub fn selection_clear(&mut self, kwargs: Option<SelectionClearArgs>) -> Result<(), String> {
-        let kwargs: SelectionClearArgs = kwargs.unwrap_or(SelectionClearArgs {
-            emit: true,
-            undo: get_true(),
-        });
-        let event_data: EventData = self.cr_new_event(true);
-        Self::acr_deselect_all(&mut self.sel);
-        self.cr_event_select(&self.cr_new_event(true), kwargs.emit, true)?;
-        if self.opts.enabled_undo && kwargs.undo {
-            self.grid.undo_stack.push_back(event_data);
+    pub fn selection_clear(
+        &mut self,
+        kwargs: Option<SelectionClearArgs>,
+    ) -> Result<Option<Rc<RefCell<EventData>>>, String> {
+        if self.sel.selected.is_none() && self.sel.selection_boxes.is_empty() {
+            return Ok(None);
         }
-        // TODO: set refresh timer
-        Ok(())
+        let kwargs: SelectionClearArgs = kwargs.unwrap_or_default();
+        let mut event_data: EventData = self.cr_new_event(false);
+
+        let mut boxes = Self::acr_new_change_with_old_boxes(&self.sel);
+        Self::acr_deselect_all(&mut self.sel);
+        Self::acr_change_set_new_boxes(&self.sel, &mut boxes);
+        event_data.changes.push(boxes);
+
+        if !event_data.changes.is_empty() {
+            self.cr_event_modified(true)?;
+            let shared = Rc::new(RefCell::new(event_data));
+            if self.opts.enabled_undo && kwargs.undo && self.grid.undo_stack.get_maxlen() > 0 {
+                self.grid.undo_stack.push_back(shared.clone());
+            }
+            Ok(kwargs.emit.then_some(shared))
+        } else {
+            Ok(None)
+        }
     }
 
     /// Create a selection box using a span. Uses displayed indices.
-    pub fn select(&mut self, kwargs: Option<AddSelectionArgs>) -> Result<(), String> {
-        let kwargs: AddSelectionArgs = kwargs.unwrap_or(AddSelectionArgs {
-            key: SpanKey::None,
-            current: true,
-            emit: true,
-            undo: true,
-        });
+    pub fn select(
+        &mut self,
+        kwargs: Option<AddSelectionArgs>,
+    ) -> Result<Option<Rc<RefCell<EventData>>>, String> {
+        let kwargs: AddSelectionArgs = kwargs.unwrap_or_default();
         let span = self.cr_key_to_span(kwargs.key)?;
-        let event_data: EventData = self.cr_new_event(true);
+        let mut event_data: EventData = self.cr_new_event(false);
+
+        let mut boxes = Self::acr_new_change_with_old_boxes(&self.sel);
         Self::acr_add_selection_box(
             &mut self.sel,
             &self.grid,
@@ -48,16 +61,22 @@ impl Table {
             SelectionState::Normal,
             kwargs.current,
         );
-        self.cr_event_select(&self.cr_new_event(true), kwargs.emit, true)?;
-        if self.opts.enabled_undo && kwargs.undo {
-            self.grid.undo_stack.push_back(event_data);
+        Self::acr_change_set_new_boxes(&self.sel, &mut boxes);
+        event_data.changes.push(boxes);
+
+        self.cr_event_modified(true)?;
+        let shared = Rc::new(RefCell::new(event_data));
+        if self.opts.enabled_undo && kwargs.undo && self.grid.undo_stack.get_maxlen() > 0 {
+            self.grid.undo_stack.push_back(shared.clone());
         }
-        // TODO: set refresh timer
-        Ok(())
+        Ok(kwargs.emit.then_some(shared))
     }
 
     /// Select rows using either item ids or row numbers. Uses data indices.
-    pub fn select_rows(&mut self, kwargs: Option<SelectRowsColsArgs>) -> Result<(), String> {
+    pub fn select_rows(
+        &mut self,
+        kwargs: Option<SelectRowsColsArgs>,
+    ) -> Result<Option<Rc<RefCell<EventData>>>, String> {
         let kwargs: SelectRowsColsArgs = kwargs.unwrap_or(SelectRowsColsArgs {
             items: self
                 .grid
@@ -72,7 +91,7 @@ impl Table {
             undo: true,
         });
         if kwargs.items.is_empty() {
-            return Ok(());
+            return Ok(None);
         }
 
         // Convert iids / numbers to numbers
@@ -84,6 +103,7 @@ impl Table {
         row_nums.dedup();
 
         let mut event_data: EventData = self.cr_new_event(false);
+        let mut boxes = Self::acr_new_change_with_old_boxes(&self.sel);
 
         // If we're using tree mode then we need to expand rows
         if self.opts.tree_mode {
@@ -127,10 +147,6 @@ impl Table {
             self.opts.horizontal_grid_line_width.clone(),
         );
 
-        // Save prior selection boxes for potential undo
-        let prior_boxes = self.sel.selection_boxes.clone();
-        let prior_sel = self.sel.selected.clone();
-
         // Clear current selections if kwargs.replace
         if kwargs.replace {
             Self::acr_deselect_all(&mut self.sel);
@@ -156,25 +172,22 @@ impl Table {
         }
 
         // Update event_data with new selections
-        event_data.selection_boxes = self.sel.selection_boxes.clone();
-        event_data.selected = self.sel.selected.clone();
+        Self::acr_change_set_new_boxes(&self.sel, &mut boxes);
+        event_data.changes.push(boxes);
 
-        // Emit an event with the saved cells and current selection boxes
-        self.cr_event_select(&event_data, kwargs.emit, true)?;
-
-        // Add saved cells and prior boxes to undo stack
-        if self.opts.enabled_undo && kwargs.undo {
-            // Update event_data with prior selection boxes for the undo stack
-            event_data.selection_boxes = prior_boxes;
-            event_data.selected = prior_sel;
-            self.grid.undo_stack.push_back(event_data);
+        self.cr_event_modified(true)?;
+        let shared = Rc::new(RefCell::new(event_data));
+        if self.opts.enabled_undo && kwargs.undo && self.grid.undo_stack.get_maxlen() > 0 {
+            self.grid.undo_stack.push_back(shared.clone());
         }
-        // TODO: set refresh timer
-        Ok(())
+        Ok(kwargs.emit.then_some(shared))
     }
 
     /// Select cols using either item ids or col numbers. Uses data indices.
-    pub fn select_cols(&mut self, kwargs: Option<SelectRowsColsArgs>) -> Result<(), String> {
+    pub fn select_cols(
+        &mut self,
+        kwargs: Option<SelectRowsColsArgs>,
+    ) -> Result<Option<Rc<RefCell<EventData>>>, String> {
         // Deserialize kwargs
         let kwargs: SelectRowsColsArgs = kwargs.unwrap_or(SelectRowsColsArgs {
             items: self
@@ -190,7 +203,7 @@ impl Table {
             undo: true,
         });
         if kwargs.items.is_empty() {
-            return Ok(());
+            return Ok(None);
         }
 
         // Convert iids / numbers to numbers
@@ -202,6 +215,7 @@ impl Table {
         items.dedup();
 
         let mut event_data: EventData = self.cr_new_event(false);
+        let mut boxes = Self::acr_new_change_with_old_boxes(&self.sel);
 
         // Unhide any currently hidden items
         Self::acr_set_col_vis(
@@ -218,10 +232,6 @@ impl Table {
             &self.grid.header.cells,
             self.opts.vertical_grid_line_width.clone(),
         );
-
-        // Save prior selection boxes for potential undo
-        let prior_boxes = self.sel.selection_boxes.clone();
-        let prior_sel = self.sel.selected.clone();
 
         // Clear current selections if kwargs.replace
         if kwargs.replace {
@@ -248,20 +258,14 @@ impl Table {
         }
 
         // Update event_data with new selections
-        event_data.selection_boxes = self.sel.selection_boxes.clone();
-        event_data.selected = self.sel.selected.clone();
+        Self::acr_change_set_new_boxes(&self.sel, &mut boxes);
+        event_data.changes.push(boxes);
 
-        // Emit an event with the saved cells and current selection boxes
-        self.cr_event_select(&event_data, kwargs.emit, true)?;
-
-        // Add saved cells and prior boxes to undo stack
-        if self.opts.enabled_undo && kwargs.undo {
-            // Update event_data with prior selection boxes for the undo stack
-            event_data.selection_boxes = prior_boxes;
-            event_data.selected = prior_sel;
-            self.grid.undo_stack.push_back(event_data);
+        self.cr_event_modified(true)?;
+        let shared = Rc::new(RefCell::new(event_data));
+        if self.opts.enabled_undo && kwargs.undo && self.grid.undo_stack.get_maxlen() > 0 {
+            self.grid.undo_stack.push_back(shared.clone());
         }
-        // TODO: set refresh timer
-        Ok(())
+        Ok(kwargs.emit.then_some(shared))
     }
 }

@@ -5,6 +5,7 @@ use crate::Color3;
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone, PartialEq)]
 pub struct ProgressBar {
+    pub name: String,
     pub bg: Option<Color3>,
     pub fg: Option<Color3>,
     pub pc: f64,

@@ -14,8 +14,7 @@ impl Table {
     {
         if let Some(event_data) = event_data {
             for pos in iter {
-                let cell = Self::acr_hcell_mut(&mut cells, pos)?;
-                event_data.add_change_hcells(pos, cell.record_set_vis(vis));
+                Self::acr_event_data_set_hvis(&mut cells, pos, vis, event_data)?;
             }
         } else {
             for pos in iter {

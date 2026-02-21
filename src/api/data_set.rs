@@ -1,20 +1,21 @@
 use crate::EventData;
-use crate::SpanKey;
 use crate::Table;
 use crate::args::FillDataArgs;
 use crate::args::SetDataArgs;
+use std::cell::RefCell;
+use std::rc::Rc;
 
 impl Table {
     // Sets table cell data using row ids/pos and col ids/pos.
-    pub fn set_data(&mut self, kwargs: Option<SetDataArgs>) -> Result<(), String> {
-        let kwargs = kwargs.unwrap_or(SetDataArgs {
-            data: vec![],
-            ignore_invalid: true,
-            emit: false,
-            undo: true,
-        });
+    pub fn set_data(
+        &mut self,
+        kwargs: Option<SetDataArgs>,
+    ) -> Result<Option<Rc<RefCell<EventData>>>, String> {
+        let kwargs = kwargs.unwrap_or_default();
+
         let empty_val = &self.opts.empty_val;
-        let mut event_data: EventData = self.cr_new_event(true);
+        let mut event_data: EventData = self.cr_new_event(kwargs.save_selection);
+
         if kwargs.ignore_invalid {
             for (row_pos, cols) in kwargs.data.into_iter() {
                 let Ok(rn) = Self::acr_pos(&self.grid.index.iid_to_row, &row_pos) else {
@@ -50,29 +51,30 @@ impl Table {
                 }
             }
         }
-        if !event_data.table_cells.is_empty() {
-            self.cr_event_modified(&event_data, kwargs.emit, true)?;
-            if self.opts.enabled_undo && kwargs.undo {
-                self.grid.undo_stack.push_back(event_data);
+
+        if event_data.has_non_selection_change(true) {
+            self.cr_event_modified(true)?;
+            let shared = Rc::new(RefCell::new(event_data));
+            if self.opts.enabled_undo && kwargs.undo && self.grid.undo_stack.get_maxlen() > 0 {
+                self.grid.undo_stack.push_back(shared.clone());
             }
-            // TODO: set refresh timer
+            Ok(kwargs.emit.then_some(shared))
+        } else {
+            Ok(None)
         }
-        Ok(())
     }
 
     /// Sets table cell data using a key and a single value.
-    pub fn fill_data(&mut self, kwargs: Option<FillDataArgs>) -> Result<(), String> {
-        let kwargs = kwargs.unwrap_or(FillDataArgs {
-            key: SpanKey::None,
-            val: self.opts.empty_val.clone(),
-            undo: true,
-            emit: true,
-            add_rows: false,
-            add_cols: false,
-        });
+    pub fn fill_data(
+        &mut self,
+        kwargs: Option<FillDataArgs>,
+    ) -> Result<Option<Rc<RefCell<EventData>>>, String> {
+        let kwargs = kwargs.unwrap_or_default();
+
         let span = self.cr_key_to_span(kwargs.key)?;
-        let mut event_data: EventData = self.cr_new_event(true);
-        let val = kwargs.val;
+        let mut event_data: EventData = self.cr_new_event(kwargs.save_selection);
+        let val = kwargs.val.unwrap_or(self.opts.empty_val.clone());
+
         if kwargs.add_rows {
             let span_max_row = span.max_row(&self.grid);
             self.cr_ensure_widget_nrows(span_max_row, &mut event_data, true)?;
@@ -81,6 +83,7 @@ impl Table {
             let span_max_col = span.max_col(&self.grid);
             self.cr_ensure_widget_ncols(span_max_col, &mut event_data, true)?;
         }
+
         let row_start = span.row;
         let row_end = span
             .end_row
@@ -90,6 +93,7 @@ impl Table {
         } else {
             row_end.min(Self::acr_total_rows(&self.grid.index.cells))
         };
+
         let col_start = span.col;
         let col_end = span
             .end_col
@@ -99,7 +103,9 @@ impl Table {
         } else {
             col_end.min(Self::acr_total_cols(&self.grid.header.cells))
         };
+
         let empty_val = &self.opts.empty_val;
+
         for row in row_start..effective_row_end {
             for col in col_start..effective_col_end {
                 Self::acr_event_data_fmt_set_tval(
@@ -112,13 +118,16 @@ impl Table {
                 )?;
             }
         }
-        if !event_data.table_cells.is_empty() {
-            self.cr_event_modified(&event_data, kwargs.emit, true)?;
-            if self.opts.enabled_undo && kwargs.undo {
-                self.grid.undo_stack.push_back(event_data);
+
+        if event_data.has_non_selection_change(true) {
+            self.cr_event_modified(true)?;
+            let shared = Rc::new(RefCell::new(event_data));
+            if self.opts.enabled_undo && kwargs.undo && self.grid.undo_stack.get_maxlen() > 0 {
+                self.grid.undo_stack.push_back(shared.clone());
             }
-            // TODO: set refresh timer
+            Ok(kwargs.emit.then_some(shared))
+        } else {
+            Ok(None)
         }
-        Ok(())
     }
 }

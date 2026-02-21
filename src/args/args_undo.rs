@@ -7,12 +7,15 @@ use crate::statics::default_emit_event_for_api;
 pub struct UndoRedoArgs {
     #[cfg_attr(feature = "serde", serde(default = "default_emit_event_for_api"))]
     pub emit: bool,
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub invalid_indices: Vec<u64>,
 }
 
 impl Default for UndoRedoArgs {
     fn default() -> Self {
         UndoRedoArgs {
             emit: default_emit_event_for_api(),
+            invalid_indices: Vec::new(),
         }
     }
 }

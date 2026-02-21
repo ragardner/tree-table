@@ -1,6 +1,5 @@
 pub mod add_cols;
 pub mod add_rows;
-pub mod bind;
 pub mod data_format;
 pub mod data_get_borrowed;
 pub mod data_get_cloned;

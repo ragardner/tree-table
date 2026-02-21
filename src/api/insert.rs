@@ -1,4 +1,5 @@
 use crate::CellProps;
+use crate::Change;
 use crate::EventData;
 use crate::IndexCell;
 use crate::SelectionKind;
@@ -9,6 +10,7 @@ use crate::args::{InsertArgs, InsertRow};
 use crate::str_err;
 use crate::utils::consecutive_ranges::consecutive_ranges_owned;
 use crate::utils::utils_fns::binary_search_ins_pos;
+use std::cell::RefCell;
 use std::collections::HashSet;
 use std::rc::Rc;
 
@@ -16,7 +18,10 @@ impl Table {
     /// Insert multiple new rows into the table.
     /// If using tree mode then they can only be inserted under a single
     /// existing parent.
-    pub fn insert(&mut self, kwargs: Option<InsertArgs>) -> Result<(), String> {
+    pub fn insert(
+        &mut self,
+        kwargs: Option<InsertArgs>,
+    ) -> Result<Option<Rc<RefCell<EventData>>>, String> {
         let kwargs = kwargs.unwrap_or_default();
         let rows = kwargs.rows.unwrap_or(vec![InsertRow {
             iid: None,
@@ -27,13 +32,13 @@ impl Table {
         }]);
 
         if rows.is_empty() {
-            return Ok(());
+            return Ok(None);
         }
         let empty_val: Val = self.opts.empty_val.clone();
         let empty_index_val: Val = self.opts.empty_index_val.clone();
         let tree_mode = self.opts.tree_mode;
 
-        let mut event_data: EventData = self.cr_new_event(true);
+        let mut event_data: EventData = self.cr_new_event(false);
         let mut new_iids: HashSet<Rc<str>> = HashSet::new();
         let dim = self.cr_get_default_row_dim();
         let ncols = Self::acr_total_cols(&self.grid.header.cells);
@@ -85,6 +90,9 @@ impl Table {
         } else {
             (true, self.grid.index.empty_par.clone())
         };
+
+        let num_visible_added = if vis { sorted_seq.len() } else { 0 };
+        let disp_insert_pos = Self::acr_compute_disp_insert_pos(&self.grid.disp_rows, start_rn);
 
         // Assess and create rows, index
         for (i, row_spec) in rows.into_iter().enumerate() {
@@ -166,17 +174,17 @@ impl Table {
             &self.grid.index.cells,
             self.opts.horizontal_grid_line_width.clone(),
         );
-        // Update event_data
-        event_data.added_rows = sorted_seq;
-        event_data.selection_boxes = self.sel.selection_boxes.clone();
-        event_data.selected = self.sel.selected.clone();
+
+        let boxes = kwargs
+            .save_selection
+            .then_some(Self::acr_new_change_with_old_boxes(&self.sel));
+        self.acr_adjust_selections_after_row_insert(disp_insert_pos, num_visible_added);
 
         // Select the added rows
         if kwargs.select {
             Self::acr_deselect_all(&mut self.sel);
             for (start, end) in consecutive_ranges_owned(
-                event_data
-                    .added_rows
+                sorted_seq
                     .iter()
                     .filter_map(|n| Self::acr_data_to_disp_opt(&self.grid.disp_rows, *n)),
             ) {
@@ -194,13 +202,19 @@ impl Table {
             }
         }
 
-        // Sheet has been modified
-        self.cr_event_modified(&event_data, kwargs.emit, true)?;
+        // Add changes to event data and deal with undo
+        event_data.changes.push(Change::AddRows(sorted_seq));
 
-        // Add to undo stack if undo is enabled and undo is true in kwargs
-        if self.opts.enabled_undo && kwargs.undo {
-            self.grid.undo_stack.push_back(event_data);
+        if let Some(mut boxes) = boxes {
+            Self::acr_change_set_new_boxes(&self.sel, &mut boxes);
+            event_data.changes.push(boxes);
         }
-        Ok(())
+
+        self.cr_event_modified(true)?;
+        let shared = Rc::new(RefCell::new(event_data));
+        if self.opts.enabled_undo && kwargs.undo && self.grid.undo_stack.get_maxlen() > 0 {
+            self.grid.undo_stack.push_back(shared.clone());
+        }
+        Ok(kwargs.emit.then_some(shared))
     }
 }

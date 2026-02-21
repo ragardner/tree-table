@@ -1,10 +1,8 @@
 pub mod add_cols;
 pub mod add_rows;
-pub mod bulk_edit_validation;
 pub mod del_cols;
 pub mod del_rows;
-pub mod disp_to_data_col;
-pub mod disp_to_data_row;
+pub mod disp_to_data;
 pub mod event;
 pub mod event_data_set;
 pub mod format_data;

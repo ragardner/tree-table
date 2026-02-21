@@ -4,7 +4,9 @@ use crate::Header;
 use crate::Index;
 use crate::utils::utils_fns::pull_n;
 use crate::utils::utils_fns::push_n;
+use std::cell::RefCell;
 use std::collections::HashMap;
+use std::rc::Rc;
 
 #[derive(Clone, Debug)]
 pub struct TableGrid {
@@ -18,8 +20,8 @@ pub struct TableGrid {
     pub disp_cols: Vec<usize>,
     pub canvas_rows: Vec<u64>,
     pub canvas_cols: Vec<u64>,
-    pub undo_stack: BoundedDeque<EventData>,
-    pub redo_stack: BoundedDeque<EventData>,
+    pub undo_stack: BoundedDeque<Rc<RefCell<EventData>>>,
+    pub redo_stack: BoundedDeque<Rc<RefCell<EventData>>>,
 }
 
 impl TableGrid {

@@ -114,17 +114,12 @@ pub(crate) fn offset_move_indices(
 
 pub(crate) fn move_using_map_usize_get_inverse(
     seq: &Vec<usize>,
-    old_to_new: &HashMap<usize, usize>,
+    old: &HashSet<usize>,
     new_to_old: &HashMap<usize, usize>,
 ) -> (Vec<usize>, HashMap<usize, usize>) {
     let slen = seq.len();
-    let mut remaining_elements = (0..slen).filter_map(|i| {
-        if old_to_new.contains_key(&i) {
-            None
-        } else {
-            Some(seq[i])
-        }
-    });
+    let mut remaining_elements =
+        (0..slen).filter_map(|i| if old.contains(&i) { None } else { Some(seq[i]) });
     let mut full_old_to_new: Vec<usize> = Vec::with_capacity(slen);
     let mut full_new_to_old: HashMap<usize, usize> = HashMap::new();
     for i in 0..slen {
@@ -133,7 +128,7 @@ pub(crate) fn move_using_map_usize_get_inverse(
             full_new_to_old.insert(i, old_idx);
         } else if let Some(e) = remaining_elements.next() {
             full_old_to_new.push(e);
-            full_new_to_old.insert(i, e as usize);
+            full_new_to_old.insert(i, e);
         }
     }
     (full_old_to_new, full_new_to_old)
@@ -141,10 +136,10 @@ pub(crate) fn move_using_map_usize_get_inverse(
 
 pub(crate) fn get_full_move_map(
     len: usize,
-    old_to_new: &HashMap<usize, usize>,
+    old: &HashSet<usize>,
     new_to_old: &HashMap<usize, usize>,
 ) -> (Vec<usize>, HashMap<usize, usize>) {
-    move_using_map_usize_get_inverse(&(0..len as usize).collect(), old_to_new, new_to_old)
+    move_using_map_usize_get_inverse(&(0..len).collect(), old, new_to_old)
 }
 
 /// Converts a usize to a compact String using base-62 bijective encoding (A-Z, a-z, 0-9).

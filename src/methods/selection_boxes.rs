@@ -1,3 +1,4 @@
+use crate::Change;
 use crate::Selected;
 use crate::Selection;
 use crate::SelectionBox;
@@ -6,6 +7,29 @@ use crate::TableGrid;
 use crate::{Coords, SelectionKind, SelectionState};
 
 impl Table {
+    pub(crate) fn acr_new_change_with_old_boxes(sel: &Selection) -> Change {
+        Change::UpdateSelection {
+            old_selection_boxes: sel.selection_boxes.clone(),
+            old_selected: sel.selected.clone(),
+            new_selection_boxes: Vec::new(),
+            new_selected: None,
+        }
+    }
+
+    pub(crate) fn acr_change_set_new_boxes(sel: &Selection, change: &mut Change) {
+        let Change::UpdateSelection {
+            new_selection_boxes,
+            new_selected,
+            ..
+        } = change
+        else {
+            return; // wrong variant → do nothing
+        };
+
+        *new_selection_boxes = sel.selection_boxes.clone();
+        *new_selected = sel.selected.clone();
+    }
+
     pub(crate) fn acr_deselect_all(sel: &mut Selection) {
         sel.selection_boxes.clear();
         sel.selected = None;

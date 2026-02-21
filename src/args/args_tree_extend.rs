@@ -1,6 +1,7 @@
 use crate::Val;
 use crate::statics::default_emit_event_for_api;
 use crate::statics::default_inherit;
+use crate::statics::default_save_selection_for_api;
 use crate::statics::default_undo_for_api;
 #[cfg(feature = "serde")]
 use crate::statics::get_true;
@@ -85,6 +86,8 @@ pub struct TreeExtendArgs {
     pub duplicate_ids: DuplicateIdHandling,
     #[cfg_attr(feature = "serde", serde(default))]
     pub cycles: CycleHandling,
+    #[cfg_attr(feature = "serde", serde(default = "default_save_selection_for_api"))]
+    pub save_selection: bool,
 }
 
 impl Default for TreeExtendArgs {
@@ -98,6 +101,7 @@ impl Default for TreeExtendArgs {
             empty_ids: EmptyIdHandling::default(),
             duplicate_ids: DuplicateIdHandling::default(),
             cycles: CycleHandling::default(),
+            save_selection: default_save_selection_for_api(),
         }
     }
 }
