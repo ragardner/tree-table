@@ -746,12 +746,12 @@ impl Table {
         rows: I,
         open: bool,
         event_data: Option<&mut EventData>,
-    ) -> Result<HashSet<usize>, String>
+    ) -> Result<Vec<usize>, String>
     where
         I: IntoIterator<Item = usize>,
     {
         // Rows to be shown after opening `rows`
-        let mut to_show_or_hide: HashSet<usize> = HashSet::new();
+        let mut to_show_or_hide: Vec<usize> = Vec::new();
         // Helper to determine if a row is visible
         let mut vis_check: HashSet<usize> = HashSet::new();
 
@@ -774,7 +774,7 @@ impl Table {
                             if open {
                                 vis_check.insert(did_row);
                             }
-                            to_show_or_hide.insert(did_row);
+                            to_show_or_hide.push(did_row);
                         }
                     }
                 }
@@ -794,7 +794,7 @@ impl Table {
                             if open {
                                 vis_check.insert(did_row);
                             }
-                            to_show_or_hide.insert(did_row);
+                            to_show_or_hide.push(did_row);
                         }
                     }
                 }
