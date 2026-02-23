@@ -8,6 +8,6 @@ This project is licensed under the Apache License 2.0. See the [LICENSE](LICENSE
 
 ## Contributing
 
-Please read [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines and the Contributor License Agreement.
+Please read [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines.
 
 Copyright 2026 ragardner
