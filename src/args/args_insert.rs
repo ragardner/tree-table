@@ -1,7 +1,5 @@
-#[cfg(feature = "serde")]
 use crate::statics::default_emit_event_for_api;
 use crate::statics::default_inherit;
-#[cfg(feature = "serde")]
 use crate::statics::default_undo_for_api;
 use crate::{Val, statics::default_save_selection_for_api};
 

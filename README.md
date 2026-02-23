@@ -10,4 +10,4 @@ This project is licensed under the Apache License 2.0. See the [LICENSE](LICENSE
 
 Please read [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines and the Contributor License Agreement.
 
-Copyright 2025 ragardner
+Copyright 2026 ragardner

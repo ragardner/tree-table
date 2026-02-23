@@ -1,6 +1,5 @@
 use crate::ChangeIndexCell;
 use crate::types::Change;
-#[cfg(feature = "serde")]
 use std::collections::HashMap;
 use std::rc::Rc;
 

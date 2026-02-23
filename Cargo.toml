@@ -13,12 +13,12 @@ rust-version = "1.90"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-regex = { workspace = true }
-chrono = { workspace = true }
-bigdecimal = { workspace = true }
-rust_decimal = { workspace = true }
-num-bigint = { workspace = true }
-serde = { workspace = true, optional = true }
+regex = "1"
+chrono = { version = "0.4", features = ["serde"] }
+bigdecimal = { version = "0.4.8", features = ["serde-json", "serde"] }
+rust_decimal = { version = "1.38.0", features = ["serde"] }
+num-bigint = { version = "0.4.6", features = ["serde"] }
+serde = { version = "1.0", features = ["derive", "rc"], optional = true }
 tsify = { version = "=0.5.5", optional = true }
 wasm-bindgen = { version = "0.2", optional = true, features = ["serde-serialize"] }
 

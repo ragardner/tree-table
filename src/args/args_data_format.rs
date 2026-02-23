@@ -1,9 +1,6 @@
 use crate::SpanKey;
-#[cfg(feature = "serde")]
 use crate::statics::default_emit_event_for_api;
-#[cfg(feature = "serde")]
 use crate::statics::default_save_selection_for_api;
-#[cfg(feature = "serde")]
 use crate::statics::default_undo_for_api;
 
 #[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
