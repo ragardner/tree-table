@@ -1,6 +1,7 @@
 use crate::CellBorders;
 use crate::Change;
 use crate::Checkbox;
+use crate::Color3;
 use crate::DataFormat;
 use crate::Dropdown;
 use crate::EventData;
@@ -617,6 +618,264 @@ impl Table {
         event_data.changes.push(Change::HeaderCell {
             col,
             change: cell.record_set_props_readonly(prop),
+        });
+        Ok(())
+    }
+
+    // IndexCell (regular props) - ProgressBar field setters
+    #[inline]
+    pub(crate) fn acr_event_data_set_iprogressbar_name(
+        cells: &mut Vec<IndexCell>,
+        row: usize,
+        prop: String,
+        event_data: &mut EventData,
+    ) -> Result<(), String> {
+        let cell = Table::acr_icell_mut(cells, row)?;
+        event_data.changes.push(Change::IndexCell {
+            row,
+            change: cell.record_set_props_progress_bar_name(prop)?,
+        });
+        Ok(())
+    }
+
+    #[inline]
+    pub(crate) fn acr_event_data_set_iprogressbar_bg(
+        cells: &mut Vec<IndexCell>,
+        row: usize,
+        prop: Option<Color3>,
+        event_data: &mut EventData,
+    ) -> Result<(), String> {
+        let cell = Table::acr_icell_mut(cells, row)?;
+        event_data.changes.push(Change::IndexCell {
+            row,
+            change: cell.record_set_props_progress_bar_bg(prop)?,
+        });
+        Ok(())
+    }
+
+    #[inline]
+    pub(crate) fn acr_event_data_set_iprogressbar_fg(
+        cells: &mut Vec<IndexCell>,
+        row: usize,
+        prop: Option<Color3>,
+        event_data: &mut EventData,
+    ) -> Result<(), String> {
+        let cell = Table::acr_icell_mut(cells, row)?;
+        event_data.changes.push(Change::IndexCell {
+            row,
+            change: cell.record_set_props_progress_bar_fg(prop)?,
+        });
+        Ok(())
+    }
+
+    #[inline]
+    pub(crate) fn acr_event_data_set_iprogressbar_pc(
+        cells: &mut Vec<IndexCell>,
+        row: usize,
+        prop: f64,
+        event_data: &mut EventData,
+    ) -> Result<(), String> {
+        let cell = Table::acr_icell_mut(cells, row)?;
+        event_data.changes.push(Change::IndexCell {
+            row,
+            change: cell.record_set_props_progress_bar_pc(prop)?,
+        });
+        Ok(())
+    }
+
+    #[inline]
+    pub(crate) fn acr_event_data_set_iprogressbar_remove_on_complete(
+        cells: &mut Vec<IndexCell>,
+        row: usize,
+        prop: bool,
+        event_data: &mut EventData,
+    ) -> Result<(), String> {
+        let cell = Table::acr_icell_mut(cells, row)?;
+        event_data.changes.push(Change::IndexCell {
+            row,
+            change: cell.record_set_props_progress_bar_remove_on_complete(prop)?,
+        });
+        Ok(())
+    }
+
+    // HeaderCell - ProgressBar field setters
+    #[inline]
+    pub(crate) fn acr_event_data_set_hprogressbar_name(
+        cells: &mut Vec<HeaderCell>,
+        col: usize,
+        prop: String,
+        event_data: &mut EventData,
+    ) -> Result<(), String> {
+        let cell = Table::acr_hcell_mut(cells, col)?;
+        event_data.changes.push(Change::HeaderCell {
+            col,
+            change: cell.record_set_props_progress_bar_name(prop)?,
+        });
+        Ok(())
+    }
+
+    #[inline]
+    pub(crate) fn acr_event_data_set_hprogressbar_bg(
+        cells: &mut Vec<HeaderCell>,
+        col: usize,
+        prop: Option<Color3>,
+        event_data: &mut EventData,
+    ) -> Result<(), String> {
+        let cell = Table::acr_hcell_mut(cells, col)?;
+        event_data.changes.push(Change::HeaderCell {
+            col,
+            change: cell.record_set_props_progress_bar_bg(prop)?,
+        });
+        Ok(())
+    }
+
+    #[inline]
+    pub(crate) fn acr_event_data_set_hprogressbar_fg(
+        cells: &mut Vec<HeaderCell>,
+        col: usize,
+        prop: Option<Color3>,
+        event_data: &mut EventData,
+    ) -> Result<(), String> {
+        let cell = Table::acr_hcell_mut(cells, col)?;
+        event_data.changes.push(Change::HeaderCell {
+            col,
+            change: cell.record_set_props_progress_bar_fg(prop)?,
+        });
+        Ok(())
+    }
+
+    #[inline]
+    pub(crate) fn acr_event_data_set_hprogressbar_pc(
+        cells: &mut Vec<HeaderCell>,
+        col: usize,
+        prop: f64,
+        event_data: &mut EventData,
+    ) -> Result<(), String> {
+        let cell = Table::acr_hcell_mut(cells, col)?;
+        event_data.changes.push(Change::HeaderCell {
+            col,
+            change: cell.record_set_props_progress_bar_pc(prop)?,
+        });
+        Ok(())
+    }
+
+    #[inline]
+    pub(crate) fn acr_event_data_set_hprogressbar_remove_on_complete(
+        cells: &mut Vec<HeaderCell>,
+        col: usize,
+        prop: bool,
+        event_data: &mut EventData,
+    ) -> Result<(), String> {
+        let cell = Table::acr_hcell_mut(cells, col)?;
+        event_data.changes.push(Change::HeaderCell {
+            col,
+            change: cell.record_set_props_progress_bar_remove_on_complete(prop)?,
+        });
+        Ok(())
+    }
+
+    // TableCell - ProgressBar field setters
+    #[inline]
+    pub(crate) fn acr_event_data_set_tprogressbar_name(
+        cells: &mut Vec<IndexCell>,
+        row: usize,
+        col: usize,
+        prop: String,
+        empty_val: &Val,
+        event_data: &mut EventData,
+    ) -> Result<(), String> {
+        let cell = Table::acr_icell_mut(cells, row)?;
+        event_data.changes.push(Change::IndexCell {
+            row,
+            change: cell.record_set_table_cell_props_progress_bar_name(
+                col,
+                prop,
+                empty_val.clone(),
+            )?,
+        });
+        Ok(())
+    }
+
+    #[inline]
+    pub(crate) fn acr_event_data_set_tprogressbar_bg(
+        cells: &mut Vec<IndexCell>,
+        row: usize,
+        col: usize,
+        prop: Option<Color3>,
+        empty_val: &Val,
+        event_data: &mut EventData,
+    ) -> Result<(), String> {
+        let cell = Table::acr_icell_mut(cells, row)?;
+        event_data.changes.push(Change::IndexCell {
+            row,
+            change: cell.record_set_table_cell_props_progress_bar_bg(
+                col,
+                prop,
+                empty_val.clone(),
+            )?,
+        });
+        Ok(())
+    }
+
+    #[inline]
+    pub(crate) fn acr_event_data_set_tprogressbar_fg(
+        cells: &mut Vec<IndexCell>,
+        row: usize,
+        col: usize,
+        prop: Option<Color3>,
+        empty_val: &Val,
+        event_data: &mut EventData,
+    ) -> Result<(), String> {
+        let cell = Table::acr_icell_mut(cells, row)?;
+        event_data.changes.push(Change::IndexCell {
+            row,
+            change: cell.record_set_table_cell_props_progress_bar_fg(
+                col,
+                prop,
+                empty_val.clone(),
+            )?,
+        });
+        Ok(())
+    }
+
+    #[inline]
+    pub(crate) fn acr_event_data_set_tprogressbar_pc(
+        cells: &mut Vec<IndexCell>,
+        row: usize,
+        col: usize,
+        prop: f64,
+        empty_val: &Val,
+        event_data: &mut EventData,
+    ) -> Result<(), String> {
+        let cell = Table::acr_icell_mut(cells, row)?;
+        event_data.changes.push(Change::IndexCell {
+            row,
+            change: cell.record_set_table_cell_props_progress_bar_pc(
+                col,
+                prop,
+                empty_val.clone(),
+            )?,
+        });
+        Ok(())
+    }
+
+    #[inline]
+    pub(crate) fn acr_event_data_set_tprogressbar_remove_on_complete(
+        cells: &mut Vec<IndexCell>,
+        row: usize,
+        col: usize,
+        prop: bool,
+        empty_val: &Val,
+        event_data: &mut EventData,
+    ) -> Result<(), String> {
+        let cell = Table::acr_icell_mut(cells, row)?;
+        event_data.changes.push(Change::IndexCell {
+            row,
+            change: cell.record_set_table_cell_props_progress_bar_remove_on_complete(
+                col,
+                prop,
+                empty_val.clone(),
+            )?,
         });
         Ok(())
     }

@@ -64,12 +64,7 @@ impl Table {
         Self::acr_change_set_new_boxes(&self.sel, &mut boxes);
         event_data.changes.push(boxes);
 
-        self.cr_event_modified(true)?;
-        let shared = Rc::new(RefCell::new(event_data));
-        if self.opts.enabled_undo && kwargs.undo && self.grid.undo_stack.get_maxlen() > 0 {
-            self.grid.undo_stack.push_back(shared.clone());
-        }
-        Ok(kwargs.emit.then_some(shared))
+        self.cr_finalize_event(event_data, kwargs.undo, kwargs.emit)
     }
 
     /// Select rows using either item ids or row numbers. Uses data indices.
@@ -175,12 +170,7 @@ impl Table {
         Self::acr_change_set_new_boxes(&self.sel, &mut boxes);
         event_data.changes.push(boxes);
 
-        self.cr_event_modified(true)?;
-        let shared = Rc::new(RefCell::new(event_data));
-        if self.opts.enabled_undo && kwargs.undo && self.grid.undo_stack.get_maxlen() > 0 {
-            self.grid.undo_stack.push_back(shared.clone());
-        }
-        Ok(kwargs.emit.then_some(shared))
+        self.cr_finalize_event(event_data, kwargs.undo, kwargs.emit)
     }
 
     /// Select cols using either item ids or col numbers. Uses data indices.
@@ -261,11 +251,6 @@ impl Table {
         Self::acr_change_set_new_boxes(&self.sel, &mut boxes);
         event_data.changes.push(boxes);
 
-        self.cr_event_modified(true)?;
-        let shared = Rc::new(RefCell::new(event_data));
-        if self.opts.enabled_undo && kwargs.undo && self.grid.undo_stack.get_maxlen() > 0 {
-            self.grid.undo_stack.push_back(shared.clone());
-        }
-        Ok(kwargs.emit.then_some(shared))
+        self.cr_finalize_event(event_data, kwargs.undo, kwargs.emit)
     }
 }

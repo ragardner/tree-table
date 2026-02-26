@@ -62,11 +62,11 @@ impl Table {
                     let parent_rn = Self::acr_pos(&self.grid.index.iid_to_row, par)?;
                     return Ok(parent_rn + 1);
                 } else {
-                    let prev_chld = chn.get(idx - 1).ok_or(str_err!(format!(
+                    let prev_chld = chn.get(idx - 1).ok_or(str_err!(
                         "Could not get child at pos: {} of parent: {}",
                         idx - 1,
                         par
-                    )))?;
+                    ))?;
                     let prev_chld_rn = Self::acr_pos(&self.grid.index.iid_to_row, prev_chld)?;
                     let num_desc = Self::acr_tree_descendants_num(&self.grid, prev_chld_rn, false)?;
                     return Ok(prev_chld_rn + num_desc + 1);
@@ -75,7 +75,7 @@ impl Table {
                 if !chn.is_empty() {
                     let last_chld = chn
                         .last()
-                        .ok_or(str_err!(format!("Could not get last child of: {}", par)))?;
+                        .ok_or(str_err!("Could not get last child of: {}", par))?;
                     let last_chld_rn = Self::acr_pos(&self.grid.index.iid_to_row, last_chld)?;
                     let num_desc = Self::acr_tree_descendants_num(&self.grid, last_chld_rn, false)?;
                     return Ok(last_chld_rn + num_desc + 1);
@@ -236,10 +236,9 @@ impl Table {
 
                     // New parent has children, move_to_position is end
                     } else if move_to_pos >= new_par_chn_len {
-                        let last_chld = new_par_chn.last().ok_or(str_err!(format!(
-                            "Could not get last child of: {}",
-                            new_par
-                        )))?;
+                        let last_chld = new_par_chn
+                            .last()
+                            .ok_or(str_err!("Could not get last child of: {}", new_par))?;
                         let last_chld_rn = Self::acr_pos(&self.grid.index.iid_to_row, last_chld)?;
                         let num_desc =
                             Self::acr_tree_descendants_num(&self.grid, last_chld_rn, false)?;
@@ -248,10 +247,11 @@ impl Table {
                     // New parent has children, move_to_position is not end
                     } else {
                         // Set insert_row to the row of the child at move_to_pos
-                        let cx = new_par_chn.get(move_to_pos).ok_or(str_err!(format!(
+                        let cx = new_par_chn.get(move_to_pos).ok_or(str_err!(
                             "Vec index out of range: {} for vec: {:?}",
-                            move_to_pos, new_par_chn
-                        )))?;
+                            move_to_pos,
+                            new_par_chn
+                        ))?;
                         insert_row = Self::acr_pos(&self.grid.index.iid_to_row, cx)?;
 
                         // If any iids are merely moving index
@@ -267,10 +267,12 @@ impl Table {
                                 &new_par,
                             )? && move_to_pos > Self::acr_tree_pos(&self.grid.index, &iid)?
                             {
-                                let cx = new_par_chn.get(move_to_pos).ok_or(str_err!(format!(
+                                let cx = new_par_chn.get(move_to_pos).ok_or(str_err!(
                                     "Vec index out of range: {} for iid: {} vec: {:?}",
-                                    move_to_pos, iid, new_par_chn
-                                )))?;
+                                    move_to_pos,
+                                    iid,
+                                    new_par_chn
+                                ))?;
                                 let num_desc = Self::acr_tree_descendants_num(
                                     &self.grid,
                                     Self::acr_pos(&self.grid.index.iid_to_row, cx)?,
@@ -353,10 +355,11 @@ impl Table {
                 }
                 if let Some(causes_recursive_loop) = causes_recursive_loop {
                     old_to_new.clear();
-                    return Err(str_err!(format!(
+                    return Err(str_err!(
                         "Moving '{}' to '{}' would cause a recursive loop",
-                        causes_recursive_loop.0, causes_recursive_loop.1,
-                    )));
+                        causes_recursive_loop.0,
+                        causes_recursive_loop.1,
+                    ));
                 }
             }
 
@@ -544,69 +547,6 @@ impl Table {
         Ok(())
     }
 
-    /// Renames a row iid in the tree.
-    /// This function is not called during undo & redo but records the changes necessary
-    /// for undo & redo.
-    pub(crate) fn acr_tree_rename_iid(
-        index: &mut Index,
-        old: &str,
-        new: Rc<str>,
-        event_data: &mut EventData,
-    ) -> Result<(), String> {
-        let old_rc: Rc<str> = Rc::from(old);
-        let iid_row = Self::acr_pos(&index.iid_to_row, &old_rc)?;
-
-        // Update children's par fields to point to new iid
-        let chn = std::mem::take(&mut Self::acr_icell_mut(&mut index.cells, iid_row)?.chn);
-        for ciid in chn.iter() {
-            let c_row = Self::acr_pos(&index.iid_to_row, &ciid)?;
-            let c_cell = Self::acr_icell_mut(&mut index.cells, c_row)?;
-            let change = c_cell.record_set_par(new.clone())?;
-            event_data
-                .changes
-                .push(Change::IndexCell { row: c_row, change });
-        }
-        Self::acr_icell_mut(&mut index.cells, iid_row)?.chn = chn;
-
-        // Update parent's chn list if parent exists
-        let pos = Self::acr_tree_pos(&index, &old_rc)?;
-        let par_cell_opt =
-            Self::acr_tree_par_cell_mut(&mut index.cells, &index.iid_to_row, &old_rc)?;
-        if let Some(par_cell) = par_cell_opt {
-            let par_row = Self::acr_pos(&index.iid_to_row, &par_cell.iid)?;
-            if pos >= par_cell.chn.len() {
-                return Err(str_err!(format!(
-                    "Index {} is out of bounds for parent's children list of length {}",
-                    pos,
-                    par_cell.chn.len()
-                )));
-            }
-            if par_cell.chn[pos] != old_rc {
-                return Err(str_err!(format!(
-                    "Parent's child at index {} does not match old IID: expected {}, found {}",
-                    pos, old_rc, &*par_cell.chn[pos]
-                )));
-            }
-            let mut new_chn = par_cell.chn.clone();
-            new_chn[pos] = new.clone();
-            let change = par_cell.record_set_chn(new_chn)?;
-            event_data.changes.push(Change::IndexCell {
-                row: par_row,
-                change,
-            });
-        }
-
-        let cell = Self::acr_icell_mut(&mut index.cells, iid_row)?;
-        let change = cell.record_set_iid(new.clone(), &mut index.iid_to_row)?;
-        event_data.changes.push(Change::IndexCell {
-            row: Self::acr_pos(&index.iid_to_row, &old_rc)?,
-            change,
-        });
-        index.iid_to_row.remove(&old_rc);
-        index.iid_to_row.insert(new, iid_row);
-        Ok(())
-    }
-
     #[inline]
     pub(crate) fn acr_tree_iid_set_open(
         mut cells: &mut Vec<IndexCell>,
@@ -676,7 +616,7 @@ impl Table {
         let target_row = index
             .iid_to_row
             .get(iid)
-            .ok_or_else(|| format!("Missing row mapping for IID: {}", &*iid))?
+            .ok_or(format!("Missing row mapping for IID: {}", &*iid))?
             .to_owned();
 
         // Get the parent item ID; returns Result<Rc<str>, String>
@@ -694,13 +634,10 @@ impl Table {
                     if &par_cell.chn[pos] == iid {
                         Ok(pos)
                     } else {
-                        Err(str_err!(format!(
-                            "Row match found but IID mismatch for: {}",
-                            &*iid
-                        )))
+                        Err(str_err!("Row match found but IID mismatch for: {}", &*iid))
                     }
                 } else {
-                    Err(str_err!(format!("iid: {} not in parent's children", &*iid)))
+                    Err(str_err!("iid: {} not in parent's children", &*iid))
                 }
             } else {
                 Err(str_err!("Par cell unexpectedly empty."))
@@ -714,7 +651,7 @@ impl Table {
                 }
                 pos += 1;
             }
-            Err(str_err!(format!("iid: {} not in top-level iids", &*iid)))
+            Err(str_err!("iid: {} not in top-level iids", &*iid))
         }
     }
 

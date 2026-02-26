@@ -52,16 +52,7 @@ impl Table {
             }
         }
 
-        if event_data.has_non_selection_change(true) {
-            self.cr_event_modified(true)?;
-            let shared = Rc::new(RefCell::new(event_data));
-            if self.opts.enabled_undo && kwargs.undo && self.grid.undo_stack.get_maxlen() > 0 {
-                self.grid.undo_stack.push_back(shared.clone());
-            }
-            Ok(kwargs.emit.then_some(shared))
-        } else {
-            Ok(None)
-        }
+        self.cr_finalize_event_nsc(event_data, kwargs.undo, kwargs.emit, true)
     }
 
     /// Sets table cell data using a key and a single value.
@@ -119,15 +110,6 @@ impl Table {
             }
         }
 
-        if event_data.has_non_selection_change(true) {
-            self.cr_event_modified(true)?;
-            let shared = Rc::new(RefCell::new(event_data));
-            if self.opts.enabled_undo && kwargs.undo && self.grid.undo_stack.get_maxlen() > 0 {
-                self.grid.undo_stack.push_back(shared.clone());
-            }
-            Ok(kwargs.emit.then_some(shared))
-        } else {
-            Ok(None)
-        }
+        self.cr_finalize_event_nsc(event_data, kwargs.undo, kwargs.emit, true)
     }
 }

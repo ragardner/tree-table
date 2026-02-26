@@ -58,7 +58,7 @@ impl SelectionKind {
 
     // Convert from string to enum with error handling
     pub fn from_str_res(s: &str) -> Result<Self, String> {
-        Self::from_str(s).ok_or(str_err!(format!("Cannot convert: {} to SelectionKind", s)))
+        Self::from_str(s).ok_or(str_err!("Cannot convert: {} to SelectionKind", s))
     }
 }
 
@@ -92,7 +92,7 @@ impl SelectionState {
 
     // Convert from string to enum with error handling
     pub fn from_str_res(s: &str) -> Result<Self, String> {
-        Self::from_str(s).ok_or(str_err!(format!("Cannot convert: {} to SelectionState", s)))
+        Self::from_str(s).ok_or(str_err!("Cannot convert: {} to SelectionState", s))
     }
 }
 

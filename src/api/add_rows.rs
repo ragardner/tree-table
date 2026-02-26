@@ -24,10 +24,10 @@ impl Table {
         let mut iid_set = HashSet::new();
         for iid in &iids {
             if !iid_set.insert(iid.clone()) {
-                return Err(str_err!(format!("Duplicate row iid: {}", iid)));
+                return Err(str_err!("Duplicate row iid: {}", iid));
             }
             if self.grid.index.iid_to_row.get(iid.as_str()).is_some() {
-                return Err(str_err!(format!("Row iid already exists: {}", iid)));
+                return Err(str_err!("Row iid already exists: {}", iid));
             }
         }
         self._add_rows(
@@ -131,11 +131,6 @@ impl Table {
             event_data.changes.push(boxes);
         }
 
-        self.cr_event_modified(true)?;
-        let shared = Rc::new(RefCell::new(event_data));
-        if self.opts.enabled_undo && undo && self.grid.undo_stack.get_maxlen() > 0 {
-            self.grid.undo_stack.push_back(shared.clone());
-        }
-        if emit { Ok(Some(shared)) } else { Ok(None) }
+        self.cr_finalize_event(event_data, undo, emit)
     }
 }

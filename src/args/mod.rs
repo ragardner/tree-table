@@ -5,8 +5,10 @@ pub mod args_del;
 pub mod args_highlight;
 pub mod args_insert;
 pub mod args_item;
+pub mod args_item_col;
 pub mod args_move;
 pub mod args_move_items;
+pub mod args_note;
 pub mod args_progress_bar;
 pub mod args_reset;
 pub mod args_select;
@@ -21,9 +23,13 @@ pub use args_del::{DelArgs, DelPosArgs};
 pub use args_highlight::HighlightArgs;
 pub use args_insert::{InsertArgs, InsertRow};
 pub use args_item::{ItemArgs, ItemResult};
+pub use args_item_col::{ItemColArgs, ItemColResult};
 pub use args_move::MoveArgs;
 pub use args_move_items::MoveItemsArgs;
-pub use args_progress_bar::AddProgressBarArgs;
+pub use args_note::NoteArgs;
+pub use args_progress_bar::{
+    AddProgressBarArgs, AddProgressBarPosArgs, DelProgressBarArgs, SetProgressBarArgs,
+};
 pub use args_reset::ResetArgs;
 pub use args_select::{AddSelectionArgs, SelectRowsColsArgs, SelectionClearArgs};
 pub use args_tree_extend::{

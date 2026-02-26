@@ -94,10 +94,10 @@ macro_rules! log {
     };
 }
 
-// Properly formats a String Err.
+// Properly formats a String Err. Supports literal strings and format! syntax.
 #[macro_export]
 macro_rules! str_err {
-    ($e:expr) => {
-        format!("Error at {}:{}: {}", file!(), line!(), $e)
+    ($($arg:tt)*) => {
+        format!("Error at {}:{}: {}", file!(), line!(), format!($($arg)*))
     };
 }

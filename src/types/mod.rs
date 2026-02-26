@@ -35,7 +35,7 @@ pub use cell_key::CellKey;
 pub use cell_props::CellProps;
 pub use change::Change;
 pub use change_header_cell::ChangeHeaderCell;
-pub use change_index_cell::{ChangeCellProps, ChangeIndexCell};
+pub use change_index_cell::{ChangeCellProps, ChangeIndexCell, ChangeProgressBar};
 pub use checkbox::Checkbox;
 pub use color3::{Color3, try_hex_to_color3};
 pub use cycling_counter::CyclingCounter;

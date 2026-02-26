@@ -11,11 +11,11 @@ impl Table {
     ) -> Result<usize, String> {
         disp_cols
             .get(disp_col)
-            .ok_or(str_err!(format!(
+            .ok_or(str_err!(
                 "Failed to retrieve value at index '{}' len: {}",
                 disp_col,
                 disp_cols.len()
-            )))
+            ))
             .map(|n| *n)
     }
 
@@ -26,7 +26,7 @@ impl Table {
         data_col: usize,
     ) -> Result<usize, String> {
         bin_index_usize(&disp_cols, data_col)
-            .ok_or(str_err!(format!("Value '{}' not found", data_col)))
+            .ok_or(str_err!("Value '{}' not found", data_col))
             .map(|n| n)
     }
 
@@ -53,11 +53,11 @@ impl Table {
     ) -> Result<usize, String> {
         disp_rows
             .get(disp_row)
-            .ok_or(str_err!(format!(
+            .ok_or(str_err!(
                 "Failed to retrieve value at index '{}' len: {}",
                 disp_row,
                 disp_rows.len()
-            )))
+            ))
             .map(|n| *n)
     }
 
@@ -68,7 +68,7 @@ impl Table {
         data_row: usize,
     ) -> Result<usize, String> {
         bin_index_usize(&disp_rows, data_row)
-            .ok_or(str_err!(format!("Value '{}' not found", data_row)))
+            .ok_or(str_err!("Value '{}' not found", data_row))
             .map(|n| n)
     }
 

@@ -146,10 +146,12 @@ impl Table {
             let iid: Rc<str> = if row_spec.iid.is_empty() {
                 match empty_id_handling {
                     EmptyIdHandling::Error => {
-                        return Err(str_err!(format!(
+                        return Err(str_err!(
                             "Empty iid. Parent: {:?}, Text: {:?}, Values: {:?}",
-                            row_spec.par, row_spec.val, row_spec.vals
-                        )));
+                            row_spec.par,
+                            row_spec.val,
+                            row_spec.vals
+                        ));
                     }
                     EmptyIdHandling::Ignore => {
                         continue;
@@ -172,7 +174,7 @@ impl Table {
             {
                 match duplicate_id_handling {
                     DuplicateIdHandling::Error => {
-                        return Err(str_err!(format!("iid already exists: {}", row_spec.iid)));
+                        return Err(str_err!("iid already exists: {}", row_spec.iid));
                     }
                     DuplicateIdHandling::Rename => {
                         let mut n: u64 = 1;
@@ -194,7 +196,7 @@ impl Table {
             if self.grid.index.iid_to_row.contains_key(&par) {
                 match duplicate_id_handling {
                     DuplicateIdHandling::Error => {
-                        return Err(str_err!(format!("parent already exists: {}", par)));
+                        return Err(str_err!("parent already exists: {}", par));
                     }
                     DuplicateIdHandling::Rename => {
                         let mut n: u64 = 1;
@@ -212,7 +214,7 @@ impl Table {
             let iid = if tree_map.contains_key(&iid) {
                 match duplicate_id_handling {
                     DuplicateIdHandling::Error => {
-                        return Err(str_err!(format!("iid is a duplicate in rows: {}", iid)));
+                        return Err(str_err!("iid is a duplicate in rows: {}", iid));
                     }
                     DuplicateIdHandling::Rename => {
                         let mut n: u64 = 1;
@@ -262,7 +264,7 @@ impl Table {
             if iid == par {
                 match cycle_handling {
                     CycleHandling::Error => {
-                        return Err(str_err!(format!("iid: {iid} equal to parent")));
+                        return Err(str_err!("iid: {iid} equal to parent"));
                     }
                     CycleHandling::Skip => {
                         continue;
@@ -279,10 +281,11 @@ impl Table {
                 if inf_loop {
                     match cycle_handling {
                         CycleHandling::Error => {
-                            return Err(str_err!(format!(
+                            return Err(str_err!(
                                 "Cycle detected for iid: {} with parent: {}",
-                                iid, par
-                            )));
+                                iid,
+                                par
+                            ));
                         }
                         CycleHandling::Skip => {
                             continue;
@@ -363,10 +366,9 @@ impl Table {
         self.grid.index.iid_to_row.reserve(tree_map.len());
         for top in tops.into_iter() {
             sorted_seq.push(row_ctr);
-            let icell = tree_map.remove(&top).ok_or(str_err!(format!(
-                "IndexCell: {} not found in tree_map",
-                top
-            )))?;
+            let icell = tree_map
+                .remove(&top)
+                .ok_or(str_err!("IndexCell: {} not found in tree_map", top))?;
             let child_vis = icell.open;
             for child in icell.chn.iter().rev().cloned() {
                 stack.push((child, child_vis, top.clone()));
@@ -379,10 +381,9 @@ impl Table {
 
             while let Some((not_top, inherited_vis, par_iid)) = stack.pop() {
                 sorted_seq.push(row_ctr);
-                let mut icell = tree_map.remove(&not_top).ok_or(str_err!(format!(
-                    "IndexCell: {} not found in tree_map",
-                    not_top
-                )))?;
+                let mut icell = tree_map
+                    .remove(&not_top)
+                    .ok_or(str_err!("IndexCell: {} not found in tree_map", not_top))?;
                 icell.par = par_iid;
                 icell.vis = inherited_vis;
                 let child_vis = inherited_vis && icell.open;
@@ -433,11 +434,6 @@ impl Table {
             event_data.changes.push(boxes);
         }
 
-        self.cr_event_modified(true)?;
-        let shared = Rc::new(RefCell::new(event_data));
-        if self.opts.enabled_undo && kwargs.undo && self.grid.undo_stack.get_maxlen() > 0 {
-            self.grid.undo_stack.push_back(shared.clone());
-        }
-        Ok(kwargs.emit.then_some(shared))
+        self.cr_finalize_event(event_data, kwargs.undo, kwargs.emit)
     }
 }

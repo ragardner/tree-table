@@ -29,7 +29,7 @@ pub struct ItemArgs {
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone, PartialEq)]
 pub struct ItemResult {
-    pub row: u64,
+    pub pos: u64,
     pub val: Val,
     pub values: Vec<Val>,
     pub open: bool,

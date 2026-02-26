@@ -51,16 +51,7 @@ impl Table {
             event_data.changes.push(boxes);
         }
 
-        if !event_data.changes.is_empty() {
-            self.cr_event_modified(true)?;
-            let shared = Rc::new(RefCell::new(event_data));
-            if self.opts.enabled_undo && kwargs.undo && self.grid.undo_stack.get_maxlen() > 0 {
-                self.grid.undo_stack.push_back(shared.clone());
-            }
-            Ok(kwargs.emit.then_some(shared))
-        } else {
-            Ok(None)
-        }
+        self.cr_finalize_event_nsc(event_data, kwargs.undo, kwargs.emit, false)
     }
 
     pub(crate) fn acr_adjust_selections_after_row_visibility_change(

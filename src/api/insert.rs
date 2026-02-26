@@ -103,7 +103,7 @@ impl Table {
             let iid: Rc<str> = if let Some(iid) = row_spec.iid {
                 // Check if the provided iid already exists
                 if self.grid.index.iid_to_row.contains_key(iid.as_str()) {
-                    return Err(str_err!(format!("iid already exists: {}", iid)));
+                    return Err(str_err!("iid already exists: {}", iid));
                 }
                 Rc::from(iid)
             } else {
@@ -111,7 +111,7 @@ impl Table {
             };
             // Check for repetitions of iids
             if !new_iids.insert(iid.clone()) {
-                return Err(str_err!(format!("Repeated iid in rows: {}", iid)));
+                return Err(str_err!("Repeated iid in rows: {}", iid));
             };
 
             // Index
@@ -210,11 +210,6 @@ impl Table {
             event_data.changes.push(boxes);
         }
 
-        self.cr_event_modified(true)?;
-        let shared = Rc::new(RefCell::new(event_data));
-        if self.opts.enabled_undo && kwargs.undo && self.grid.undo_stack.get_maxlen() > 0 {
-            self.grid.undo_stack.push_back(shared.clone());
-        }
-        Ok(kwargs.emit.then_some(shared))
+        self.cr_finalize_event(event_data, kwargs.undo, kwargs.emit)
     }
 }

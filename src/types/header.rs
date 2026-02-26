@@ -61,11 +61,11 @@ impl Header {
     ) -> Result<Vec<(usize, HeaderCell)>, String> {
         let largest_pos = *sorted_seq.last().ok_or(str_err!("To delete is empty."))?;
         if largest_pos >= self.cells.len() {
-            return Err(str_err!(format!(
+            return Err(str_err!(
                 "Deletion pos: {} out of bounds of header len: {}",
                 largest_pos,
                 self.cells.len()
-            )));
+            ));
         }
         let mut removed = Vec::with_capacity(sorted_seq.len());
         for (i, &pos) in sorted_seq.iter().enumerate() {
@@ -91,7 +91,7 @@ impl Header {
                 if let Some(&old_idx) = full_new_to_old.get(&i) {
                     let cell = seq_opt[old_idx]
                         .take()
-                        .ok_or(str_err!(format!("Mapping error: {}", old_idx)))?;
+                        .ok_or(str_err!("Mapping error: {}", old_idx))?;
                     if let Some(col) = self.iid_to_col.get_mut(&cell.iid) {
                         *col = i;
                     };

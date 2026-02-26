@@ -1,7 +1,9 @@
 use crate::CellBorders;
 use crate::CellProps;
 use crate::ChangeCellProps;
+use crate::ChangeProgressBar;
 use crate::Checkbox;
+use crate::Color3;
 use crate::DataFormat;
 use crate::Dropdown;
 use crate::HeaderCell;
@@ -46,7 +48,7 @@ impl ChangeHeaderCell {
                     let current_val = std::mem::replace(&mut cell.val, old_val.clone());
                     Ok(ChangeHeaderCell::SetVal(current_val))
                 } else {
-                    Err(str_err!(format!("Column not found for inversion: {}", col)))
+                    Err(str_err!("Column not found for inversion: {}", col))
                 }
             }
             ChangeHeaderCell::SetDim(old_dim) => {
@@ -54,7 +56,7 @@ impl ChangeHeaderCell {
                     let current_dim = std::mem::replace(&mut cell.dim, *old_dim);
                     Ok(ChangeHeaderCell::SetDim(current_dim))
                 } else {
-                    Err(str_err!(format!("Column not found for inversion: {}", col)))
+                    Err(str_err!("Column not found for inversion: {}", col))
                 }
             }
             ChangeHeaderCell::SetVis(old_vis) => {
@@ -62,7 +64,7 @@ impl ChangeHeaderCell {
                     let current_vis = std::mem::replace(&mut cell.vis, *old_vis);
                     Ok(ChangeHeaderCell::SetVis(current_vis))
                 } else {
-                    Err(str_err!(format!("Column not found for inversion: {}", col)))
+                    Err(str_err!("Column not found for inversion: {}", col))
                 }
             }
             ChangeHeaderCell::SetIid(old_iid) => {
@@ -70,26 +72,23 @@ impl ChangeHeaderCell {
                     let current_iid = std::mem::replace(&mut cell.iid, old_iid.clone());
                     let removed_pos = iid_to_col
                         .remove(&current_iid)
-                        .ok_or(str_err!(format!("iid not found: {}", current_iid)))?;
+                        .ok_or(str_err!("iid not found: {}", current_iid))?;
                     iid_to_col.insert(old_iid.clone(), removed_pos);
                     Ok(ChangeHeaderCell::SetIid(current_iid))
                 } else {
-                    Err(str_err!(format!("Column not found for inversion: {}", col)))
+                    Err(str_err!("Column not found for inversion: {}", col))
                 }
             }
             ChangeHeaderCell::SetProps(change) => {
                 if let Ok(cell) = Table::acr_hcell_mut(&mut cells, col) {
                     if let Some(props) = cell.props.as_mut() {
-                        let inverted = change.invert(props);
+                        let inverted = change.invert(props)?;
                         Ok(ChangeHeaderCell::SetProps(inverted))
                     } else {
-                        Err(str_err!(format!(
-                            "No props for inversion in column: {}",
-                            col
-                        )))
+                        Err(str_err!("No props for inversion in column: {}", col))
                     }
                 } else {
-                    Err(str_err!(format!("Column not found for inversion: {}", col)))
+                    Err(str_err!("Column not found for inversion: {}", col))
                 }
             }
         }
@@ -108,7 +107,7 @@ impl HeaderCell {
         let current_iid = std::mem::replace(&mut self.iid, new_iid.clone());
         let removed_pos = iid_to_col
             .remove(&current_iid)
-            .ok_or(str_err!(format!("iid not found: {}", current_iid)))?;
+            .ok_or(str_err!("iid not found: {}", current_iid))?;
         iid_to_col.insert(new_iid, removed_pos);
         Ok(ChangeHeaderCell::SetIid(current_iid))
     }
@@ -184,5 +183,85 @@ impl HeaderCell {
         let props = self.props.get_or_insert_with(CellProps::default);
         let old_readonly = std::mem::replace(&mut props.readonly, new_readonly);
         ChangeHeaderCell::SetProps(ChangeCellProps::SetReadonly(old_readonly))
+    }
+    pub fn record_set_props_progress_bar_name(
+        &mut self,
+        new_name: String,
+    ) -> Result<ChangeHeaderCell, String> {
+        let props = self
+            .props
+            .as_mut()
+            .ok_or(str_err!("No CellProps on this HeaderCell"))?;
+        let pb = props.progress_bar.as_mut().ok_or(str_err!(
+            "No ProgressBar exists on this column - use record_set_props_progress_bar first"
+        ))?;
+        let old_name = std::mem::replace(&mut pb.name, new_name);
+        Ok(ChangeHeaderCell::SetProps(
+            ChangeCellProps::UpdateProgressBar(ChangeProgressBar::SetName(old_name)),
+        ))
+    }
+    pub fn record_set_props_progress_bar_bg(
+        &mut self,
+        new_bg: Option<Color3>,
+    ) -> Result<ChangeHeaderCell, String> {
+        let props = self
+            .props
+            .as_mut()
+            .ok_or(str_err!("No CellProps on this HeaderCell"))?;
+        let pb = props.progress_bar.as_mut().ok_or(str_err!(
+            "No ProgressBar exists on this column - use record_set_props_progress_bar first"
+        ))?;
+        let old_bg = std::mem::replace(&mut pb.bg, new_bg);
+        Ok(ChangeHeaderCell::SetProps(
+            ChangeCellProps::UpdateProgressBar(ChangeProgressBar::SetBg(old_bg)),
+        ))
+    }
+    pub fn record_set_props_progress_bar_fg(
+        &mut self,
+        new_fg: Option<Color3>,
+    ) -> Result<ChangeHeaderCell, String> {
+        let props = self
+            .props
+            .as_mut()
+            .ok_or(str_err!("No CellProps on this HeaderCell"))?;
+        let pb = props.progress_bar.as_mut().ok_or(str_err!(
+            "No ProgressBar exists on this column - use record_set_props_progress_bar first"
+        ))?;
+        let old_fg = std::mem::replace(&mut pb.fg, new_fg);
+        Ok(ChangeHeaderCell::SetProps(
+            ChangeCellProps::UpdateProgressBar(ChangeProgressBar::SetFg(old_fg)),
+        ))
+    }
+    pub fn record_set_props_progress_bar_pc(
+        &mut self,
+        new_pc: f64,
+    ) -> Result<ChangeHeaderCell, String> {
+        let props = self
+            .props
+            .as_mut()
+            .ok_or(str_err!("No CellProps on this HeaderCell"))?;
+        let pb = props.progress_bar.as_mut().ok_or(str_err!(
+            "No ProgressBar exists on this column - use record_set_props_progress_bar first"
+        ))?;
+        let old_pc = std::mem::replace(&mut pb.pc, new_pc);
+        Ok(ChangeHeaderCell::SetProps(
+            ChangeCellProps::UpdateProgressBar(ChangeProgressBar::SetPc(old_pc)),
+        ))
+    }
+    pub fn record_set_props_progress_bar_remove_on_complete(
+        &mut self,
+        new_flag: bool,
+    ) -> Result<ChangeHeaderCell, String> {
+        let props = self
+            .props
+            .as_mut()
+            .ok_or(str_err!("No CellProps on this HeaderCell"))?;
+        let pb = props.progress_bar.as_mut().ok_or(str_err!(
+            "No ProgressBar exists on this column - use record_set_props_progress_bar first"
+        ))?;
+        let old_flag = std::mem::replace(&mut pb.remove_on_complete, new_flag);
+        Ok(ChangeHeaderCell::SetProps(
+            ChangeCellProps::UpdateProgressBar(ChangeProgressBar::SetRemoveOnComplete(old_flag)),
+        ))
     }
 }

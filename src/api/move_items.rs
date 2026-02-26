@@ -30,14 +30,14 @@ impl Table {
             };
             if !new_par.is_empty() && !Self::acr_tree_exists(&self.grid.index.iid_to_row, &new_par)
             {
-                return Err(str_err!(format!("Parent does not exist: {}", new_par)));
+                return Err(str_err!("Parent does not exist: {}", new_par));
             };
 
             // Check items
             let mut hash_items: HashSet<Rc<str>> = HashSet::new();
             for iid in items.into_iter() {
                 if !Self::acr_tree_exists(&self.grid.index.iid_to_row, &iid) {
-                    return Err(str_err!(format!("iid does not exist: {}", &iid)));
+                    return Err(str_err!("iid does not exist: {}", &iid));
                 }
                 if Self::acr_tree_move_pid_causes_recursive_loop(
                     &self.grid.index.cells,
@@ -45,10 +45,11 @@ impl Table {
                     &iid,
                     &new_par,
                 )? {
-                    return Err(str_err!(format!(
+                    return Err(str_err!(
                         "Moving '{}' to '{}' would cause a recursive loop",
-                        &iid, new_par
-                    )));
+                        &iid,
+                        new_par
+                    ));
                 }
                 hash_items.insert(Rc::from(iid));
             }
@@ -105,14 +106,7 @@ impl Table {
                 }
             }
 
-            self.cr_event_modified(true)?;
-            let shared = Rc::new(RefCell::new(event_data));
-
-            if self.opts.enabled_undo && kwargs.undo && self.grid.undo_stack.get_maxlen() > 0 {
-                self.grid.undo_stack.push_back(shared.clone());
-            }
-
-            return Ok(kwargs.emit.then_some(shared));
+            return self.cr_finalize_event(event_data, kwargs.undo, kwargs.emit);
         }
 
         Ok(None)

@@ -1,6 +1,7 @@
 use crate::CellBorders;
 use crate::CellProps;
 use crate::Checkbox;
+use crate::Color3;
 use crate::DataFormat;
 use crate::Dropdown;
 use crate::Highlight;
@@ -33,6 +34,40 @@ pub enum ChangeIndexCell {
     SetTableCellProps { col: usize, change: ChangeCellProps }, // For table cell props changes
 }
 
+#[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
+#[cfg_attr(feature = "tsify", tsify(from_wasm_abi))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug, Clone, PartialEq)]
+pub enum ChangeProgressBar {
+    SetName(String),
+    SetBg(Option<Color3>),
+    SetFg(Option<Color3>),
+    SetPc(f64),
+    SetRemoveOnComplete(bool),
+}
+
+impl ChangeProgressBar {
+    pub fn invert(&self, pb: &mut ProgressBar) -> ChangeProgressBar {
+        match self {
+            ChangeProgressBar::SetName(old) => {
+                ChangeProgressBar::SetName(std::mem::replace(&mut pb.name, old.clone()))
+            }
+            ChangeProgressBar::SetBg(old) => {
+                ChangeProgressBar::SetBg(std::mem::replace(&mut pb.bg, old.clone()))
+            }
+            ChangeProgressBar::SetFg(old) => {
+                ChangeProgressBar::SetFg(std::mem::replace(&mut pb.fg, old.clone()))
+            }
+            ChangeProgressBar::SetPc(old) => {
+                ChangeProgressBar::SetPc(std::mem::replace(&mut pb.pc, *old))
+            }
+            ChangeProgressBar::SetRemoveOnComplete(old) => ChangeProgressBar::SetRemoveOnComplete(
+                std::mem::replace(&mut pb.remove_on_complete, *old),
+            ),
+        }
+    }
+}
+
 // Sub-enum for CellProps changes.
 // storing old values.
 #[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
@@ -49,6 +84,7 @@ pub enum ChangeCellProps {
     SetNote(Option<Note>),               // Old note
     SetProgressBar(Option<ProgressBar>), // Old progress_bar
     SetReadonly(bool),                   // Old readonly
+    UpdateProgressBar(ChangeProgressBar),
 }
 
 // Inversion function: Takes a mutable Table (to apply old and fetch current), the change (with old value),
@@ -92,7 +128,7 @@ impl ChangeIndexCell {
                 let current_iid = std::mem::replace(&mut cell.iid, old_iid.clone());
                 let removed_pos = iid_to_row
                     .remove(&current_iid)
-                    .ok_or(str_err!(format!("iid not found: {}", current_iid)))?;
+                    .ok_or(str_err!("iid not found: {}", current_iid))?;
                 iid_to_row.insert(old_iid.clone(), removed_pos);
                 Ok(ChangeIndexCell::SetIid(current_iid))
             }
@@ -104,10 +140,10 @@ impl ChangeIndexCell {
             ChangeIndexCell::SetProps(change) => {
                 let cell = Table::acr_icell_mut(cells, row)?;
                 if let Some(props) = cell.props.as_mut() {
-                    let inverted = change.invert(props);
+                    let inverted = change.invert(props)?;
                     Ok(ChangeIndexCell::SetProps(inverted))
                 } else {
-                    Err(str_err!(format!("No props for inversion in row: {}", row)))
+                    Err(str_err!("No props for inversion in row: {}", row))
                 }
             }
             ChangeIndexCell::SetTableCellVal { col, val: old_val } => {
@@ -119,32 +155,35 @@ impl ChangeIndexCell {
                         val: current_val,
                     })
                 } else {
-                    Err(str_err!(format!(
+                    Err(str_err!(
                         "Table cell not found for col {} in row: {}",
-                        col, row
-                    )))
+                        col,
+                        row
+                    ))
                 }
             }
             ChangeIndexCell::SetTableCellProps { col, change } => {
                 let cell = Table::acr_icell_mut(cells, row)?;
                 if let Some(table_cell) = cell.vals.get_mut(col) {
                     if let Some(props) = table_cell.props.as_mut() {
-                        let inverted = change.invert(props);
+                        let inverted = change.invert(props)?;
                         Ok(ChangeIndexCell::SetTableCellProps {
                             col: *col,
                             change: inverted,
                         })
                     } else {
-                        Err(str_err!(format!(
+                        Err(str_err!(
                             "No props for table cell col {} in row: {}",
-                            col, row
-                        )))
+                            col,
+                            row
+                        ))
                     }
                 } else {
-                    Err(str_err!(format!(
+                    Err(str_err!(
                         "Table cell not found for col {} in row: {}",
-                        col, row
-                    )))
+                        col,
+                        row
+                    ))
                 }
             }
         }
@@ -153,46 +192,54 @@ impl ChangeIndexCell {
 
 // Similar inversion for ChangeCellProps: Applies old, returns inverted with current as old.
 impl ChangeCellProps {
-    pub fn invert(&self, props: &mut CellProps) -> ChangeCellProps {
+    pub fn invert(&self, props: &mut CellProps) -> Result<ChangeCellProps, String> {
         match self {
             ChangeCellProps::SetAlign(old_align) => {
                 let current_align = std::mem::replace(&mut props.align, old_align.clone());
-                ChangeCellProps::SetAlign(current_align)
+                Ok(ChangeCellProps::SetAlign(current_align))
             }
             ChangeCellProps::SetBorders(old_borders) => {
                 let current_borders = std::mem::replace(&mut props.borders, old_borders.clone());
-                ChangeCellProps::SetBorders(current_borders)
+                Ok(ChangeCellProps::SetBorders(current_borders))
             }
             ChangeCellProps::SetCheckbox(old_checkbox) => {
                 let current_checkbox = std::mem::replace(&mut props.checkbox, old_checkbox.clone());
-                ChangeCellProps::SetCheckbox(current_checkbox)
+                Ok(ChangeCellProps::SetCheckbox(current_checkbox))
             }
             ChangeCellProps::SetDataFormat(old_data_format) => {
                 let current_data_format =
                     std::mem::replace(&mut props.data_format, old_data_format.clone());
-                ChangeCellProps::SetDataFormat(current_data_format)
+                Ok(ChangeCellProps::SetDataFormat(current_data_format))
             }
             ChangeCellProps::SetDropdown(old_dropdown) => {
                 let current_dropdown = std::mem::replace(&mut props.dropdown, old_dropdown.clone());
-                ChangeCellProps::SetDropdown(current_dropdown)
+                Ok(ChangeCellProps::SetDropdown(current_dropdown))
             }
             ChangeCellProps::SetHighlight(old_highlight) => {
                 let current_highlight =
                     std::mem::replace(&mut props.highlight, old_highlight.clone());
-                ChangeCellProps::SetHighlight(current_highlight)
+                Ok(ChangeCellProps::SetHighlight(current_highlight))
             }
             ChangeCellProps::SetNote(old_note) => {
                 let current_note = std::mem::replace(&mut props.note, old_note.clone());
-                ChangeCellProps::SetNote(current_note)
+                Ok(ChangeCellProps::SetNote(current_note))
             }
             ChangeCellProps::SetProgressBar(old_progress_bar) => {
                 let current_progress_bar =
                     std::mem::replace(&mut props.progress_bar, old_progress_bar.clone());
-                ChangeCellProps::SetProgressBar(current_progress_bar)
+                Ok(ChangeCellProps::SetProgressBar(current_progress_bar))
+            }
+            ChangeCellProps::UpdateProgressBar(change) => {
+                let pb = props
+                    .progress_bar
+                    .as_mut()
+                    .ok_or(str_err!("ProgressBar missing during inversion"))?;
+                let inverted = change.invert(pb);
+                Ok(ChangeCellProps::UpdateProgressBar(inverted))
             }
             ChangeCellProps::SetReadonly(old_readonly) => {
                 let current_readonly = std::mem::replace(&mut props.readonly, *old_readonly);
-                ChangeCellProps::SetReadonly(current_readonly)
+                Ok(ChangeCellProps::SetReadonly(current_readonly))
             }
         }
     }
@@ -211,7 +258,7 @@ impl IndexCell {
         let current_iid = std::mem::replace(&mut self.iid, new_iid.clone());
         let removed_pos = iid_to_row
             .remove(&current_iid)
-            .ok_or(str_err!(format!("iid not found: {}", current_iid)))?;
+            .ok_or(str_err!("iid not found: {}", current_iid))?;
         iid_to_row.insert(new_iid, removed_pos);
         Ok(ChangeIndexCell::SetIid(current_iid))
     }
@@ -292,6 +339,87 @@ impl IndexCell {
         let props = self.props.get_or_insert_with(CellProps::default);
         let old_readonly = std::mem::replace(&mut props.readonly, new_readonly);
         ChangeIndexCell::SetProps(ChangeCellProps::SetReadonly(old_readonly))
+    }
+    // ───── Granular ProgressBar field updates (IndexCell) ─────
+    pub fn record_set_props_progress_bar_name(
+        &mut self,
+        new_name: String,
+    ) -> Result<ChangeIndexCell, String> {
+        let props = self
+            .props
+            .as_mut()
+            .ok_or(str_err!("No CellProps on this IndexCell"))?;
+        let pb = props.progress_bar.as_mut().ok_or(str_err!(
+            "No ProgressBar exists on this row - use record_set_props_progress_bar first"
+        ))?;
+        let old_name = std::mem::replace(&mut pb.name, new_name);
+        Ok(ChangeIndexCell::SetProps(
+            ChangeCellProps::UpdateProgressBar(ChangeProgressBar::SetName(old_name)),
+        ))
+    }
+    pub fn record_set_props_progress_bar_bg(
+        &mut self,
+        new_bg: Option<Color3>,
+    ) -> Result<ChangeIndexCell, String> {
+        let props = self
+            .props
+            .as_mut()
+            .ok_or(str_err!("No CellProps on this IndexCell"))?;
+        let pb = props.progress_bar.as_mut().ok_or(str_err!(
+            "No ProgressBar exists on this row - use record_set_props_progress_bar first"
+        ))?;
+        let old_bg = std::mem::replace(&mut pb.bg, new_bg);
+        Ok(ChangeIndexCell::SetProps(
+            ChangeCellProps::UpdateProgressBar(ChangeProgressBar::SetBg(old_bg)),
+        ))
+    }
+    pub fn record_set_props_progress_bar_fg(
+        &mut self,
+        new_fg: Option<Color3>,
+    ) -> Result<ChangeIndexCell, String> {
+        let props = self
+            .props
+            .as_mut()
+            .ok_or(str_err!("No CellProps on this IndexCell"))?;
+        let pb = props.progress_bar.as_mut().ok_or(str_err!(
+            "No ProgressBar exists on this row - use record_set_props_progress_bar first"
+        ))?;
+        let old_fg = std::mem::replace(&mut pb.fg, new_fg);
+        Ok(ChangeIndexCell::SetProps(
+            ChangeCellProps::UpdateProgressBar(ChangeProgressBar::SetFg(old_fg)),
+        ))
+    }
+    pub fn record_set_props_progress_bar_pc(
+        &mut self,
+        new_pc: f64,
+    ) -> Result<ChangeIndexCell, String> {
+        let props = self
+            .props
+            .as_mut()
+            .ok_or(str_err!("No CellProps on this IndexCell"))?;
+        let pb = props.progress_bar.as_mut().ok_or(str_err!(
+            "No ProgressBar exists on this row - use record_set_props_progress_bar first"
+        ))?;
+        let old_pc = std::mem::replace(&mut pb.pc, new_pc);
+        Ok(ChangeIndexCell::SetProps(
+            ChangeCellProps::UpdateProgressBar(ChangeProgressBar::SetPc(old_pc)),
+        ))
+    }
+    pub fn record_set_props_progress_bar_remove_on_complete(
+        &mut self,
+        new_flag: bool,
+    ) -> Result<ChangeIndexCell, String> {
+        let props = self
+            .props
+            .as_mut()
+            .ok_or(str_err!("No CellProps on this IndexCell"))?;
+        let pb = props.progress_bar.as_mut().ok_or(str_err!(
+            "No ProgressBar exists on this row - use record_set_props_progress_bar first"
+        ))?;
+        let old_flag = std::mem::replace(&mut pb.remove_on_complete, new_flag);
+        Ok(ChangeIndexCell::SetProps(
+            ChangeCellProps::UpdateProgressBar(ChangeProgressBar::SetRemoveOnComplete(old_flag)),
+        ))
     }
     // TableCell
     pub fn record_set_table_cell_val(
@@ -460,5 +588,128 @@ impl IndexCell {
             col,
             change: ChangeCellProps::SetReadonly(old_readonly),
         }
+    }
+    // ───── Granular ProgressBar field updates for TableCells ─────
+    pub fn record_set_table_cell_props_progress_bar_name(
+        &mut self,
+        col: usize,
+        new_name: String,
+        default_val: Val,
+    ) -> Result<ChangeIndexCell, String> {
+        let table_cell = self
+            .vals
+            .entry(col)
+            .or_insert_with(|| TableCell::new(default_val));
+        let props = table_cell
+            .props
+            .as_mut()
+            .ok_or(str_err!("No CellProps on table cell col {}", col))?;
+        let pb = props.progress_bar.as_mut().ok_or(str_err!(
+            "No ProgressBar exists on table cell col {} - use record_set_props_progress_bar first",
+            col
+        ))?;
+        let old_name = std::mem::replace(&mut pb.name, new_name);
+        Ok(ChangeIndexCell::SetTableCellProps {
+            col,
+            change: ChangeCellProps::UpdateProgressBar(ChangeProgressBar::SetName(old_name)),
+        })
+    }
+    pub fn record_set_table_cell_props_progress_bar_bg(
+        &mut self,
+        col: usize,
+        new_bg: Option<Color3>,
+        default_val: Val,
+    ) -> Result<ChangeIndexCell, String> {
+        let table_cell = self
+            .vals
+            .entry(col)
+            .or_insert_with(|| TableCell::new(default_val));
+        let props = table_cell
+            .props
+            .as_mut()
+            .ok_or(str_err!("No CellProps on table cell col {}", col))?;
+        let pb = props.progress_bar.as_mut().ok_or(str_err!(
+            "No ProgressBar exists on table cell col {} - use record_set_props_progress_bar first",
+            col
+        ))?;
+        let old_bg = std::mem::replace(&mut pb.bg, new_bg);
+        Ok(ChangeIndexCell::SetTableCellProps {
+            col,
+            change: ChangeCellProps::UpdateProgressBar(ChangeProgressBar::SetBg(old_bg)),
+        })
+    }
+    pub fn record_set_table_cell_props_progress_bar_fg(
+        &mut self,
+        col: usize,
+        new_fg: Option<Color3>,
+        default_val: Val,
+    ) -> Result<ChangeIndexCell, String> {
+        let table_cell = self
+            .vals
+            .entry(col)
+            .or_insert_with(|| TableCell::new(default_val));
+        let props = table_cell
+            .props
+            .as_mut()
+            .ok_or(str_err!("No CellProps on table cell col {}", col))?;
+        let pb = props.progress_bar.as_mut().ok_or(str_err!(
+            "No ProgressBar exists on table cell col {} - use record_set_props_progress_bar first",
+            col
+        ))?;
+        let old_fg = std::mem::replace(&mut pb.fg, new_fg);
+        Ok(ChangeIndexCell::SetTableCellProps {
+            col,
+            change: ChangeCellProps::UpdateProgressBar(ChangeProgressBar::SetFg(old_fg)),
+        })
+    }
+    pub fn record_set_table_cell_props_progress_bar_pc(
+        &mut self,
+        col: usize,
+        new_pc: f64,
+        default_val: Val,
+    ) -> Result<ChangeIndexCell, String> {
+        let table_cell = self
+            .vals
+            .entry(col)
+            .or_insert_with(|| TableCell::new(default_val));
+        let props = table_cell
+            .props
+            .as_mut()
+            .ok_or(str_err!("No CellProps on table cell col {}", col))?;
+        let pb = props.progress_bar.as_mut().ok_or(str_err!(
+            "No ProgressBar exists on table cell col {} - use record_set_props_progress_bar first",
+            col
+        ))?;
+        let old_pc = std::mem::replace(&mut pb.pc, new_pc);
+        Ok(ChangeIndexCell::SetTableCellProps {
+            col,
+            change: ChangeCellProps::UpdateProgressBar(ChangeProgressBar::SetPc(old_pc)),
+        })
+    }
+    pub fn record_set_table_cell_props_progress_bar_remove_on_complete(
+        &mut self,
+        col: usize,
+        new_flag: bool,
+        default_val: Val,
+    ) -> Result<ChangeIndexCell, String> {
+        let table_cell = self
+            .vals
+            .entry(col)
+            .or_insert_with(|| TableCell::new(default_val));
+        let props = table_cell
+            .props
+            .as_mut()
+            .ok_or(str_err!("No CellProps on table cell col {}", col))?;
+        let pb = props.progress_bar.as_mut().ok_or(str_err!(
+            "No ProgressBar exists on table cell col {} - use record_set_props_progress_bar first",
+            col
+        ))?;
+        let old_flag = std::mem::replace(&mut pb.remove_on_complete, new_flag);
+        Ok(ChangeIndexCell::SetTableCellProps {
+            col,
+            change: ChangeCellProps::UpdateProgressBar(ChangeProgressBar::SetRemoveOnComplete(
+                old_flag,
+            )),
+        })
     }
 }

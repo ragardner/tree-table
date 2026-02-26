@@ -60,12 +60,7 @@ impl Table {
             event_data.changes.push(boxes);
         }
 
-        self.cr_event_modified(true)?;
-        let shared = Rc::new(RefCell::new(event_data));
-        if self.opts.enabled_undo && kwargs.undo && self.grid.undo_stack.get_maxlen() > 0 {
-            self.grid.undo_stack.push_back(shared.clone());
-        }
-        Ok(kwargs.emit.then_some(shared))
+        self.cr_finalize_event(event_data, kwargs.undo, kwargs.emit)
     }
 
     /// Delete rows from the table using data positions (indices).
@@ -115,11 +110,6 @@ impl Table {
             event_data.changes.push(boxes);
         }
 
-        self.cr_event_modified(true)?;
-        let shared = Rc::new(RefCell::new(event_data));
-        if self.opts.enabled_undo && kwargs.undo && self.grid.undo_stack.get_maxlen() > 0 {
-            self.grid.undo_stack.push_back(shared.clone());
-        }
-        Ok(kwargs.emit.then_some(shared))
+        self.cr_finalize_event(event_data, kwargs.undo, kwargs.emit)
     }
 }

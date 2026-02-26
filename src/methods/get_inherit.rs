@@ -18,7 +18,7 @@ impl Table {
                 if let Some(pos) = iid_to_row.get(iid) {
                     Ok(Some(*pos))
                 } else {
-                    Err(str_err!(format!("Iid: {} does not exist.", iid)))
+                    Err(str_err!("Iid: {} does not exist.", iid))
                 }
             }
         };
@@ -39,7 +39,7 @@ impl Table {
                 if let Some(pos) = iid_to_col.get(iid) {
                     Ok(Some(*pos))
                 } else {
-                    Err(str_err!(format!("Iid: {} does not exist.", iid)))
+                    Err(str_err!("Iid: {} does not exist.", iid))
                 }
             }
         };

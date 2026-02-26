@@ -46,22 +46,24 @@ impl Table {
             let new = new_pos as usize;
 
             if old >= num_rows as usize {
-                return Err(str_err!(format!(
+                return Err(str_err!(
                     "Old pos {} is out of bounds. Number of rows: {}",
-                    old, num_rows
-                )));
+                    old,
+                    num_rows
+                ));
             }
             if new >= num_rows as usize {
-                return Err(str_err!(format!(
+                return Err(str_err!(
                     "New pos {} exceeds number of rows. Number of rows: {}",
-                    new, num_rows
-                )));
+                    new,
+                    num_rows
+                ));
             }
             if !seen_old.insert(old) {
-                return Err(str_err!(format!("Duplicate old pos: {}", old)));
+                return Err(str_err!("Duplicate old pos: {}", old));
             }
             if !seen_new.insert(new) {
-                return Err(str_err!(format!("Duplicate new pos: {}", new)));
+                return Err(str_err!("Duplicate new pos: {}", new));
             }
 
             old_to_new.push((old, new));
@@ -123,11 +125,6 @@ impl Table {
             event_data.changes.push(boxes);
         }
 
-        self.cr_event_modified(true)?;
-        let shared = Rc::new(RefCell::new(event_data));
-        if self.opts.enabled_undo && kwargs.undo && self.grid.undo_stack.get_maxlen() > 0 {
-            self.grid.undo_stack.push_back(shared.clone());
-        }
-        Ok(kwargs.emit.then_some(shared))
+        self.cr_finalize_event(event_data, kwargs.undo, kwargs.emit)
     }
 }

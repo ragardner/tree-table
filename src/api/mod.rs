@@ -13,6 +13,7 @@ pub mod item;
 pub mod move_cols;
 pub mod move_items;
 pub mod move_rows;
+pub mod note;
 pub mod opts_get;
 pub mod opts_set;
 pub mod progress_bar;

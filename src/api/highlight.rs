@@ -39,15 +39,62 @@ impl Table {
                 )?;
             }
         }
-        if event_data.has_non_selection_change(true) {
-            self.cr_event_modified(true)?;
-            let shared = Rc::new(RefCell::new(event_data));
-            if self.opts.enabled_undo && kwargs.undo && self.grid.undo_stack.get_maxlen() > 0 {
-                self.grid.undo_stack.push_back(shared.clone());
-            }
-            Ok(kwargs.emit.then_some(shared))
+        self.cr_finalize_event_nsc(event_data, kwargs.undo, kwargs.emit, true)
+    }
+
+    pub fn highlight_i(
+        &mut self,
+        kwargs: Option<HighlightArgs>,
+    ) -> Result<Option<Rc<RefCell<EventData>>>, String> {
+        let kwargs: HighlightArgs = kwargs.unwrap_or_default();
+        let span = self.cr_key_to_span(kwargs.key)?;
+        let mut event_data: EventData = self.cr_new_event(kwargs.save_selection);
+        self.cr_ensure_widget_nrows(span.max_row(&self.grid), &mut event_data, true)?;
+        let highlight = if kwargs.bg.is_none() && kwargs.fg.is_none() {
+            None
         } else {
-            Ok(None)
+            Some(Highlight {
+                bg: try_hex_to_color3(kwargs.bg)?,
+                fg: try_hex_to_color3(kwargs.fg)?,
+            })
+        };
+        let (start_row, end_row) = span.rows_start_end(&self.grid);
+        for row in start_row..end_row {
+            Self::acr_event_data_set_ihighlight(
+                &mut self.grid.index.cells,
+                row,
+                highlight.clone(),
+                &mut event_data,
+            )?;
         }
+        self.cr_finalize_event_nsc(event_data, kwargs.undo, kwargs.emit, true)
+    }
+
+    pub fn highlight_h(
+        &mut self,
+        kwargs: Option<HighlightArgs>,
+    ) -> Result<Option<Rc<RefCell<EventData>>>, String> {
+        let kwargs: HighlightArgs = kwargs.unwrap_or_default();
+        let span = self.cr_key_to_span(kwargs.key)?;
+        let mut event_data: EventData = self.cr_new_event(kwargs.save_selection);
+        self.cr_ensure_widget_ncols(span.max_col(&self.grid), &mut event_data, true)?;
+        let highlight = if kwargs.bg.is_none() && kwargs.fg.is_none() {
+            None
+        } else {
+            Some(Highlight {
+                bg: try_hex_to_color3(kwargs.bg)?,
+                fg: try_hex_to_color3(kwargs.fg)?,
+            })
+        };
+        let (start_col, end_col) = span.cols_start_end(&self.grid);
+        for col in start_col..end_col {
+            Self::acr_event_data_set_hhighlight(
+                &mut self.grid.header.cells,
+                col,
+                highlight.clone(),
+                &mut event_data,
+            )?;
+        }
+        self.cr_finalize_event_nsc(event_data, kwargs.undo, kwargs.emit, true)
     }
 }
