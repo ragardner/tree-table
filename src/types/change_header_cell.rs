@@ -1,3 +1,4 @@
+use crate::Border;
 use crate::CellBorders;
 use crate::CellProps;
 use crate::ChangeCellProps;
@@ -17,6 +18,7 @@ use crate::ProgressBar;
 use crate::Table;
 use crate::Val;
 use crate::str_err;
+use crate::types::change_index_cell::ChangeBorders;
 use std::collections::HashMap;
 use std::rc::Rc;
 
@@ -144,6 +146,74 @@ impl HeaderCell {
         let props = self.props.get_or_insert_with(CellProps::default);
         let old_borders = std::mem::replace(&mut props.borders, new_borders);
         ChangeHeaderCell::SetProps(ChangeCellProps::SetBorders(old_borders))
+    }
+    pub fn record_set_props_borders_top(
+        &mut self,
+        new_top: Option<Border>,
+    ) -> Result<ChangeHeaderCell, String> {
+        let props = self
+            .props
+            .as_mut()
+            .ok_or(str_err!("No CellProps exist for col '{}'", self.iid))?;
+        let borders = props
+            .borders
+            .as_mut()
+            .ok_or(str_err!("No CellBorders exists on col '{}'", self.iid))?;
+        let old_top = std::mem::replace(&mut borders.top, new_top);
+        Ok(ChangeHeaderCell::SetProps(ChangeCellProps::UpdateBorders(
+            ChangeBorders::SetTop(old_top),
+        )))
+    }
+    pub fn record_set_props_borders_right(
+        &mut self,
+        new_right: Option<Border>,
+    ) -> Result<ChangeHeaderCell, String> {
+        let props = self
+            .props
+            .as_mut()
+            .ok_or(str_err!("No CellProps exist for col '{}'", self.iid))?;
+        let borders = props
+            .borders
+            .as_mut()
+            .ok_or(str_err!("No CellBorders exists on col '{}'", self.iid))?;
+        let old_right = std::mem::replace(&mut borders.right, new_right);
+        Ok(ChangeHeaderCell::SetProps(ChangeCellProps::UpdateBorders(
+            ChangeBorders::SetRight(old_right),
+        )))
+    }
+    pub fn record_set_props_borders_bottom(
+        &mut self,
+        new_bottom: Option<Border>,
+    ) -> Result<ChangeHeaderCell, String> {
+        let props = self
+            .props
+            .as_mut()
+            .ok_or(str_err!("No CellProps exist for col '{}'", self.iid))?;
+        let borders = props
+            .borders
+            .as_mut()
+            .ok_or(str_err!("No CellBorders exists on col '{}'", self.iid))?;
+        let old_bottom = std::mem::replace(&mut borders.bottom, new_bottom);
+        Ok(ChangeHeaderCell::SetProps(ChangeCellProps::UpdateBorders(
+            ChangeBorders::SetBottom(old_bottom),
+        )))
+    }
+    pub fn record_set_props_borders_left(
+        &mut self,
+        new_left: Option<Border>,
+    ) -> Result<ChangeHeaderCell, String> {
+        let props = self
+            .props
+            .as_mut()
+            .ok_or(str_err!("No CellProps exist for col '{}'", self.iid))?;
+        let borders = props
+            .borders
+            .as_mut()
+            .ok_or(str_err!("No CellBorders exists on col '{}'", self.iid))?;
+        let old_left = std::mem::replace(&mut borders.left, new_left);
+        Ok(ChangeHeaderCell::SetProps(ChangeCellProps::UpdateBorders(
+            ChangeBorders::SetLeft(old_left),
+        )))
     }
 
     // ───── CHECKBOX ─────

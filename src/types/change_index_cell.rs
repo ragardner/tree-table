@@ -1,3 +1,4 @@
+use crate::Border;
 use crate::CellBorders;
 use crate::CellProps;
 use crate::Checkbox;
@@ -32,6 +33,36 @@ pub enum ChangeIndexCell {
     SetProps(ChangeCellProps), // Sub-enum for props changes
     SetTableCellVal { col: usize, val: Val }, // For vals map: Old val per col
     SetTableCellProps { col: usize, change: ChangeCellProps }, // For table cell props changes
+}
+
+#[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
+#[cfg_attr(feature = "tsify", tsify(from_wasm_abi))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug, Clone, PartialEq)]
+pub enum ChangeBorders {
+    SetTop(Option<Border>),
+    SetRight(Option<Border>),
+    SetBottom(Option<Border>),
+    SetLeft(Option<Border>),
+}
+
+impl ChangeBorders {
+    pub fn invert(&self, borders: &mut CellBorders) -> ChangeBorders {
+        match self {
+            ChangeBorders::SetTop(old) => {
+                ChangeBorders::SetTop(std::mem::replace(&mut borders.top, old.clone()))
+            }
+            ChangeBorders::SetRight(old) => {
+                ChangeBorders::SetRight(std::mem::replace(&mut borders.right, old.clone()))
+            }
+            ChangeBorders::SetBottom(old) => {
+                ChangeBorders::SetBottom(std::mem::replace(&mut borders.bottom, old.clone()))
+            }
+            ChangeBorders::SetLeft(old) => {
+                ChangeBorders::SetLeft(std::mem::replace(&mut borders.left, old.clone()))
+            }
+        }
+    }
 }
 
 #[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
@@ -171,6 +202,7 @@ impl ChangeNote {
 pub enum ChangeCellProps {
     SetAlign(Option<String>),
     SetBorders(Option<CellBorders>),
+    UpdateBorders(ChangeBorders),
     SetCheckbox(Option<Checkbox>),
     UpdateCheckbox(ChangeCheckbox),
     SetDataFormat(Option<DataFormat>),
@@ -299,6 +331,14 @@ impl ChangeCellProps {
                 let current_borders = std::mem::replace(&mut props.borders, old_borders.clone());
                 Ok(ChangeCellProps::SetBorders(current_borders))
             }
+            ChangeCellProps::UpdateBorders(change) => {
+                let borders = props
+                    .borders
+                    .as_mut()
+                    .ok_or(str_err!("CellBorders missing during inversion"))?;
+                let inverted = change.invert(borders);
+                Ok(ChangeCellProps::UpdateBorders(inverted))
+            }
             ChangeCellProps::SetCheckbox(old_checkbox) => {
                 let current_checkbox = std::mem::replace(&mut props.checkbox, old_checkbox.clone());
                 Ok(ChangeCellProps::SetCheckbox(current_checkbox))
@@ -423,6 +463,75 @@ impl IndexCell {
         let props = self.props.get_or_insert_with(CellProps::default);
         let old_borders = std::mem::replace(&mut props.borders, new_borders);
         ChangeIndexCell::SetProps(ChangeCellProps::SetBorders(old_borders))
+    }
+    pub fn record_set_props_borders_top(
+        &mut self,
+        new_top: Option<Border>,
+    ) -> Result<ChangeIndexCell, String> {
+        let props = self
+            .props
+            .as_mut()
+            .ok_or(str_err!("No CellProps exist for row '{}'", self.iid))?;
+        let borders = props
+            .borders
+            .as_mut()
+            .ok_or(str_err!("No CellBorders exists for row '{}'", self.iid))?;
+        let old_top = std::mem::replace(&mut borders.top, new_top);
+        Ok(ChangeIndexCell::SetProps(ChangeCellProps::UpdateBorders(
+            ChangeBorders::SetTop(old_top),
+        )))
+    }
+    pub fn record_set_props_borders_right(
+        &mut self,
+        new_right: Option<Border>,
+    ) -> Result<ChangeIndexCell, String> {
+        let props = self
+            .props
+            .as_mut()
+            .ok_or(str_err!("No CellProps exist for row '{}'", self.iid))?;
+        let borders = props
+            .borders
+            .as_mut()
+            .ok_or(str_err!("No CellBorders exists for row '{}'", self.iid))?;
+        let old_right = std::mem::replace(&mut borders.right, new_right);
+        Ok(ChangeIndexCell::SetProps(ChangeCellProps::UpdateBorders(
+            ChangeBorders::SetRight(old_right),
+        )))
+    }
+
+    pub fn record_set_props_borders_bottom(
+        &mut self,
+        new_bottom: Option<Border>,
+    ) -> Result<ChangeIndexCell, String> {
+        let props = self
+            .props
+            .as_mut()
+            .ok_or(str_err!("No CellProps exist for row '{}'", self.iid))?;
+        let borders = props
+            .borders
+            .as_mut()
+            .ok_or(str_err!("No CellBorders exists for row '{}'", self.iid))?;
+        let old_bottom = std::mem::replace(&mut borders.bottom, new_bottom);
+        Ok(ChangeIndexCell::SetProps(ChangeCellProps::UpdateBorders(
+            ChangeBorders::SetBottom(old_bottom),
+        )))
+    }
+    pub fn record_set_props_borders_left(
+        &mut self,
+        new_left: Option<Border>,
+    ) -> Result<ChangeIndexCell, String> {
+        let props = self
+            .props
+            .as_mut()
+            .ok_or(str_err!("No CellProps exist for row '{}'", self.iid))?;
+        let borders = props
+            .borders
+            .as_mut()
+            .ok_or(str_err!("No CellBorders exists for row '{}'", self.iid))?;
+        let old_left = std::mem::replace(&mut borders.left, new_left);
+        Ok(ChangeIndexCell::SetProps(ChangeCellProps::UpdateBorders(
+            ChangeBorders::SetLeft(old_left),
+        )))
     }
 
     // ───── CHECKBOX ─────

@@ -5,7 +5,7 @@ use super::color3::Color3;
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone, PartialEq)]
 pub struct Border {
-    size: u8,
+    size: Option<u8>,
     bg: Color3,
 }
 

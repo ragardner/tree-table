@@ -37,7 +37,8 @@ pub use cell_props::CellProps;
 pub use change::Change;
 pub use change_header_cell::ChangeHeaderCell;
 pub use change_index_cell::{
-    ChangeCellProps, ChangeCheckbox, ChangeDropdown, ChangeIndexCell, ChangeNote, ChangeProgressBar,
+    ChangeBorders, ChangeCellProps, ChangeCheckbox, ChangeDropdown, ChangeIndexCell, ChangeNote,
+    ChangeProgressBar,
 };
 pub use checkbox::Checkbox;
 pub use color3::{Color3, try_hex_to_color3};

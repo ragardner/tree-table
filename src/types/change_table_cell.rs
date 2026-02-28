@@ -1,5 +1,7 @@
+use crate::Border;
 use crate::CellBorders;
 use crate::CellProps;
+use crate::ChangeBorders;
 use crate::ChangeCellProps;
 use crate::ChangeCheckbox;
 use crate::ChangeIndexCell;
@@ -78,6 +80,110 @@ impl IndexCell {
             col,
             change: ChangeCellProps::SetBorders(old_borders),
         }
+    }
+    pub fn record_set_table_cell_props_borders_top(
+        &mut self,
+        col: usize,
+        new_top: Option<Border>,
+        default_val: Val,
+    ) -> Result<ChangeIndexCell, String> {
+        let table_cell = self
+            .vals
+            .entry(col)
+            .or_insert_with(|| TableCell::new(default_val));
+        let props = table_cell.props.as_mut().ok_or(str_err!(
+            "No CellProps exist for table cell row '{}', col '{}'",
+            self.iid,
+            col
+        ))?;
+        let borders = props.borders.as_mut().ok_or(str_err!(
+            "No CellBorders exists on table cell row '{}', col '{}'",
+            self.iid,
+            col
+        ))?;
+        let old_top = std::mem::replace(&mut borders.top, new_top);
+        Ok(ChangeIndexCell::SetTableCellProps {
+            col,
+            change: ChangeCellProps::UpdateBorders(ChangeBorders::SetTop(old_top)),
+        })
+    }
+    pub fn record_set_table_cell_props_borders_right(
+        &mut self,
+        col: usize,
+        new_right: Option<Border>,
+        default_val: Val,
+    ) -> Result<ChangeIndexCell, String> {
+        let table_cell = self
+            .vals
+            .entry(col)
+            .or_insert_with(|| TableCell::new(default_val));
+        let props = table_cell.props.as_mut().ok_or(str_err!(
+            "No CellProps exist for table cell row '{}', col '{}'",
+            self.iid,
+            col
+        ))?;
+        let borders = props.borders.as_mut().ok_or(str_err!(
+            "No CellBorders exists on table cell row '{}', col '{}'",
+            self.iid,
+            col
+        ))?;
+        let old_right = std::mem::replace(&mut borders.right, new_right);
+        Ok(ChangeIndexCell::SetTableCellProps {
+            col,
+            change: ChangeCellProps::UpdateBorders(ChangeBorders::SetRight(old_right)),
+        })
+    }
+    pub fn record_set_table_cell_props_borders_bottom(
+        &mut self,
+        col: usize,
+        new_bottom: Option<Border>,
+        default_val: Val,
+    ) -> Result<ChangeIndexCell, String> {
+        let table_cell = self
+            .vals
+            .entry(col)
+            .or_insert_with(|| TableCell::new(default_val));
+        let props = table_cell.props.as_mut().ok_or(str_err!(
+            "No CellProps exist for table cell row '{}', col '{}'",
+            self.iid,
+            col
+        ))?;
+        let borders = props.borders.as_mut().ok_or(str_err!(
+            "No CellBorders exists on table cell row '{}', col '{}'",
+            self.iid,
+            col
+        ))?;
+        let old_bottom = std::mem::replace(&mut borders.bottom, new_bottom);
+        Ok(ChangeIndexCell::SetTableCellProps {
+            col,
+            change: ChangeCellProps::UpdateBorders(ChangeBorders::SetBottom(old_bottom)),
+        })
+    }
+    pub fn record_set_table_cell_props_borders_left(
+        &mut self,
+        col: usize,
+        new_left: Option<Border>,
+        default_val: Val,
+    ) -> Result<ChangeIndexCell, String> {
+        let table_cell = self
+            .vals
+            .entry(col)
+            .or_insert_with(|| TableCell::new(default_val));
+        let props = table_cell.props.as_mut().ok_or(str_err!(
+            "No CellProps exist for table cell row '{}', col '{}'",
+            self.iid,
+            col
+        ))?;
+        let borders = props.borders.as_mut().ok_or(str_err!(
+            "No CellBorders exists on table cell row '{}', col '{}'",
+            self.iid,
+            col
+        ))?;
+        let old_left = std::mem::replace(&mut borders.left, new_left);
+        Ok(ChangeIndexCell::SetTableCellProps {
+            col,
+            change: ChangeCellProps::UpdateBorders(ChangeBorders::SetLeft(old_left)),
+        })
     }
 
     // ───── TABLE CELL CHECKBOX ─────
