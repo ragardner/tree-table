@@ -1,11 +1,15 @@
 use crate::CellBorders;
 use crate::CellProps;
 use crate::ChangeCellProps;
+use crate::ChangeCheckbox;
+use crate::ChangeDropdown;
+use crate::ChangeNote;
 use crate::ChangeProgressBar;
 use crate::Checkbox;
 use crate::Color3;
 use crate::DataFormat;
 use crate::Dropdown;
+use crate::DropdownState;
 use crate::HeaderCell;
 use crate::Highlight;
 use crate::Note;
@@ -120,12 +124,19 @@ impl HeaderCell {
     pub fn record_set_vis(&mut self, new_vis: bool) -> ChangeHeaderCell {
         ChangeHeaderCell::SetVis(std::mem::replace(&mut self.vis, new_vis))
     }
-    // HeaderCell CellProps
+
+    // ───── HEADERCELL CELLPROPS ─────
+
+    // ───── ALIGN ─────
+
     pub fn record_set_props_align(&mut self, new_align: Option<String>) -> ChangeHeaderCell {
         let props = self.props.get_or_insert_with(CellProps::default);
         let old_align = std::mem::replace(&mut props.align, new_align);
         ChangeHeaderCell::SetProps(ChangeCellProps::SetAlign(old_align))
     }
+
+    // ───── BORDERS ─────
+
     pub fn record_set_props_borders(
         &mut self,
         new_borders: Option<CellBorders>,
@@ -134,6 +145,9 @@ impl HeaderCell {
         let old_borders = std::mem::replace(&mut props.borders, new_borders);
         ChangeHeaderCell::SetProps(ChangeCellProps::SetBorders(old_borders))
     }
+
+    // ───── CHECKBOX ─────
+
     pub fn record_set_props_checkbox(
         &mut self,
         new_checkbox: Option<Checkbox>,
@@ -142,6 +156,77 @@ impl HeaderCell {
         let old_checkbox = std::mem::replace(&mut props.checkbox, new_checkbox);
         ChangeHeaderCell::SetProps(ChangeCellProps::SetCheckbox(old_checkbox))
     }
+    pub fn record_set_props_checkbox_true_val(
+        &mut self,
+        new_true_val: Val,
+    ) -> Result<ChangeHeaderCell, String> {
+        let props = self
+            .props
+            .as_mut()
+            .ok_or(str_err!("No CellProps exist for col '{}'", self.iid))?;
+        let cb = props
+            .checkbox
+            .as_mut()
+            .ok_or(str_err!("No Checkbox exists on col '{}'", self.iid))?;
+        let old_true_val = std::mem::replace(&mut cb.true_val, new_true_val);
+        Ok(ChangeHeaderCell::SetProps(ChangeCellProps::UpdateCheckbox(
+            ChangeCheckbox::SetTrueVal(old_true_val),
+        )))
+    }
+    pub fn record_set_props_checkbox_false_val(
+        &mut self,
+        new_false_val: Val,
+    ) -> Result<ChangeHeaderCell, String> {
+        let props = self
+            .props
+            .as_mut()
+            .ok_or(str_err!("No CellProps exist for col '{}'", self.iid))?;
+        let cb = props
+            .checkbox
+            .as_mut()
+            .ok_or(str_err!("No Checkbox exists on col '{}'", self.iid))?;
+        let old_false_val = std::mem::replace(&mut cb.false_val, new_false_val);
+        Ok(ChangeHeaderCell::SetProps(ChangeCellProps::UpdateCheckbox(
+            ChangeCheckbox::SetFalseVal(old_false_val),
+        )))
+    }
+    pub fn record_set_props_checkbox_text(
+        &mut self,
+        new_text: Option<String>,
+    ) -> Result<ChangeHeaderCell, String> {
+        let props = self
+            .props
+            .as_mut()
+            .ok_or(str_err!("No CellProps exist for col '{}'", self.iid))?;
+        let cb = props
+            .checkbox
+            .as_mut()
+            .ok_or(str_err!("No Checkbox exists on col '{}'", self.iid))?;
+        let old_text = std::mem::replace(&mut cb.text, new_text);
+        Ok(ChangeHeaderCell::SetProps(ChangeCellProps::UpdateCheckbox(
+            ChangeCheckbox::SetText(old_text),
+        )))
+    }
+    pub fn record_set_props_checkbox_state(
+        &mut self,
+        new_state: bool,
+    ) -> Result<ChangeHeaderCell, String> {
+        let props = self
+            .props
+            .as_mut()
+            .ok_or(str_err!("No CellProps exist for col '{}'", self.iid))?;
+        let cb = props
+            .checkbox
+            .as_mut()
+            .ok_or(str_err!("No Checkbox exists on col '{}'", self.iid))?;
+        let old_state = std::mem::replace(&mut cb.state, new_state);
+        Ok(ChangeHeaderCell::SetProps(ChangeCellProps::UpdateCheckbox(
+            ChangeCheckbox::SetState(old_state),
+        )))
+    }
+
+    // ───── DATA FORMAT ─────
+
     pub fn record_set_props_data_format(
         &mut self,
         new_data_format: Option<DataFormat>,
@@ -150,6 +235,9 @@ impl HeaderCell {
         let old_data_format = std::mem::replace(&mut props.data_format, new_data_format);
         ChangeHeaderCell::SetProps(ChangeCellProps::SetDataFormat(old_data_format))
     }
+
+    // ───── DROPDOWN ─────
+
     pub fn record_set_props_dropdown(
         &mut self,
         new_dropdown: Option<Dropdown>,
@@ -158,6 +246,94 @@ impl HeaderCell {
         let old_dropdown = std::mem::replace(&mut props.dropdown, new_dropdown);
         ChangeHeaderCell::SetProps(ChangeCellProps::SetDropdown(old_dropdown))
     }
+    pub fn record_set_props_dropdown_vals(
+        &mut self,
+        new_vals: Vec<Val>,
+    ) -> Result<ChangeHeaderCell, String> {
+        let props = self
+            .props
+            .as_mut()
+            .ok_or(str_err!("No CellProps exist for col '{}'", self.iid))?;
+        let dd = props
+            .dropdown
+            .as_mut()
+            .ok_or(str_err!("No Dropdown exists on col '{}'", self.iid))?;
+        let old_vals = std::mem::replace(&mut dd.vals, new_vals);
+        Ok(ChangeHeaderCell::SetProps(ChangeCellProps::UpdateDropdown(
+            ChangeDropdown::SetVals(old_vals),
+        )))
+    }
+    pub fn record_set_props_dropdown_default_val(
+        &mut self,
+        new_default_val: Option<Val>,
+    ) -> Result<ChangeHeaderCell, String> {
+        let props = self
+            .props
+            .as_mut()
+            .ok_or(str_err!("No CellProps exist for col '{}'", self.iid))?;
+        let dd = props
+            .dropdown
+            .as_mut()
+            .ok_or(str_err!("No Dropdown exists on col '{}'", self.iid))?;
+        let old_default_val = std::mem::replace(&mut dd.default_val, new_default_val);
+        Ok(ChangeHeaderCell::SetProps(ChangeCellProps::UpdateDropdown(
+            ChangeDropdown::SetDefaultVal(old_default_val),
+        )))
+    }
+    pub fn record_set_props_dropdown_validation(
+        &mut self,
+        new_validation: bool,
+    ) -> Result<ChangeHeaderCell, String> {
+        let props = self
+            .props
+            .as_mut()
+            .ok_or(str_err!("No CellProps exist for col '{}'", self.iid))?;
+        let dd = props
+            .dropdown
+            .as_mut()
+            .ok_or(str_err!("No Dropdown exists on col '{}'", self.iid))?;
+        let old_validation = std::mem::replace(&mut dd.validation, new_validation);
+        Ok(ChangeHeaderCell::SetProps(ChangeCellProps::UpdateDropdown(
+            ChangeDropdown::SetValidation(old_validation),
+        )))
+    }
+    pub fn record_set_props_dropdown_text(
+        &mut self,
+        new_text: Option<String>,
+    ) -> Result<ChangeHeaderCell, String> {
+        let props = self
+            .props
+            .as_mut()
+            .ok_or(str_err!("No CellProps exist for col '{}'", self.iid))?;
+        let dd = props
+            .dropdown
+            .as_mut()
+            .ok_or(str_err!("No Dropdown exists on col '{}'", self.iid))?;
+        let old_text = std::mem::replace(&mut dd.text, new_text);
+        Ok(ChangeHeaderCell::SetProps(ChangeCellProps::UpdateDropdown(
+            ChangeDropdown::SetText(old_text),
+        )))
+    }
+    pub fn record_set_props_dropdown_state(
+        &mut self,
+        new_state: DropdownState,
+    ) -> Result<ChangeHeaderCell, String> {
+        let props = self
+            .props
+            .as_mut()
+            .ok_or(str_err!("No CellProps exist for col '{}'", self.iid))?;
+        let dd = props
+            .dropdown
+            .as_mut()
+            .ok_or(str_err!("No Dropdown exists on col '{}'", self.iid))?;
+        let old_state = std::mem::replace(&mut dd.state, new_state);
+        Ok(ChangeHeaderCell::SetProps(ChangeCellProps::UpdateDropdown(
+            ChangeDropdown::SetState(old_state),
+        )))
+    }
+
+    // ───── HIGHLIGHT ─────
+
     pub fn record_set_props_highlight(
         &mut self,
         new_highlight: Option<Highlight>,
@@ -166,11 +342,85 @@ impl HeaderCell {
         let old_highlight = std::mem::replace(&mut props.highlight, new_highlight);
         ChangeHeaderCell::SetProps(ChangeCellProps::SetHighlight(old_highlight))
     }
+
+    // ───── NOTE ─────
+
     pub fn record_set_props_note(&mut self, new_note: Option<Note>) -> ChangeHeaderCell {
         let props = self.props.get_or_insert_with(CellProps::default);
         let old_note = std::mem::replace(&mut props.note, new_note);
         ChangeHeaderCell::SetProps(ChangeCellProps::SetNote(old_note))
     }
+    pub fn record_set_props_note_text(
+        &mut self,
+        new_text: String,
+    ) -> Result<ChangeHeaderCell, String> {
+        let props = self
+            .props
+            .as_mut()
+            .ok_or(str_err!("No CellProps exist for col '{}'", self.iid))?;
+        let note = props
+            .note
+            .as_mut()
+            .ok_or(str_err!("No Note exists on col '{}'", self.iid))?;
+        let old_text = std::mem::replace(&mut note.note, new_text);
+        Ok(ChangeHeaderCell::SetProps(ChangeCellProps::UpdateNote(
+            ChangeNote::SetText(old_text),
+        )))
+    }
+    pub fn record_set_props_note_bg(
+        &mut self,
+        new_bg: Option<Color3>,
+    ) -> Result<ChangeHeaderCell, String> {
+        let props = self
+            .props
+            .as_mut()
+            .ok_or(str_err!("No CellProps exist for col '{}'", self.iid))?;
+        let note = props
+            .note
+            .as_mut()
+            .ok_or(str_err!("No Note exists on col '{}'", self.iid))?;
+        let old_bg = std::mem::replace(&mut note.bg, new_bg);
+        Ok(ChangeHeaderCell::SetProps(ChangeCellProps::UpdateNote(
+            ChangeNote::SetBg(old_bg),
+        )))
+    }
+    pub fn record_set_props_note_fg(
+        &mut self,
+        new_fg: Option<Color3>,
+    ) -> Result<ChangeHeaderCell, String> {
+        let props = self
+            .props
+            .as_mut()
+            .ok_or(str_err!("No CellProps exist for col '{}'", self.iid))?;
+        let note = props
+            .note
+            .as_mut()
+            .ok_or(str_err!("No Note exists on col '{}'", self.iid))?;
+        let old_fg = std::mem::replace(&mut note.fg, new_fg);
+        Ok(ChangeHeaderCell::SetProps(ChangeCellProps::UpdateNote(
+            ChangeNote::SetFg(old_fg),
+        )))
+    }
+    pub fn record_set_props_note_readonly(
+        &mut self,
+        new_readonly: bool,
+    ) -> Result<ChangeHeaderCell, String> {
+        let props = self
+            .props
+            .as_mut()
+            .ok_or(str_err!("No CellProps exist for col '{}'", self.iid))?;
+        let note = props
+            .note
+            .as_mut()
+            .ok_or(str_err!("No Note exists on col '{}'", self.iid))?;
+        let old_readonly = std::mem::replace(&mut note.readonly, new_readonly);
+        Ok(ChangeHeaderCell::SetProps(ChangeCellProps::UpdateNote(
+            ChangeNote::SetReadonly(old_readonly),
+        )))
+    }
+
+    // ───── PROGRESS BAR ─────
+
     pub fn record_set_props_progress_bar(
         &mut self,
         new_progress_bar: Option<ProgressBar>,
@@ -179,11 +429,6 @@ impl HeaderCell {
         let old_progress_bar = std::mem::replace(&mut props.progress_bar, new_progress_bar);
         ChangeHeaderCell::SetProps(ChangeCellProps::SetProgressBar(old_progress_bar))
     }
-    pub fn record_set_props_readonly(&mut self, new_readonly: bool) -> ChangeHeaderCell {
-        let props = self.props.get_or_insert_with(CellProps::default);
-        let old_readonly = std::mem::replace(&mut props.readonly, new_readonly);
-        ChangeHeaderCell::SetProps(ChangeCellProps::SetReadonly(old_readonly))
-    }
     pub fn record_set_props_progress_bar_name(
         &mut self,
         new_name: String,
@@ -191,10 +436,11 @@ impl HeaderCell {
         let props = self
             .props
             .as_mut()
-            .ok_or(str_err!("No CellProps on this HeaderCell"))?;
-        let pb = props.progress_bar.as_mut().ok_or(str_err!(
-            "No ProgressBar exists on this column - use record_set_props_progress_bar first"
-        ))?;
+            .ok_or(str_err!("No CellProps exist for col '{}'", self.iid))?;
+        let pb = props
+            .progress_bar
+            .as_mut()
+            .ok_or(str_err!("No ProgressBar exists on col '{}'", self.iid))?;
         let old_name = std::mem::replace(&mut pb.name, new_name);
         Ok(ChangeHeaderCell::SetProps(
             ChangeCellProps::UpdateProgressBar(ChangeProgressBar::SetName(old_name)),
@@ -207,10 +453,11 @@ impl HeaderCell {
         let props = self
             .props
             .as_mut()
-            .ok_or(str_err!("No CellProps on this HeaderCell"))?;
-        let pb = props.progress_bar.as_mut().ok_or(str_err!(
-            "No ProgressBar exists on this column - use record_set_props_progress_bar first"
-        ))?;
+            .ok_or(str_err!("No CellProps exist for col '{}'", self.iid))?;
+        let pb = props
+            .progress_bar
+            .as_mut()
+            .ok_or(str_err!("No ProgressBar exists on col '{}'", self.iid))?;
         let old_bg = std::mem::replace(&mut pb.bg, new_bg);
         Ok(ChangeHeaderCell::SetProps(
             ChangeCellProps::UpdateProgressBar(ChangeProgressBar::SetBg(old_bg)),
@@ -223,10 +470,11 @@ impl HeaderCell {
         let props = self
             .props
             .as_mut()
-            .ok_or(str_err!("No CellProps on this HeaderCell"))?;
-        let pb = props.progress_bar.as_mut().ok_or(str_err!(
-            "No ProgressBar exists on this column - use record_set_props_progress_bar first"
-        ))?;
+            .ok_or(str_err!("No CellProps exist for col '{}'", self.iid))?;
+        let pb = props
+            .progress_bar
+            .as_mut()
+            .ok_or(str_err!("No ProgressBar exists on col '{}'", self.iid))?;
         let old_fg = std::mem::replace(&mut pb.fg, new_fg);
         Ok(ChangeHeaderCell::SetProps(
             ChangeCellProps::UpdateProgressBar(ChangeProgressBar::SetFg(old_fg)),
@@ -239,10 +487,11 @@ impl HeaderCell {
         let props = self
             .props
             .as_mut()
-            .ok_or(str_err!("No CellProps on this HeaderCell"))?;
-        let pb = props.progress_bar.as_mut().ok_or(str_err!(
-            "No ProgressBar exists on this column - use record_set_props_progress_bar first"
-        ))?;
+            .ok_or(str_err!("No CellProps exist for col '{}'", self.iid))?;
+        let pb = props
+            .progress_bar
+            .as_mut()
+            .ok_or(str_err!("No ProgressBar exists on col '{}'", self.iid))?;
         let old_pc = std::mem::replace(&mut pb.pc, new_pc);
         Ok(ChangeHeaderCell::SetProps(
             ChangeCellProps::UpdateProgressBar(ChangeProgressBar::SetPc(old_pc)),
@@ -255,13 +504,22 @@ impl HeaderCell {
         let props = self
             .props
             .as_mut()
-            .ok_or(str_err!("No CellProps on this HeaderCell"))?;
-        let pb = props.progress_bar.as_mut().ok_or(str_err!(
-            "No ProgressBar exists on this column - use record_set_props_progress_bar first"
-        ))?;
+            .ok_or(str_err!("No CellProps exist for col '{}'", self.iid))?;
+        let pb = props
+            .progress_bar
+            .as_mut()
+            .ok_or(str_err!("No ProgressBar exists on col '{}'", self.iid))?;
         let old_flag = std::mem::replace(&mut pb.remove_on_complete, new_flag);
         Ok(ChangeHeaderCell::SetProps(
             ChangeCellProps::UpdateProgressBar(ChangeProgressBar::SetRemoveOnComplete(old_flag)),
         ))
+    }
+
+    // ───── READONLY ─────
+
+    pub fn record_set_props_readonly(&mut self, new_readonly: bool) -> ChangeHeaderCell {
+        let props = self.props.get_or_insert_with(CellProps::default);
+        let old_readonly = std::mem::replace(&mut props.readonly, new_readonly);
+        ChangeHeaderCell::SetProps(ChangeCellProps::SetReadonly(old_readonly))
     }
 }

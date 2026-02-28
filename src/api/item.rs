@@ -95,7 +95,7 @@ impl Table {
             )?;
         }
 
-        self.cr_finalize_event_nsc(event_data, kwargs.undo, kwargs.emit, true)
+        self.cr_finalize_event_if_any_non_selection_change(event_data, kwargs.undo, kwargs.emit, true)
     }
 
     /// Get information about an item (row).
@@ -180,7 +180,7 @@ impl Table {
             )?;
         }
 
-        self.cr_finalize_event_nsc(event_data, kwargs.undo, kwargs.emit, true)
+        self.cr_finalize_event_if_any_non_selection_change(event_data, kwargs.undo, kwargs.emit, true)
     }
 
     /// Get information about a column.

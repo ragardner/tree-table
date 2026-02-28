@@ -51,7 +51,7 @@ impl Table {
             event_data.changes.push(boxes);
         }
 
-        self.cr_finalize_event_nsc(event_data, kwargs.undo, kwargs.emit, false)
+        self.cr_finalize_event_if_any_non_selection_change(event_data, kwargs.undo, kwargs.emit, false)
     }
 
     pub(crate) fn acr_adjust_selections_after_row_visibility_change(

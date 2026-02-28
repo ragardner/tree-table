@@ -7,6 +7,6 @@ use crate::Val;
 pub struct Checkbox {
     pub true_val: Val,
     pub false_val: Val,
-    pub text: String,
+    pub text: Option<String>,
     pub state: bool,
 }

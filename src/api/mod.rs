@@ -1,5 +1,7 @@
 pub mod add_cols;
 pub mod add_rows;
+pub mod borders;
+pub mod checkbox;
 pub mod data_format;
 pub mod data_get_borrowed;
 pub mod data_get_cloned;
@@ -7,6 +9,7 @@ pub mod data_set;
 pub mod debug;
 pub mod del_cols;
 pub mod del_rows;
+pub mod dropdown;
 pub mod highlight;
 pub mod insert;
 pub mod item;

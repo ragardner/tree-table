@@ -35,3 +35,36 @@ impl Default for NoteArgs {
         }
     }
 }
+
+#[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
+#[cfg_attr(feature = "tsify", tsify(from_wasm_abi))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug, Clone, PartialEq)]
+pub struct SetNoteArgs {
+    pub key: SpanKey,
+    pub note: Option<String>,
+    pub bg: Option<Option<String>>,
+    pub fg: Option<Option<String>>,
+    pub readonly: Option<bool>,
+    #[cfg_attr(feature = "serde", serde(default = "default_emit_event_for_api"))]
+    pub emit: bool,
+    #[cfg_attr(feature = "serde", serde(default = "default_undo_for_api"))]
+    pub undo: bool,
+    #[cfg_attr(feature = "serde", serde(default = "default_save_selection_for_api"))]
+    pub save_selection: bool,
+}
+
+impl Default for SetNoteArgs {
+    fn default() -> Self {
+        SetNoteArgs {
+            key: SpanKey::None,
+            note: Some("".to_string()),
+            bg: None,
+            fg: None,
+            readonly: None,
+            emit: default_emit_event_for_api(),
+            undo: default_undo_for_api(),
+            save_selection: default_save_selection_for_api(),
+        }
+    }
+}

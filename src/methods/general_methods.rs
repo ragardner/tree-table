@@ -5,7 +5,7 @@ use std::rc::Rc;
 
 impl Table {
     #[inline(always)]
-    pub(crate) fn cr_finalize_event_nsc(
+    pub(crate) fn cr_finalize_event_if_any_non_selection_change(
         &mut self,
         event_data: EventData,
         undo: bool,

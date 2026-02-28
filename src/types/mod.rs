@@ -5,6 +5,7 @@ pub mod cell_props;
 pub mod change;
 pub mod change_header_cell;
 pub mod change_index_cell;
+pub mod change_table_cell;
 pub mod checkbox;
 pub mod color3;
 pub mod cycling_counter;
@@ -35,12 +36,14 @@ pub use cell_key::CellKey;
 pub use cell_props::CellProps;
 pub use change::Change;
 pub use change_header_cell::ChangeHeaderCell;
-pub use change_index_cell::{ChangeCellProps, ChangeIndexCell, ChangeProgressBar};
+pub use change_index_cell::{
+    ChangeCellProps, ChangeCheckbox, ChangeDropdown, ChangeIndexCell, ChangeNote, ChangeProgressBar,
+};
 pub use checkbox::Checkbox;
 pub use color3::{Color3, try_hex_to_color3};
 pub use cycling_counter::CyclingCounter;
 pub use data_format::{DataFormat, string_to_data_format};
-pub use dropdown::Dropdown;
+pub use dropdown::{Dropdown, DropdownState};
 pub use event_data::EventData;
 pub use extensions::{GetCellMutResultExt, GetCellResultExt, GetResultExt};
 pub use header::Header;

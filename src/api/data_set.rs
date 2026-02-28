@@ -52,7 +52,7 @@ impl Table {
             }
         }
 
-        self.cr_finalize_event_nsc(event_data, kwargs.undo, kwargs.emit, true)
+        self.cr_finalize_event_if_any_non_selection_change(event_data, kwargs.undo, kwargs.emit, true)
     }
 
     /// Sets table cell data using a key and a single value.
@@ -110,6 +110,6 @@ impl Table {
             }
         }
 
-        self.cr_finalize_event_nsc(event_data, kwargs.undo, kwargs.emit, true)
+        self.cr_finalize_event_if_any_non_selection_change(event_data, kwargs.undo, kwargs.emit, true)
     }
 }

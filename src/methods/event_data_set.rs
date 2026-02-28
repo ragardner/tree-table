@@ -4,6 +4,7 @@ use crate::Checkbox;
 use crate::Color3;
 use crate::DataFormat;
 use crate::Dropdown;
+use crate::DropdownState;
 use crate::EventData;
 use crate::HeaderCell;
 use crate::Highlight;
@@ -872,6 +873,641 @@ impl Table {
         event_data.changes.push(Change::IndexCell {
             row,
             change: cell.record_set_table_cell_props_progress_bar_remove_on_complete(
+                col,
+                prop,
+                empty_val.clone(),
+            )?,
+        });
+        Ok(())
+    }
+
+    #[inline]
+    pub(crate) fn acr_event_data_set_inote_text(
+        cells: &mut Vec<IndexCell>,
+        row: usize,
+        prop: String,
+        event_data: &mut EventData,
+    ) -> Result<(), String> {
+        let cell = Table::acr_icell_mut(cells, row)?;
+        event_data.changes.push(Change::IndexCell {
+            row,
+            change: cell.record_set_props_note_text(prop)?,
+        });
+        Ok(())
+    }
+
+    #[inline]
+    pub(crate) fn acr_event_data_set_inote_bg(
+        cells: &mut Vec<IndexCell>,
+        row: usize,
+        prop: Option<Color3>,
+        event_data: &mut EventData,
+    ) -> Result<(), String> {
+        let cell = Table::acr_icell_mut(cells, row)?;
+        event_data.changes.push(Change::IndexCell {
+            row,
+            change: cell.record_set_props_note_bg(prop)?,
+        });
+        Ok(())
+    }
+
+    #[inline]
+    pub(crate) fn acr_event_data_set_inote_fg(
+        cells: &mut Vec<IndexCell>,
+        row: usize,
+        prop: Option<Color3>,
+        event_data: &mut EventData,
+    ) -> Result<(), String> {
+        let cell = Table::acr_icell_mut(cells, row)?;
+        event_data.changes.push(Change::IndexCell {
+            row,
+            change: cell.record_set_props_note_fg(prop)?,
+        });
+        Ok(())
+    }
+
+    #[inline]
+    pub(crate) fn acr_event_data_set_inote_readonly(
+        cells: &mut Vec<IndexCell>,
+        row: usize,
+        prop: bool,
+        event_data: &mut EventData,
+    ) -> Result<(), String> {
+        let cell = Table::acr_icell_mut(cells, row)?;
+        event_data.changes.push(Change::IndexCell {
+            row,
+            change: cell.record_set_props_note_readonly(prop)?,
+        });
+        Ok(())
+    }
+
+    #[inline]
+    pub(crate) fn acr_event_data_set_hnote_text(
+        cells: &mut Vec<HeaderCell>,
+        col: usize,
+        prop: String,
+        event_data: &mut EventData,
+    ) -> Result<(), String> {
+        let cell = Table::acr_hcell_mut(cells, col)?;
+        event_data.changes.push(Change::HeaderCell {
+            col,
+            change: cell.record_set_props_note_text(prop)?,
+        });
+        Ok(())
+    }
+
+    #[inline]
+    pub(crate) fn acr_event_data_set_hnote_bg(
+        cells: &mut Vec<HeaderCell>,
+        col: usize,
+        prop: Option<Color3>,
+        event_data: &mut EventData,
+    ) -> Result<(), String> {
+        let cell = Table::acr_hcell_mut(cells, col)?;
+        event_data.changes.push(Change::HeaderCell {
+            col,
+            change: cell.record_set_props_note_bg(prop)?,
+        });
+        Ok(())
+    }
+
+    #[inline]
+    pub(crate) fn acr_event_data_set_hnote_fg(
+        cells: &mut Vec<HeaderCell>,
+        col: usize,
+        prop: Option<Color3>,
+        event_data: &mut EventData,
+    ) -> Result<(), String> {
+        let cell = Table::acr_hcell_mut(cells, col)?;
+        event_data.changes.push(Change::HeaderCell {
+            col,
+            change: cell.record_set_props_note_fg(prop)?,
+        });
+        Ok(())
+    }
+
+    #[inline]
+    pub(crate) fn acr_event_data_set_hnote_readonly(
+        cells: &mut Vec<HeaderCell>,
+        col: usize,
+        prop: bool,
+        event_data: &mut EventData,
+    ) -> Result<(), String> {
+        let cell = Table::acr_hcell_mut(cells, col)?;
+        event_data.changes.push(Change::HeaderCell {
+            col,
+            change: cell.record_set_props_note_readonly(prop)?,
+        });
+        Ok(())
+    }
+
+    #[inline]
+    pub(crate) fn acr_event_data_set_tnote_text(
+        cells: &mut Vec<IndexCell>,
+        row: usize,
+        col: usize,
+        prop: String,
+        empty_val: &Val,
+        event_data: &mut EventData,
+    ) -> Result<(), String> {
+        let cell = Table::acr_icell_mut(cells, row)?;
+        event_data.changes.push(Change::IndexCell {
+            row,
+            change: cell.record_set_table_cell_props_note_text(col, prop, empty_val.clone())?,
+        });
+        Ok(())
+    }
+
+    #[inline]
+    pub(crate) fn acr_event_data_set_tnote_bg(
+        cells: &mut Vec<IndexCell>,
+        row: usize,
+        col: usize,
+        prop: Option<Color3>,
+        empty_val: &Val,
+        event_data: &mut EventData,
+    ) -> Result<(), String> {
+        let cell = Table::acr_icell_mut(cells, row)?;
+        event_data.changes.push(Change::IndexCell {
+            row,
+            change: cell.record_set_table_cell_props_note_bg(col, prop, empty_val.clone())?,
+        });
+        Ok(())
+    }
+
+    #[inline]
+    pub(crate) fn acr_event_data_set_tnote_fg(
+        cells: &mut Vec<IndexCell>,
+        row: usize,
+        col: usize,
+        prop: Option<Color3>,
+        empty_val: &Val,
+        event_data: &mut EventData,
+    ) -> Result<(), String> {
+        let cell = Table::acr_icell_mut(cells, row)?;
+        event_data.changes.push(Change::IndexCell {
+            row,
+            change: cell.record_set_table_cell_props_note_fg(col, prop, empty_val.clone())?,
+        });
+        Ok(())
+    }
+
+    #[inline]
+    pub(crate) fn acr_event_data_set_tnote_readonly(
+        cells: &mut Vec<IndexCell>,
+        row: usize,
+        col: usize,
+        prop: bool,
+        empty_val: &Val,
+        event_data: &mut EventData,
+    ) -> Result<(), String> {
+        let cell = Table::acr_icell_mut(cells, row)?;
+        event_data.changes.push(Change::IndexCell {
+            row,
+            change: cell.record_set_table_cell_props_note_readonly(col, prop, empty_val.clone())?,
+        });
+        Ok(())
+    }
+
+    #[inline]
+    pub(crate) fn acr_event_data_set_idropdown_vals(
+        cells: &mut Vec<IndexCell>,
+        row: usize,
+        prop: Vec<Val>,
+        event_data: &mut EventData,
+    ) -> Result<(), String> {
+        let cell = Table::acr_icell_mut(cells, row)?;
+        event_data.changes.push(Change::IndexCell {
+            row,
+            change: cell.record_set_props_dropdown_vals(prop)?,
+        });
+        Ok(())
+    }
+
+    #[inline]
+    pub(crate) fn acr_event_data_set_idropdown_default_val(
+        cells: &mut Vec<IndexCell>,
+        row: usize,
+        prop: Option<Val>,
+        event_data: &mut EventData,
+    ) -> Result<(), String> {
+        let cell = Table::acr_icell_mut(cells, row)?;
+        event_data.changes.push(Change::IndexCell {
+            row,
+            change: cell.record_set_props_dropdown_default_val(prop)?,
+        });
+        Ok(())
+    }
+
+    #[inline]
+    pub(crate) fn acr_event_data_set_idropdown_validation(
+        cells: &mut Vec<IndexCell>,
+        row: usize,
+        prop: bool,
+        event_data: &mut EventData,
+    ) -> Result<(), String> {
+        let cell = Table::acr_icell_mut(cells, row)?;
+        event_data.changes.push(Change::IndexCell {
+            row,
+            change: cell.record_set_props_dropdown_validation(prop)?,
+        });
+        Ok(())
+    }
+
+    #[inline]
+    pub(crate) fn acr_event_data_set_idropdown_text(
+        cells: &mut Vec<IndexCell>,
+        row: usize,
+        prop: Option<String>,
+        event_data: &mut EventData,
+    ) -> Result<(), String> {
+        let cell = Table::acr_icell_mut(cells, row)?;
+        event_data.changes.push(Change::IndexCell {
+            row,
+            change: cell.record_set_props_dropdown_text(prop)?,
+        });
+        Ok(())
+    }
+
+    #[inline]
+    pub(crate) fn acr_event_data_set_idropdown_state(
+        cells: &mut Vec<IndexCell>,
+        row: usize,
+        prop: DropdownState,
+        event_data: &mut EventData,
+    ) -> Result<(), String> {
+        let cell = Table::acr_icell_mut(cells, row)?;
+        event_data.changes.push(Change::IndexCell {
+            row,
+            change: cell.record_set_props_dropdown_state(prop)?,
+        });
+        Ok(())
+    }
+
+    #[inline]
+    pub(crate) fn acr_event_data_set_hdropdown_vals(
+        cells: &mut Vec<HeaderCell>,
+        col: usize,
+        prop: Vec<Val>,
+        event_data: &mut EventData,
+    ) -> Result<(), String> {
+        let cell = Table::acr_hcell_mut(cells, col)?;
+        event_data.changes.push(Change::HeaderCell {
+            col,
+            change: cell.record_set_props_dropdown_vals(prop)?,
+        });
+        Ok(())
+    }
+
+    #[inline]
+    pub(crate) fn acr_event_data_set_hdropdown_default_val(
+        cells: &mut Vec<HeaderCell>,
+        col: usize,
+        prop: Option<Val>,
+        event_data: &mut EventData,
+    ) -> Result<(), String> {
+        let cell = Table::acr_hcell_mut(cells, col)?;
+        event_data.changes.push(Change::HeaderCell {
+            col,
+            change: cell.record_set_props_dropdown_default_val(prop)?,
+        });
+        Ok(())
+    }
+
+    #[inline]
+    pub(crate) fn acr_event_data_set_hdropdown_validation(
+        cells: &mut Vec<HeaderCell>,
+        col: usize,
+        prop: bool,
+        event_data: &mut EventData,
+    ) -> Result<(), String> {
+        let cell = Table::acr_hcell_mut(cells, col)?;
+        event_data.changes.push(Change::HeaderCell {
+            col,
+            change: cell.record_set_props_dropdown_validation(prop)?,
+        });
+        Ok(())
+    }
+
+    #[inline]
+    pub(crate) fn acr_event_data_set_hdropdown_text(
+        cells: &mut Vec<HeaderCell>,
+        col: usize,
+        prop: Option<String>,
+        event_data: &mut EventData,
+    ) -> Result<(), String> {
+        let cell = Table::acr_hcell_mut(cells, col)?;
+        event_data.changes.push(Change::HeaderCell {
+            col,
+            change: cell.record_set_props_dropdown_text(prop)?,
+        });
+        Ok(())
+    }
+
+    #[inline]
+    pub(crate) fn acr_event_data_set_hdropdown_state(
+        cells: &mut Vec<HeaderCell>,
+        col: usize,
+        prop: DropdownState,
+        event_data: &mut EventData,
+    ) -> Result<(), String> {
+        let cell = Table::acr_hcell_mut(cells, col)?;
+        event_data.changes.push(Change::HeaderCell {
+            col,
+            change: cell.record_set_props_dropdown_state(prop)?,
+        });
+        Ok(())
+    }
+
+    #[inline]
+    pub(crate) fn acr_event_data_set_tdropdown_vals(
+        cells: &mut Vec<IndexCell>,
+        row: usize,
+        col: usize,
+        prop: Vec<Val>,
+        empty_val: &Val,
+        event_data: &mut EventData,
+    ) -> Result<(), String> {
+        let cell = Table::acr_icell_mut(cells, row)?;
+        event_data.changes.push(Change::IndexCell {
+            row,
+            change: cell.record_set_table_cell_props_dropdown_vals(col, prop, empty_val.clone())?,
+        });
+        Ok(())
+    }
+
+    #[inline]
+    pub(crate) fn acr_event_data_set_tdropdown_default_val(
+        cells: &mut Vec<IndexCell>,
+        row: usize,
+        col: usize,
+        prop: Option<Val>,
+        empty_val: &Val,
+        event_data: &mut EventData,
+    ) -> Result<(), String> {
+        let cell = Table::acr_icell_mut(cells, row)?;
+        event_data.changes.push(Change::IndexCell {
+            row,
+            change: cell.record_set_table_cell_props_dropdown_default_val(
+                col,
+                prop,
+                empty_val.clone(),
+            )?,
+        });
+        Ok(())
+    }
+
+    #[inline]
+    pub(crate) fn acr_event_data_set_tdropdown_validation(
+        cells: &mut Vec<IndexCell>,
+        row: usize,
+        col: usize,
+        prop: bool,
+        empty_val: &Val,
+        event_data: &mut EventData,
+    ) -> Result<(), String> {
+        let cell = Table::acr_icell_mut(cells, row)?;
+        event_data.changes.push(Change::IndexCell {
+            row,
+            change: cell.record_set_table_cell_props_dropdown_validation(
+                col,
+                prop,
+                empty_val.clone(),
+            )?,
+        });
+        Ok(())
+    }
+
+    #[inline]
+    pub(crate) fn acr_event_data_set_tdropdown_text(
+        cells: &mut Vec<IndexCell>,
+        row: usize,
+        col: usize,
+        prop: Option<String>,
+        empty_val: &Val,
+        event_data: &mut EventData,
+    ) -> Result<(), String> {
+        let cell = Table::acr_icell_mut(cells, row)?;
+        event_data.changes.push(Change::IndexCell {
+            row,
+            change: cell.record_set_table_cell_props_dropdown_text(col, prop, empty_val.clone())?,
+        });
+        Ok(())
+    }
+
+    #[inline]
+    pub(crate) fn acr_event_data_set_tdropdown_state(
+        cells: &mut Vec<IndexCell>,
+        row: usize,
+        col: usize,
+        prop: DropdownState,
+        empty_val: &Val,
+        event_data: &mut EventData,
+    ) -> Result<(), String> {
+        let cell = Table::acr_icell_mut(cells, row)?;
+        event_data.changes.push(Change::IndexCell {
+            row,
+            change: cell.record_set_table_cell_props_dropdown_state(
+                col,
+                prop,
+                empty_val.clone(),
+            )?,
+        });
+        Ok(())
+    }
+
+    #[inline]
+    pub(crate) fn acr_event_data_set_icheckbox_true_val(
+        cells: &mut Vec<IndexCell>,
+        row: usize,
+        prop: Val,
+        event_data: &mut EventData,
+    ) -> Result<(), String> {
+        let cell = Table::acr_icell_mut(cells, row)?;
+        event_data.changes.push(Change::IndexCell {
+            row,
+            change: cell.record_set_props_checkbox_true_val(prop)?,
+        });
+        Ok(())
+    }
+
+    #[inline]
+    pub(crate) fn acr_event_data_set_icheckbox_false_val(
+        cells: &mut Vec<IndexCell>,
+        row: usize,
+        prop: Val,
+        event_data: &mut EventData,
+    ) -> Result<(), String> {
+        let cell = Table::acr_icell_mut(cells, row)?;
+        event_data.changes.push(Change::IndexCell {
+            row,
+            change: cell.record_set_props_checkbox_false_val(prop)?,
+        });
+        Ok(())
+    }
+
+    #[inline]
+    pub(crate) fn acr_event_data_set_icheckbox_text(
+        cells: &mut Vec<IndexCell>,
+        row: usize,
+        prop: Option<String>,
+        event_data: &mut EventData,
+    ) -> Result<(), String> {
+        let cell = Table::acr_icell_mut(cells, row)?;
+        event_data.changes.push(Change::IndexCell {
+            row,
+            change: cell.record_set_props_checkbox_text(prop)?,
+        });
+        Ok(())
+    }
+
+    #[inline]
+    pub(crate) fn acr_event_data_set_icheckbox_state(
+        cells: &mut Vec<IndexCell>,
+        row: usize,
+        prop: bool,
+        event_data: &mut EventData,
+    ) -> Result<(), String> {
+        let cell = Table::acr_icell_mut(cells, row)?;
+        event_data.changes.push(Change::IndexCell {
+            row,
+            change: cell.record_set_props_checkbox_state(prop)?,
+        });
+        Ok(())
+    }
+
+    #[inline]
+    pub(crate) fn acr_event_data_set_hcheckbox_true_val(
+        cells: &mut Vec<HeaderCell>,
+        col: usize,
+        prop: Val,
+        event_data: &mut EventData,
+    ) -> Result<(), String> {
+        let cell = Table::acr_hcell_mut(cells, col)?;
+        event_data.changes.push(Change::HeaderCell {
+            col,
+            change: cell.record_set_props_checkbox_true_val(prop)?,
+        });
+        Ok(())
+    }
+
+    #[inline]
+    pub(crate) fn acr_event_data_set_hcheckbox_false_val(
+        cells: &mut Vec<HeaderCell>,
+        col: usize,
+        prop: Val,
+        event_data: &mut EventData,
+    ) -> Result<(), String> {
+        let cell = Table::acr_hcell_mut(cells, col)?;
+        event_data.changes.push(Change::HeaderCell {
+            col,
+            change: cell.record_set_props_checkbox_false_val(prop)?,
+        });
+        Ok(())
+    }
+
+    #[inline]
+    pub(crate) fn acr_event_data_set_hcheckbox_text(
+        cells: &mut Vec<HeaderCell>,
+        col: usize,
+        prop: Option<String>,
+        event_data: &mut EventData,
+    ) -> Result<(), String> {
+        let cell = Table::acr_hcell_mut(cells, col)?;
+        event_data.changes.push(Change::HeaderCell {
+            col,
+            change: cell.record_set_props_checkbox_text(prop)?,
+        });
+        Ok(())
+    }
+
+    #[inline]
+    pub(crate) fn acr_event_data_set_hcheckbox_state(
+        cells: &mut Vec<HeaderCell>,
+        col: usize,
+        prop: bool,
+        event_data: &mut EventData,
+    ) -> Result<(), String> {
+        let cell = Table::acr_hcell_mut(cells, col)?;
+        event_data.changes.push(Change::HeaderCell {
+            col,
+            change: cell.record_set_props_checkbox_state(prop)?,
+        });
+        Ok(())
+    }
+
+    #[inline]
+    pub(crate) fn acr_event_data_set_tcheckbox_true_val(
+        cells: &mut Vec<IndexCell>,
+        row: usize,
+        col: usize,
+        prop: Val,
+        empty_val: &Val,
+        event_data: &mut EventData,
+    ) -> Result<(), String> {
+        let cell = Table::acr_icell_mut(cells, row)?;
+        event_data.changes.push(Change::IndexCell {
+            row,
+            change: cell.record_set_table_cell_props_checkbox_true_val(
+                col,
+                prop,
+                empty_val.clone(),
+            )?,
+        });
+        Ok(())
+    }
+
+    #[inline]
+    pub(crate) fn acr_event_data_set_tcheckbox_false_val(
+        cells: &mut Vec<IndexCell>,
+        row: usize,
+        col: usize,
+        prop: Val,
+        empty_val: &Val,
+        event_data: &mut EventData,
+    ) -> Result<(), String> {
+        let cell = Table::acr_icell_mut(cells, row)?;
+        event_data.changes.push(Change::IndexCell {
+            row,
+            change: cell.record_set_table_cell_props_checkbox_false_val(
+                col,
+                prop,
+                empty_val.clone(),
+            )?,
+        });
+        Ok(())
+    }
+
+    #[inline]
+    pub(crate) fn acr_event_data_set_tcheckbox_text(
+        cells: &mut Vec<IndexCell>,
+        row: usize,
+        col: usize,
+        prop: Option<String>,
+        empty_val: &Val,
+        event_data: &mut EventData,
+    ) -> Result<(), String> {
+        let cell = Table::acr_icell_mut(cells, row)?;
+        event_data.changes.push(Change::IndexCell {
+            row,
+            change: cell.record_set_table_cell_props_checkbox_text(col, prop, empty_val.clone())?,
+        });
+        Ok(())
+    }
+
+    #[inline]
+    pub(crate) fn acr_event_data_set_tcheckbox_state(
+        cells: &mut Vec<IndexCell>,
+        row: usize,
+        col: usize,
+        prop: bool,
+        empty_val: &Val,
+        event_data: &mut EventData,
+    ) -> Result<(), String> {
+        let cell = Table::acr_icell_mut(cells, row)?;
+        event_data.changes.push(Change::IndexCell {
+            row,
+            change: cell.record_set_table_cell_props_checkbox_state(
                 col,
                 prop,
                 empty_val.clone(),
