@@ -2,6 +2,7 @@ use crate::DropdownState;
 use crate::SpanKey;
 use crate::Val;
 use crate::statics::default_emit_event_for_api;
+use crate::statics::default_expand_for_api;
 use crate::statics::default_save_selection_for_api;
 use crate::statics::default_undo_for_api;
 
@@ -22,6 +23,8 @@ pub struct DropdownArgs {
     pub undo: bool,
     #[cfg_attr(feature = "serde", serde(default = "default_save_selection_for_api"))]
     pub save_selection: bool,
+    #[cfg_attr(feature = "serde", serde(default = "default_expand_for_api"))]
+    pub expand: bool,
 }
 
 impl Default for DropdownArgs {
@@ -36,6 +39,7 @@ impl Default for DropdownArgs {
             emit: default_emit_event_for_api(),
             undo: default_undo_for_api(),
             save_selection: default_save_selection_for_api(),
+            expand: default_expand_for_api(),
         }
     }
 }

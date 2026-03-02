@@ -1,3 +1,4 @@
+use crate::CellAlign;
 use crate::CellBorders;
 use crate::Checkbox;
 use crate::DataFormat;
@@ -281,7 +282,7 @@ impl Table {
     pub(crate) fn acr_icell_align<'v>(
         cells: &'v Vec<IndexCell>,
         rn: usize,
-    ) -> Result<Option<&'v String>, String> {
+    ) -> Result<Option<&'v CellAlign>, String> {
         Self::acr_icell(cells, rn)
             .map(|cell| cell.props.as_ref().and_then(|props| props.align.as_ref()))
     }

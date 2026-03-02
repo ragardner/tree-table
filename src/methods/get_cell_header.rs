@@ -1,3 +1,4 @@
+use crate::CellAlign;
 use crate::CellBorders;
 use crate::Checkbox;
 use crate::DataFormat;
@@ -75,7 +76,7 @@ impl Table {
     pub(crate) fn acr_hcell_align<'v>(
         cells: &'v Vec<HeaderCell>,
         cn: usize,
-    ) -> Result<Option<&'v String>, String> {
+    ) -> Result<Option<&'v CellAlign>, String> {
         let cell = cells.get(cn).ok_or(str_err!("Col not found: {}", cn))?;
         Ok(cell.props.as_ref().and_then(|props| props.align.as_ref()))
     }

@@ -6,17 +6,18 @@ pub mod types;
 pub mod utils;
 
 pub use args::{
-    AddArgs, AddNumArgs, AddProgressBarArgs, AddProgressBarPosArgs, AddSelectionArgs, CheckboxArgs,
-    DataFormatArgs, DelArgs, DelProgressBarArgs, DropdownArgs, FillDataArgs, GetDataIidsArgs,
-    GetDataSpanArgs, GetDataYxArgs, HighlightArgs, InsertArgs, ItemArgs, ItemColArgs, ItemResult,
-    MoveArgs, MoveItemsArgs, NoteArgs, ResetArgs, SelectRowsColsArgs, SelectionClearArgs,
-    SetCheckboxArgs, SetDataArgs, SetDropdownArgs, SetNoteArgs, SetProgressBarArgs, TreeExtendArgs,
-    TreeOpenArgs, UndoRedoArgs,
+    AddArgs, AddNumArgs, AddProgressBarArgs, AddProgressBarPosArgs, AddSelectionArgs, BorderArgs,
+    BordersArgs, CellAlignArgs, CheckboxArgs, DataFormatArgs, DelArgs, DelProgressBarArgs,
+    DropdownArgs, FillDataArgs, GetDataIidsArgs, GetDataSpanArgs, GetDataYxArgs, HighlightArgs,
+    InsertArgs, ItemArgs, ItemColArgs, ItemResult, MoveArgs, MoveItemsArgs, NoteArgs, ReadonlyArgs,
+    ResetArgs, SelectRowsColsArgs, SelectionClearArgs, SetBordersArgs, SetCheckboxArgs,
+    SetDataArgs, SetDropdownArgs, SetNoteArgs, SetProgressBarArgs, TreeExtendArgs, TreeOpenArgs,
+    UndoRedoArgs,
 };
 pub use table::Table;
 pub use types::{
-    Border, BoundedDeque, CellBorders, CellKey, CellProps, Change, ChangeBorders, ChangeCellProps,
-    ChangeCheckbox, ChangeDropdown, ChangeHeaderCell, ChangeIndexCell, ChangeNote,
+    Border, BoundedDeque, CellAlign, CellBorders, CellKey, CellProps, Change, ChangeBorders,
+    ChangeCellProps, ChangeCheckbox, ChangeDropdown, ChangeHeaderCell, ChangeIndexCell, ChangeNote,
     ChangeProgressBar, Checkbox, Color3, Coords, CyclingCounter, DataFormat, Dropdown,
     DropdownState, EventData, GetCellMutResultExt, GetCellResultExt, GetResultExt, HeaderCell,
     Highlight, IndexCell, MaxMap, Note, Options, PartialOptions, ProgressBar, Selected,

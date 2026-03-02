@@ -1,6 +1,7 @@
 pub mod add_cols;
 pub mod add_rows;
 pub mod borders;
+pub mod cell_align;
 pub mod checkbox;
 pub mod data_format;
 pub mod data_get_borrowed;
@@ -20,6 +21,7 @@ pub mod note;
 pub mod opts_get;
 pub mod opts_set;
 pub mod progress_bar;
+pub mod readonly;
 pub mod reset;
 pub mod selection_boxes;
 pub mod total;

@@ -1,4 +1,5 @@
 use crate::Border;
+use crate::CellAlign;
 use crate::CellBorders;
 use crate::CellProps;
 use crate::ChangeBorders;
@@ -47,7 +48,7 @@ impl IndexCell {
     pub fn record_set_table_cell_props_align(
         &mut self,
         col: usize,
-        new_align: Option<String>,
+        new_align: Option<CellAlign>,
         default_val: Val,
     ) -> ChangeIndexCell {
         let vals = &mut self.vals;

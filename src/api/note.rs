@@ -16,9 +16,10 @@ impl Table {
         let kwargs: NoteArgs = kwargs.unwrap_or_default();
         let span = self.cr_key_to_span(kwargs.key)?;
         let mut event_data: EventData = self.cr_new_event(kwargs.save_selection);
-        self.cr_ensure_widget_nrows(span.max_row(&self.grid), &mut event_data, true)?;
-        self.cr_ensure_widget_ncols(span.max_col(&self.grid), &mut event_data, true)?;
-
+        if kwargs.expand {
+            self.cr_ensure_widget_nrows(span.max_row(&self.grid), &mut event_data, true)?;
+            self.cr_ensure_widget_ncols(span.max_col(&self.grid), &mut event_data, true)?;
+        }
         let note = if let Some(note_text) = kwargs.note {
             Some(Note {
                 note: note_text,
@@ -29,11 +30,9 @@ impl Table {
         } else {
             None
         };
-
         let (start_row, end_row) = span.rows_start_end(&self.grid);
         let (start_col, end_col) = span.cols_start_end(&self.grid);
         let empty_val = &self.opts.empty_val;
-
         for row in start_row..end_row {
             for col in start_col..end_col {
                 Self::acr_event_data_set_tnote(
@@ -46,7 +45,6 @@ impl Table {
                 )?;
             }
         }
-
         self.cr_finalize_event_if_any_non_selection_change(
             event_data,
             kwargs.undo,
@@ -62,6 +60,9 @@ impl Table {
         let kwargs: NoteArgs = kwargs.unwrap_or_default();
         let span = self.cr_key_to_span(kwargs.key)?;
         let mut event_data: EventData = self.cr_new_event(kwargs.save_selection);
+        if kwargs.expand {
+            self.cr_ensure_widget_nrows(span.max_row(&self.grid), &mut event_data, true)?;
+        }
         let note = if let Some(note_text) = kwargs.note {
             Some(Note {
                 note: note_text,
@@ -96,6 +97,9 @@ impl Table {
         let kwargs: NoteArgs = kwargs.unwrap_or_default();
         let span = self.cr_key_to_span(kwargs.key)?;
         let mut event_data: EventData = self.cr_new_event(kwargs.save_selection);
+        if kwargs.expand {
+            self.cr_ensure_widget_ncols(span.max_col(&self.grid), &mut event_data, true)?;
+        }
         let note = if let Some(note_text) = kwargs.note {
             Some(Note {
                 note: note_text,
@@ -130,9 +134,6 @@ impl Table {
         let kwargs: SetNoteArgs = kwargs.unwrap_or_default();
         let span = self.cr_key_to_span(kwargs.key)?;
         let mut event_data: EventData = self.cr_new_event(kwargs.save_selection);
-        self.cr_ensure_widget_nrows(span.max_row(&self.grid), &mut event_data, true)?;
-        self.cr_ensure_widget_ncols(span.max_col(&self.grid), &mut event_data, true)?;
-
         let bg_color: Option<Option<Color3>> = if let Some(maybe_hex) = &kwargs.bg {
             Some(try_hex_to_color3(maybe_hex.clone())?)
         } else {
@@ -143,11 +144,9 @@ impl Table {
         } else {
             None
         };
-
         let (start_row, end_row) = span.rows_start_end(&self.grid);
         let (start_col, end_col) = span.cols_start_end(&self.grid);
         let empty_val = &self.opts.empty_val;
-
         for row in start_row..end_row {
             for col in start_col..end_col {
                 if let Some(text) = &kwargs.note {
@@ -207,9 +206,6 @@ impl Table {
         let kwargs: SetNoteArgs = kwargs.unwrap_or_default();
         let span = self.cr_key_to_span(kwargs.key)?;
         let mut event_data: EventData = self.cr_new_event(kwargs.save_selection);
-        self.cr_ensure_widget_nrows(span.max_row(&self.grid), &mut event_data, true)?;
-
-        // Pre-compute colors once
         let bg_color: Option<Option<Color3>> = if let Some(maybe_hex) = &kwargs.bg {
             Some(try_hex_to_color3(maybe_hex.clone())?)
         } else {
@@ -220,9 +216,7 @@ impl Table {
         } else {
             None
         };
-
         let (start_row, end_row) = span.rows_start_end(&self.grid);
-
         for row in start_row..end_row {
             if let Some(text) = &kwargs.note {
                 Self::acr_event_data_set_inote_text(
@@ -272,9 +266,6 @@ impl Table {
         let kwargs: SetNoteArgs = kwargs.unwrap_or_default();
         let span = self.cr_key_to_span(kwargs.key)?;
         let mut event_data: EventData = self.cr_new_event(kwargs.save_selection);
-        self.cr_ensure_widget_ncols(span.max_col(&self.grid), &mut event_data, true)?;
-
-        // Pre-compute colors once
         let bg_color: Option<Option<Color3>> = if let Some(maybe_hex) = &kwargs.bg {
             Some(try_hex_to_color3(maybe_hex.clone())?)
         } else {
@@ -285,9 +276,7 @@ impl Table {
         } else {
             None
         };
-
         let (start_col, end_col) = span.cols_start_end(&self.grid);
-
         for col in start_col..end_col {
             if let Some(text) = &kwargs.note {
                 Self::acr_event_data_set_hnote_text(

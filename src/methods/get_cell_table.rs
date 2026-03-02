@@ -1,3 +1,4 @@
+use crate::CellAlign;
 use crate::CellBorders;
 use crate::CellProps;
 use crate::Checkbox;
@@ -71,7 +72,7 @@ impl Table {
         cells: &'v Vec<IndexCell>,
         rn: usize,
         cn: usize,
-    ) -> Option<&'v String> {
+    ) -> Option<&'v CellAlign> {
         cells.get(rn).and_then(|cell| {
             cell.vals
                 .get(&cn)

@@ -1,3 +1,4 @@
+use crate::CellAlign;
 use crate::CellBorders;
 use crate::CellProps;
 use crate::Checkbox;
@@ -259,7 +260,7 @@ macro_rules! impl_set_prop_maxmap {
 }
 
 impl MaxMap<TableCell> {
-    impl_set_prop_maxmap!(align, String);
+    impl_set_prop_maxmap!(align, CellAlign);
     impl_set_prop_maxmap!(borders, CellBorders);
     impl_set_prop_maxmap!(checkbox, Checkbox);
     impl_set_prop_maxmap!(data_format, DataFormat);

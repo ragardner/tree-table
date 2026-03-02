@@ -1,3 +1,5 @@
+use crate::Border;
+use crate::CellAlign;
 use crate::CellBorders;
 use crate::Change;
 use crate::Checkbox;
@@ -204,7 +206,7 @@ impl Table {
         cells: &mut Vec<IndexCell>,
         row: usize,
         col: usize,
-        prop: Option<String>,
+        prop: Option<CellAlign>,
         empty_val: &Val,
         event_data: &mut EventData,
     ) -> Result<(), String> {
@@ -357,7 +359,7 @@ impl Table {
     pub(crate) fn acr_event_data_set_ialign(
         cells: &mut Vec<IndexCell>,
         row: usize,
-        prop: Option<String>,
+        prop: Option<CellAlign>,
         event_data: &mut EventData,
     ) -> Result<(), String> {
         let cell = Table::acr_icell_mut(cells, row)?;
@@ -408,6 +410,21 @@ impl Table {
         let cell = Table::acr_icell_mut(cells, row)?;
         event_data.changes.push(Change::IndexCell {
             row,
+            change: cell.record_set_props_data_format(prop),
+        });
+        Ok(())
+    }
+
+    #[inline]
+    pub(crate) fn acr_event_data_set_hdata_format(
+        cells: &mut Vec<HeaderCell>,
+        col: usize,
+        prop: Option<DataFormat>,
+        event_data: &mut EventData,
+    ) -> Result<(), String> {
+        let cell = Table::acr_hcell_mut(cells, col)?;
+        event_data.changes.push(Change::HeaderCell {
+            col,
             change: cell.record_set_props_data_format(prop),
         });
         Ok(())
@@ -492,7 +509,7 @@ impl Table {
     pub(crate) fn acr_event_data_set_halign(
         cells: &mut Vec<HeaderCell>,
         col: usize,
-        prop: Option<String>,
+        prop: Option<CellAlign>,
         event_data: &mut EventData,
     ) -> Result<(), String> {
         let cell = Table::acr_hcell_mut(cells, col)?;
@@ -1512,6 +1529,198 @@ impl Table {
                 prop,
                 empty_val.clone(),
             )?,
+        });
+        Ok(())
+    }
+
+    #[inline]
+    pub(crate) fn acr_event_data_set_iborders_top(
+        cells: &mut Vec<IndexCell>,
+        row: usize,
+        prop: Option<Border>,
+        event_data: &mut EventData,
+    ) -> Result<(), String> {
+        let cell = Table::acr_icell_mut(cells, row)?;
+        event_data.changes.push(Change::IndexCell {
+            row,
+            change: cell.record_set_props_borders_top(prop)?,
+        });
+        Ok(())
+    }
+
+    #[inline]
+    pub(crate) fn acr_event_data_set_iborders_right(
+        cells: &mut Vec<IndexCell>,
+        row: usize,
+        prop: Option<Border>,
+        event_data: &mut EventData,
+    ) -> Result<(), String> {
+        let cell = Table::acr_icell_mut(cells, row)?;
+        event_data.changes.push(Change::IndexCell {
+            row,
+            change: cell.record_set_props_borders_right(prop)?,
+        });
+        Ok(())
+    }
+
+    #[inline]
+    pub(crate) fn acr_event_data_set_iborders_bottom(
+        cells: &mut Vec<IndexCell>,
+        row: usize,
+        prop: Option<Border>,
+        event_data: &mut EventData,
+    ) -> Result<(), String> {
+        let cell = Table::acr_icell_mut(cells, row)?;
+        event_data.changes.push(Change::IndexCell {
+            row,
+            change: cell.record_set_props_borders_bottom(prop)?,
+        });
+        Ok(())
+    }
+
+    #[inline]
+    pub(crate) fn acr_event_data_set_iborders_left(
+        cells: &mut Vec<IndexCell>,
+        row: usize,
+        prop: Option<Border>,
+        event_data: &mut EventData,
+    ) -> Result<(), String> {
+        let cell = Table::acr_icell_mut(cells, row)?;
+        event_data.changes.push(Change::IndexCell {
+            row,
+            change: cell.record_set_props_borders_left(prop)?,
+        });
+        Ok(())
+    }
+
+    #[inline]
+    pub(crate) fn acr_event_data_set_hborders_top(
+        cells: &mut Vec<HeaderCell>,
+        col: usize,
+        prop: Option<Border>,
+        event_data: &mut EventData,
+    ) -> Result<(), String> {
+        let cell = Table::acr_hcell_mut(cells, col)?;
+        event_data.changes.push(Change::HeaderCell {
+            col,
+            change: cell.record_set_props_borders_top(prop)?,
+        });
+        Ok(())
+    }
+
+    #[inline]
+    pub(crate) fn acr_event_data_set_hborders_right(
+        cells: &mut Vec<HeaderCell>,
+        col: usize,
+        prop: Option<Border>,
+        event_data: &mut EventData,
+    ) -> Result<(), String> {
+        let cell = Table::acr_hcell_mut(cells, col)?;
+        event_data.changes.push(Change::HeaderCell {
+            col,
+            change: cell.record_set_props_borders_right(prop)?,
+        });
+        Ok(())
+    }
+
+    #[inline]
+    pub(crate) fn acr_event_data_set_hborders_bottom(
+        cells: &mut Vec<HeaderCell>,
+        col: usize,
+        prop: Option<Border>,
+        event_data: &mut EventData,
+    ) -> Result<(), String> {
+        let cell = Table::acr_hcell_mut(cells, col)?;
+        event_data.changes.push(Change::HeaderCell {
+            col,
+            change: cell.record_set_props_borders_bottom(prop)?,
+        });
+        Ok(())
+    }
+
+    #[inline]
+    pub(crate) fn acr_event_data_set_hborders_left(
+        cells: &mut Vec<HeaderCell>,
+        col: usize,
+        prop: Option<Border>,
+        event_data: &mut EventData,
+    ) -> Result<(), String> {
+        let cell = Table::acr_hcell_mut(cells, col)?;
+        event_data.changes.push(Change::HeaderCell {
+            col,
+            change: cell.record_set_props_borders_left(prop)?,
+        });
+        Ok(())
+    }
+
+    #[inline]
+    pub(crate) fn acr_event_data_set_tborders_top(
+        cells: &mut Vec<IndexCell>,
+        row: usize,
+        col: usize,
+        prop: Option<Border>,
+        empty_val: &Val,
+        event_data: &mut EventData,
+    ) -> Result<(), String> {
+        let cell = Table::acr_icell_mut(cells, row)?;
+        event_data.changes.push(Change::IndexCell {
+            row,
+            change: cell.record_set_table_cell_props_borders_top(col, prop, empty_val.clone())?,
+        });
+        Ok(())
+    }
+
+    #[inline]
+    pub(crate) fn acr_event_data_set_tborders_right(
+        cells: &mut Vec<IndexCell>,
+        row: usize,
+        col: usize,
+        prop: Option<Border>,
+        empty_val: &Val,
+        event_data: &mut EventData,
+    ) -> Result<(), String> {
+        let cell = Table::acr_icell_mut(cells, row)?;
+        event_data.changes.push(Change::IndexCell {
+            row,
+            change: cell.record_set_table_cell_props_borders_right(col, prop, empty_val.clone())?,
+        });
+        Ok(())
+    }
+
+    #[inline]
+    pub(crate) fn acr_event_data_set_tborders_bottom(
+        cells: &mut Vec<IndexCell>,
+        row: usize,
+        col: usize,
+        prop: Option<Border>,
+        empty_val: &Val,
+        event_data: &mut EventData,
+    ) -> Result<(), String> {
+        let cell = Table::acr_icell_mut(cells, row)?;
+        event_data.changes.push(Change::IndexCell {
+            row,
+            change: cell.record_set_table_cell_props_borders_bottom(
+                col,
+                prop,
+                empty_val.clone(),
+            )?,
+        });
+        Ok(())
+    }
+
+    #[inline]
+    pub(crate) fn acr_event_data_set_tborders_left(
+        cells: &mut Vec<IndexCell>,
+        row: usize,
+        col: usize,
+        prop: Option<Border>,
+        empty_val: &Val,
+        event_data: &mut EventData,
+    ) -> Result<(), String> {
+        let cell = Table::acr_icell_mut(cells, row)?;
+        event_data.changes.push(Change::IndexCell {
+            row,
+            change: cell.record_set_table_cell_props_borders_left(col, prop, empty_val.clone())?,
         });
         Ok(())
     }

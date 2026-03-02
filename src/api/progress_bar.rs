@@ -26,8 +26,6 @@ impl Table {
         let col = kwargs.col as usize;
         let name = kwargs.name;
         let mut event_data: EventData = self.cr_new_event(kwargs.save_selection);
-        self.cr_ensure_widget_nrows(row, &mut event_data, true)?;
-        self.cr_ensure_widget_ncols(col, &mut event_data, true)?;
         self.grid.named_cells.insert(name, (row, col));
         Self::acr_event_data_set_tprogressbar(
             &mut self.grid.index.cells,

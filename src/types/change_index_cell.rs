@@ -1,4 +1,5 @@
 use crate::Border;
+use crate::CellAlign;
 use crate::CellBorders;
 use crate::CellProps;
 use crate::Checkbox;
@@ -200,7 +201,7 @@ impl ChangeNote {
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone, PartialEq)]
 pub enum ChangeCellProps {
-    SetAlign(Option<String>),
+    SetAlign(Option<CellAlign>),
     SetBorders(Option<CellBorders>),
     UpdateBorders(ChangeBorders),
     SetCheckbox(Option<Checkbox>),
@@ -448,7 +449,7 @@ impl IndexCell {
 
     // ───── ALIGN ─────
 
-    pub fn record_set_props_align(&mut self, new_align: Option<String>) -> ChangeIndexCell {
+    pub fn record_set_props_align(&mut self, new_align: Option<CellAlign>) -> ChangeIndexCell {
         let props = self.props.get_or_insert_with(CellProps::default);
         let old_align = std::mem::replace(&mut props.align, new_align);
         ChangeIndexCell::SetProps(ChangeCellProps::SetAlign(old_align))

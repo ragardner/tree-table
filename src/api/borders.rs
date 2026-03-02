@@ -1,28 +1,34 @@
-use crate::Dropdown;
+use crate::Border;
+use crate::BordersArgs;
+use crate::CellBorders;
 use crate::EventData;
-use crate::SetDropdownArgs;
+use crate::SetBordersArgs;
 use crate::Table;
-use crate::args::args_dropdown::DropdownArgs;
 use std::cell::RefCell;
 use std::rc::Rc;
 
 impl Table {
     pub fn borders(
         &mut self,
-        kwargs: Option<DropdownArgs>,
+        kwargs: Option<BordersArgs>,
     ) -> Result<Option<Rc<RefCell<EventData>>>, String> {
-        let kwargs: DropdownArgs = kwargs.unwrap_or_default();
+        let kwargs: BordersArgs = kwargs.unwrap_or_default();
         let span = self.cr_key_to_span(kwargs.key)?;
         let mut event_data: EventData = self.cr_new_event(kwargs.save_selection);
-        self.cr_ensure_widget_nrows(span.max_row(&self.grid), &mut event_data, true)?;
-        self.cr_ensure_widget_ncols(span.max_col(&self.grid), &mut event_data, true)?;
-        let dropdown = if let Some(vals) = kwargs.vals {
-            Some(Dropdown {
-                vals: vals,
-                default_val: kwargs.default_val,
-                validation: kwargs.validation,
-                text: kwargs.text,
-                state: kwargs.state,
+        if kwargs.expand {
+            self.cr_ensure_widget_nrows(span.max_row(&self.grid), &mut event_data, true)?;
+            self.cr_ensure_widget_ncols(span.max_col(&self.grid), &mut event_data, true)?;
+        }
+        let borders = if kwargs.top.is_some()
+            || kwargs.bottom.is_some()
+            || kwargs.left.is_some()
+            || kwargs.right.is_some()
+        {
+            Some(CellBorders {
+                top: Border::try_from_opt(kwargs.top)?,
+                right: Border::try_from_opt(kwargs.right)?,
+                bottom: Border::try_from_opt(kwargs.bottom)?,
+                left: Border::try_from_opt(kwargs.left)?,
             })
         } else {
             None
@@ -32,11 +38,11 @@ impl Table {
         let empty_val = &self.opts.empty_val;
         for row in start_row..end_row {
             for col in start_col..end_col {
-                Self::acr_event_data_set_tdropdown(
+                Self::acr_event_data_set_tborders(
                     &mut self.grid.index.cells,
                     row,
                     col,
-                    dropdown.clone(),
+                    borders.clone(),
                     empty_val,
                     &mut event_data,
                 )?;
@@ -52,29 +58,34 @@ impl Table {
 
     pub fn borders_i(
         &mut self,
-        kwargs: Option<DropdownArgs>,
+        kwargs: Option<BordersArgs>,
     ) -> Result<Option<Rc<RefCell<EventData>>>, String> {
-        let kwargs: DropdownArgs = kwargs.unwrap_or_default();
+        let kwargs: BordersArgs = kwargs.unwrap_or_default();
         let span = self.cr_key_to_span(kwargs.key)?;
         let mut event_data: EventData = self.cr_new_event(kwargs.save_selection);
-        self.cr_ensure_widget_nrows(span.max_row(&self.grid), &mut event_data, true)?;
-        let dropdown = if let Some(vals) = kwargs.vals {
-            Some(Dropdown {
-                vals: vals,
-                default_val: kwargs.default_val,
-                validation: kwargs.validation,
-                text: kwargs.text,
-                state: kwargs.state,
+        if kwargs.expand {
+            self.cr_ensure_widget_nrows(span.max_row(&self.grid), &mut event_data, true)?;
+        }
+        let borders = if kwargs.top.is_some()
+            || kwargs.bottom.is_some()
+            || kwargs.left.is_some()
+            || kwargs.right.is_some()
+        {
+            Some(CellBorders {
+                top: Border::try_from_opt(kwargs.top)?,
+                right: Border::try_from_opt(kwargs.right)?,
+                bottom: Border::try_from_opt(kwargs.bottom)?,
+                left: Border::try_from_opt(kwargs.left)?,
             })
         } else {
             None
         };
         let (start_row, end_row) = span.rows_start_end(&self.grid);
         for row in start_row..end_row {
-            Self::acr_event_data_set_idropdown(
+            Self::acr_event_data_set_iborders(
                 &mut self.grid.index.cells,
                 row,
-                dropdown.clone(),
+                borders.clone(),
                 &mut event_data,
             )?;
         }
@@ -88,29 +99,34 @@ impl Table {
 
     pub fn borders_h(
         &mut self,
-        kwargs: Option<DropdownArgs>,
+        kwargs: Option<BordersArgs>,
     ) -> Result<Option<Rc<RefCell<EventData>>>, String> {
-        let kwargs: DropdownArgs = kwargs.unwrap_or_default();
+        let kwargs: BordersArgs = kwargs.unwrap_or_default();
         let span = self.cr_key_to_span(kwargs.key)?;
         let mut event_data: EventData = self.cr_new_event(kwargs.save_selection);
-        self.cr_ensure_widget_ncols(span.max_col(&self.grid), &mut event_data, true)?;
-        let dropdown = if let Some(vals) = kwargs.vals {
-            Some(Dropdown {
-                vals: vals,
-                default_val: kwargs.default_val,
-                validation: kwargs.validation,
-                text: kwargs.text,
-                state: kwargs.state,
+        if kwargs.expand {
+            self.cr_ensure_widget_ncols(span.max_col(&self.grid), &mut event_data, true)?;
+        }
+        let borders = if kwargs.top.is_some()
+            || kwargs.bottom.is_some()
+            || kwargs.left.is_some()
+            || kwargs.right.is_some()
+        {
+            Some(CellBorders {
+                top: Border::try_from_opt(kwargs.top)?,
+                right: Border::try_from_opt(kwargs.right)?,
+                bottom: Border::try_from_opt(kwargs.bottom)?,
+                left: Border::try_from_opt(kwargs.left)?,
             })
         } else {
             None
         };
         let (start_col, end_col) = span.cols_start_end(&self.grid);
         for col in start_col..end_col {
-            Self::acr_event_data_set_hdropdown(
+            Self::acr_event_data_set_hborders(
                 &mut self.grid.header.cells,
                 col,
-                dropdown.clone(),
+                borders.clone(),
                 &mut event_data,
             )?;
         }
@@ -124,63 +140,75 @@ impl Table {
 
     pub fn set_borders(
         &mut self,
-        kwargs: Option<SetDropdownArgs>,
+        kwargs: Option<SetBordersArgs>,
     ) -> Result<Option<Rc<RefCell<EventData>>>, String> {
         let kwargs = kwargs.unwrap_or_default();
         let span = self.cr_key_to_span(kwargs.key)?;
         let mut event_data = self.cr_new_event(kwargs.save_selection);
+
+        let top = if let Some(opt) = kwargs.top {
+            Some(Border::try_from_opt(opt)?)
+        } else {
+            None
+        };
+        let right = if let Some(opt) = kwargs.right {
+            Some(Border::try_from_opt(opt)?)
+        } else {
+            None
+        };
+        let bottom = if let Some(opt) = kwargs.bottom {
+            Some(Border::try_from_opt(opt)?)
+        } else {
+            None
+        };
+        let left = if let Some(opt) = kwargs.left {
+            Some(Border::try_from_opt(opt)?)
+        } else {
+            None
+        };
+
         let (start_row, end_row) = span.rows_start_end(&self.grid);
         let (start_col, end_col) = span.cols_start_end(&self.grid);
         let empty_val = &self.opts.empty_val;
 
         for row in start_row..end_row {
             for col in start_col..end_col {
-                if let Some(vals) = &kwargs.vals {
-                    Self::acr_event_data_set_tdropdown_vals(
+                if let Some(b) = &top {
+                    Self::acr_event_data_set_tborders_top(
                         &mut self.grid.index.cells,
                         row,
                         col,
-                        vals.clone(),
+                        b.clone(),
                         empty_val,
                         &mut event_data,
                     )?;
                 }
-                if let Some(default_val) = &kwargs.default_val {
-                    Self::acr_event_data_set_tdropdown_default_val(
+                if let Some(b) = &right {
+                    Self::acr_event_data_set_tborders_right(
                         &mut self.grid.index.cells,
                         row,
                         col,
-                        default_val.clone(),
+                        b.clone(),
                         empty_val,
                         &mut event_data,
                     )?;
                 }
-                if let Some(validation) = kwargs.validation {
-                    Self::acr_event_data_set_tdropdown_validation(
+                if let Some(b) = &bottom {
+                    Self::acr_event_data_set_tborders_bottom(
                         &mut self.grid.index.cells,
                         row,
                         col,
-                        validation,
+                        b.clone(),
                         empty_val,
                         &mut event_data,
                     )?;
                 }
-                if let Some(text) = &kwargs.text {
-                    Self::acr_event_data_set_tdropdown_text(
+                if let Some(b) = &left {
+                    Self::acr_event_data_set_tborders_left(
                         &mut self.grid.index.cells,
                         row,
                         col,
-                        text.clone(),
-                        empty_val,
-                        &mut event_data,
-                    )?;
-                }
-                if let Some(state) = kwargs.state {
-                    Self::acr_event_data_set_tdropdown_state(
-                        &mut self.grid.index.cells,
-                        row,
-                        col,
-                        state,
+                        b.clone(),
                         empty_val,
                         &mut event_data,
                     )?;
@@ -197,51 +225,65 @@ impl Table {
 
     pub fn set_borders_i(
         &mut self,
-        kwargs: Option<SetDropdownArgs>,
+        kwargs: Option<SetBordersArgs>,
     ) -> Result<Option<Rc<RefCell<EventData>>>, String> {
         let kwargs = kwargs.unwrap_or_default();
         let span = self.cr_key_to_span(kwargs.key)?;
         let mut event_data = self.cr_new_event(kwargs.save_selection);
+
+        let top = if let Some(opt) = kwargs.top {
+            Some(Border::try_from_opt(opt)?)
+        } else {
+            None
+        };
+        let right = if let Some(opt) = kwargs.right {
+            Some(Border::try_from_opt(opt)?)
+        } else {
+            None
+        };
+        let bottom = if let Some(opt) = kwargs.bottom {
+            Some(Border::try_from_opt(opt)?)
+        } else {
+            None
+        };
+        let left = if let Some(opt) = kwargs.left {
+            Some(Border::try_from_opt(opt)?)
+        } else {
+            None
+        };
+
         let (start_row, end_row) = span.rows_start_end(&self.grid);
 
         for row in start_row..end_row {
-            if let Some(vals) = &kwargs.vals {
-                Self::acr_event_data_set_idropdown_vals(
+            if let Some(b) = &top {
+                Self::acr_event_data_set_iborders_top(
                     &mut self.grid.index.cells,
                     row,
-                    vals.clone(),
+                    b.clone(),
                     &mut event_data,
                 )?;
             }
-            if let Some(default_val) = &kwargs.default_val {
-                Self::acr_event_data_set_idropdown_default_val(
+            if let Some(b) = &right {
+                Self::acr_event_data_set_iborders_right(
                     &mut self.grid.index.cells,
                     row,
-                    default_val.clone(),
+                    b.clone(),
                     &mut event_data,
                 )?;
             }
-            if let Some(validation) = kwargs.validation {
-                Self::acr_event_data_set_idropdown_validation(
+            if let Some(b) = &bottom {
+                Self::acr_event_data_set_iborders_bottom(
                     &mut self.grid.index.cells,
                     row,
-                    validation,
+                    b.clone(),
                     &mut event_data,
                 )?;
             }
-            if let Some(text) = &kwargs.text {
-                Self::acr_event_data_set_idropdown_text(
+            if let Some(b) = &left {
+                Self::acr_event_data_set_iborders_left(
                     &mut self.grid.index.cells,
                     row,
-                    text.clone(),
-                    &mut event_data,
-                )?;
-            }
-            if let Some(state) = kwargs.state {
-                Self::acr_event_data_set_idropdown_state(
-                    &mut self.grid.index.cells,
-                    row,
-                    state,
+                    b.clone(),
                     &mut event_data,
                 )?;
             }
@@ -256,51 +298,65 @@ impl Table {
 
     pub fn set_borders_h(
         &mut self,
-        kwargs: Option<SetDropdownArgs>,
+        kwargs: Option<SetBordersArgs>,
     ) -> Result<Option<Rc<RefCell<EventData>>>, String> {
         let kwargs = kwargs.unwrap_or_default();
         let span = self.cr_key_to_span(kwargs.key)?;
         let mut event_data = self.cr_new_event(kwargs.save_selection);
+
+        let top = if let Some(opt) = kwargs.top {
+            Some(Border::try_from_opt(opt)?)
+        } else {
+            None
+        };
+        let right = if let Some(opt) = kwargs.right {
+            Some(Border::try_from_opt(opt)?)
+        } else {
+            None
+        };
+        let bottom = if let Some(opt) = kwargs.bottom {
+            Some(Border::try_from_opt(opt)?)
+        } else {
+            None
+        };
+        let left = if let Some(opt) = kwargs.left {
+            Some(Border::try_from_opt(opt)?)
+        } else {
+            None
+        };
+
         let (start_col, end_col) = span.cols_start_end(&self.grid);
 
         for col in start_col..end_col {
-            if let Some(vals) = &kwargs.vals {
-                Self::acr_event_data_set_hdropdown_vals(
+            if let Some(b) = &top {
+                Self::acr_event_data_set_hborders_top(
                     &mut self.grid.header.cells,
                     col,
-                    vals.clone(),
+                    b.clone(),
                     &mut event_data,
                 )?;
             }
-            if let Some(default_val) = &kwargs.default_val {
-                Self::acr_event_data_set_hdropdown_default_val(
+            if let Some(b) = &right {
+                Self::acr_event_data_set_hborders_right(
                     &mut self.grid.header.cells,
                     col,
-                    default_val.clone(),
+                    b.clone(),
                     &mut event_data,
                 )?;
             }
-            if let Some(validation) = kwargs.validation {
-                Self::acr_event_data_set_hdropdown_validation(
+            if let Some(b) = &bottom {
+                Self::acr_event_data_set_hborders_bottom(
                     &mut self.grid.header.cells,
                     col,
-                    validation,
+                    b.clone(),
                     &mut event_data,
                 )?;
             }
-            if let Some(text) = &kwargs.text {
-                Self::acr_event_data_set_hdropdown_text(
+            if let Some(b) = &left {
+                Self::acr_event_data_set_hborders_left(
                     &mut self.grid.header.cells,
                     col,
-                    text.clone(),
-                    &mut event_data,
-                )?;
-            }
-            if let Some(state) = kwargs.state {
-                Self::acr_event_data_set_hdropdown_state(
-                    &mut self.grid.header.cells,
-                    col,
-                    state,
+                    b.clone(),
                     &mut event_data,
                 )?;
             }

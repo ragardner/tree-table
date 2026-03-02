@@ -1,4 +1,5 @@
 use crate::Border;
+use crate::CellAlign;
 use crate::CellBorders;
 use crate::CellProps;
 use crate::ChangeCellProps;
@@ -131,7 +132,7 @@ impl HeaderCell {
 
     // ───── ALIGN ─────
 
-    pub fn record_set_props_align(&mut self, new_align: Option<String>) -> ChangeHeaderCell {
+    pub fn record_set_props_align(&mut self, new_align: Option<CellAlign>) -> ChangeHeaderCell {
         let props = self.props.get_or_insert_with(CellProps::default);
         let old_align = std::mem::replace(&mut props.align, new_align);
         ChangeHeaderCell::SetProps(ChangeCellProps::SetAlign(old_align))

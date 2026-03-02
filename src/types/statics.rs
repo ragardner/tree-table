@@ -17,6 +17,7 @@ pub static TEMPORAL_PROPS: OnceLock<Vec<&'static str>> = OnceLock::new();
 pub static DEFAULT_EMIT_EVENT_FOR_API: bool = true;
 pub static DEFAULT_UNDO_FOR_API: bool = true;
 pub static DEFAULT_SAVE_SELECTION_FOR_API: bool = true;
+pub static DEFAULT_EXPAND_FOR_API: bool = true;
 
 #[inline(always)]
 pub fn valid_inherits() -> &'static HashSet<String> {
@@ -44,6 +45,11 @@ pub fn default_undo_for_api() -> bool {
 pub fn default_save_selection_for_api() -> bool {
     DEFAULT_SAVE_SELECTION_FOR_API
 }
-pub(crate) fn get_true() -> bool {
+#[inline(always)]
+pub fn default_expand_for_api() -> bool {
+    DEFAULT_EXPAND_FOR_API
+}
+#[inline(always)]
+pub fn get_true() -> bool {
     true
 }

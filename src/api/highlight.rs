@@ -14,8 +14,10 @@ impl Table {
         let kwargs: HighlightArgs = kwargs.unwrap_or_default();
         let span = self.cr_key_to_span(kwargs.key)?;
         let mut event_data: EventData = self.cr_new_event(kwargs.save_selection);
-        self.cr_ensure_widget_nrows(span.max_row(&self.grid), &mut event_data, true)?;
-        self.cr_ensure_widget_ncols(span.max_col(&self.grid), &mut event_data, true)?;
+        if kwargs.expand {
+            self.cr_ensure_widget_nrows(span.max_row(&self.grid), &mut event_data, true)?;
+            self.cr_ensure_widget_ncols(span.max_col(&self.grid), &mut event_data, true)?;
+        }
         let highlight = if kwargs.bg.is_none() && kwargs.fg.is_none() {
             None
         } else {
@@ -54,7 +56,9 @@ impl Table {
         let kwargs: HighlightArgs = kwargs.unwrap_or_default();
         let span = self.cr_key_to_span(kwargs.key)?;
         let mut event_data: EventData = self.cr_new_event(kwargs.save_selection);
-        self.cr_ensure_widget_nrows(span.max_row(&self.grid), &mut event_data, true)?;
+        if kwargs.expand {
+            self.cr_ensure_widget_nrows(span.max_row(&self.grid), &mut event_data, true)?;
+        }
         let highlight = if kwargs.bg.is_none() && kwargs.fg.is_none() {
             None
         } else {
@@ -87,7 +91,9 @@ impl Table {
         let kwargs: HighlightArgs = kwargs.unwrap_or_default();
         let span = self.cr_key_to_span(kwargs.key)?;
         let mut event_data: EventData = self.cr_new_event(kwargs.save_selection);
-        self.cr_ensure_widget_ncols(span.max_col(&self.grid), &mut event_data, true)?;
+        if kwargs.expand {
+            self.cr_ensure_widget_ncols(span.max_col(&self.grid), &mut event_data, true)?;
+        }
         let highlight = if kwargs.bg.is_none() && kwargs.fg.is_none() {
             None
         } else {

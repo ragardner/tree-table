@@ -1,4 +1,5 @@
 pub mod bounded_deque;
+pub mod cell_align;
 pub mod cell_borders;
 pub mod cell_key;
 pub mod cell_props;
@@ -31,6 +32,7 @@ pub mod tree_move;
 pub mod val;
 
 pub use bounded_deque::BoundedDeque;
+pub use cell_align::CellAlign;
 pub use cell_borders::{Border, CellBorders};
 pub use cell_key::CellKey;
 pub use cell_props::CellProps;
