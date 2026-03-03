@@ -24,6 +24,7 @@ pub mod progress_bar;
 pub mod readonly;
 pub mod reset;
 pub mod selection_boxes;
+pub mod set_frozen;
 pub mod total;
 pub mod tree_extend;
 pub mod tree_open_close;

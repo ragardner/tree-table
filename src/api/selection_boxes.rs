@@ -5,7 +5,6 @@ use crate::Table;
 use crate::args::AddSelectionArgs;
 use crate::args::SelectRowsColsArgs;
 use crate::args::SelectionClearArgs;
-
 use crate::utils::consecutive_ranges::consecutive_ranges_owned;
 use std::cell::RefCell;
 use std::collections::HashSet;

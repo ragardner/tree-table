@@ -10,7 +10,6 @@ pub(crate) fn generate_unique_id() -> u32 {
     WIDGET_ID_COUNTER.fetch_add(1, Ordering::Relaxed)
 }
 
-const SPAN_COL_A_VALUE: usize = 'A' as usize;
 const ALPHABET: [char; 62] = [
     'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S',
     'T', 'U', 'V', 'W', 'X', 'Y', 'Z', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l',
@@ -157,19 +156,6 @@ pub fn n_to_base62(n: usize) -> String {
         m = (m - 1) / base;
     }
     s.chars().rev().collect::<String>()
-}
-
-/// Gets an index based on a column letter e.g. A = 0.
-pub(crate) fn span_a2i(a: &str) -> usize {
-    a.chars()
-        .fold(0, |acc, c| acc * 26 + (c as usize - SPAN_COL_A_VALUE + 1))
-        - 1
-}
-
-/// Gets a number based on a column letter e.g. A = 1.
-pub(crate) fn span_a2n(a: &str) -> usize {
-    a.chars()
-        .fold(0, |acc, c| acc * 26 + (c as usize - SPAN_COL_A_VALUE + 1))
 }
 
 fn parse_duration_part(chars: &[u8], total_ns: &mut i128, is_date: bool) -> Result<bool, ()> {

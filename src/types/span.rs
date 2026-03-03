@@ -2,7 +2,6 @@ use crate::Coords;
 use crate::SelectionKind;
 use crate::Table;
 use crate::TableGrid;
-use crate::utils::utils_fns::{span_a2i, span_a2n};
 use regex::Regex;
 use std::sync::OnceLock;
 
@@ -22,6 +21,14 @@ static PATTERN_CELL_END: OnceLock<Regex> = OnceLock::new();
 static PATTERN_CELL_COL: OnceLock<Regex> = OnceLock::new();
 static PATTERN_CELL_ROW: OnceLock<Regex> = OnceLock::new();
 static PATTERN_ALL: OnceLock<Regex> = OnceLock::new();
+const SPAN_COL_A_VALUE: usize = 'A' as usize;
+
+/// Gets an index based on a column letter e.g. A = 0.
+pub(crate) fn span_a2i(a: &str) -> usize {
+    a.chars()
+        .fold(0, |acc, c| acc * 26 + (c as usize - SPAN_COL_A_VALUE + 1))
+        - 1
+}
 
 #[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
 #[cfg_attr(feature = "tsify", tsify(from_wasm_abi))]
@@ -55,7 +62,7 @@ impl Span {
     pub fn rows(&self, grid: &TableGrid) -> std::ops::Range<usize> {
         let start: usize = self.row;
         if let Some(end) = self.end_row {
-            start..end
+            start..end + 1
         } else {
             start..Table::acr_total_rows(&grid.index.cells)
         }
@@ -66,14 +73,17 @@ impl Span {
         if let Some(end) = self.end_row {
             (start, end)
         } else {
-            (start, Table::acr_total_rows(&grid.index.cells))
+            (
+                start,
+                Table::acr_total_rows(&grid.index.cells).saturating_sub(1),
+            )
         }
     }
 
     pub fn cols(&self, grid: &TableGrid) -> std::ops::Range<usize> {
         let start: usize = self.col;
         if let Some(end) = self.end_col {
-            start..end
+            start..end + 1
         } else {
             start..Table::acr_total_cols(&grid.header.cells)
         }
@@ -84,14 +94,17 @@ impl Span {
         if let Some(end) = self.end_col {
             (start, end)
         } else {
-            (start, Table::acr_total_cols(&grid.header.cells))
+            (
+                start,
+                Table::acr_total_cols(&grid.header.cells).saturating_sub(1),
+            )
         }
     }
 
     /// Returns an index.
     pub fn max_row(&self, grid: &TableGrid) -> usize {
         if let Some(end) = self.end_row {
-            end.saturating_sub(1)
+            end
         } else {
             Table::acr_total_rows(&grid.index.cells).saturating_sub(1)
         }
@@ -100,7 +113,7 @@ impl Span {
     /// Returns an index.
     pub fn max_col(&self, grid: &TableGrid) -> usize {
         if let Some(end) = self.end_col {
-            end.saturating_sub(1)
+            end
         } else {
             Table::acr_total_cols(&grid.header.cells).saturating_sub(1)
         }
@@ -147,9 +160,9 @@ impl From<(usize, usize)> for SpanKey {
 
 impl From<(Option<usize>, Option<usize>, Option<usize>, Option<usize>)> for SpanKey {
     fn from(
-        (fr, fc, ur, uc): (Option<usize>, Option<usize>, Option<usize>, Option<usize>),
+        (fr, ur, fc, uc): (Option<usize>, Option<usize>, Option<usize>, Option<usize>),
     ) -> Self {
-        SpanKey::Tuple4(fr, fc, ur, uc)
+        SpanKey::Tuple4(fr, ur, fc, uc)
     }
 }
 
@@ -160,12 +173,12 @@ impl
     )> for SpanKey
 {
     fn from(
-        ((fr, fc), (ur, uc)): (
+        ((fr, ur), (fc, uc)): (
             (Option<usize>, Option<usize>),
             (Option<usize>, Option<usize>),
         ),
     ) -> Self {
-        SpanKey::TuplePair((fr, fc), (ur, uc))
+        SpanKey::TuplePair((fr, ur), (fc, uc))
     }
 }
 
@@ -254,15 +267,15 @@ impl Table {
             }),
             SpanKey::Un64(row) => Ok(Span {
                 row,
-                end_row: Some(row + 1),
+                end_row: Some(row),
                 col: 0,
                 end_col: None,
             }),
             SpanKey::Tuple2(r, c) => Ok(Span {
                 row: r.unwrap_or(0),
-                end_row: r.map(|val| val + 1),
+                end_row: r,
                 col: c.unwrap_or(0),
-                end_col: c.map(|val| val + 1),
+                end_col: c,
             }),
             SpanKey::Tuple4(fr, ur, fc, uc) => Ok(Span {
                 row: fr.unwrap_or(0),
@@ -295,10 +308,10 @@ impl Table {
             let r = m[1]
                 .parse::<usize>()
                 .map_err(|e| format!("Failed to parse row number: {}", e))?
-                - 1;
+                .saturating_sub(1);
             Ok(Span {
                 row: r,
-                end_row: Some(r + 1),
+                end_row: Some(r),
                 col: 0,
                 end_col: None,
             })
@@ -308,30 +321,31 @@ impl Table {
                 row: 0,
                 end_row: None,
                 col: c,
-                end_col: Some(span_a2n(&m[1])),
+                end_col: Some(c),
             })
         } else if let Some(m) = get_pattern_cell().captures(&s) {
             let c = span_a2i(&m[1]);
             let r = m[2]
                 .parse::<usize>()
                 .map_err(|e| format!("Failed to parse row number: {}", e))?
-                - 1;
+                .saturating_sub(1);
             Ok(Span {
                 row: r,
-                end_row: Some(r + 1),
+                end_row: Some(r),
                 col: c,
-                end_col: Some(c + 1),
+                end_col: Some(c),
             })
         } else if let Some(m) = get_pattern_range().captures(&s) {
             let fr = m[2]
                 .parse::<usize>()
                 .map_err(|e| format!("Failed to parse from row: {}", e))?
-                - 1;
+                .saturating_sub(1);
             let fc = span_a2i(&m[1]);
             let ur = m[4]
                 .parse::<usize>()
-                .map_err(|e| format!("Failed to parse end row: {}", e))?;
-            let uc = span_a2n(&m[3]);
+                .map_err(|e| format!("Failed to parse end row: {}", e))?
+                .saturating_sub(1);
+            let uc = span_a2i(&m[3]);
             Ok(Span {
                 row: fr,
                 end_row: Some(ur),
@@ -342,10 +356,11 @@ impl Table {
             let fr = m[1]
                 .parse::<usize>()
                 .map_err(|e| format!("Failed to parse from row: {}", e))?
-                - 1;
+                .saturating_sub(1);
             let ur = m[2]
                 .parse::<usize>()
-                .map_err(|e| format!("Failed to parse end row: {}", e))?;
+                .map_err(|e| format!("Failed to parse end row: {}", e))?
+                .saturating_sub(1);
             Ok(Span {
                 row: fr,
                 end_row: Some(ur),
@@ -356,7 +371,7 @@ impl Table {
             let fr = m[1]
                 .parse::<usize>()
                 .map_err(|e| format!("Failed to parse from row: {}", e))?
-                - 1;
+                .saturating_sub(1);
             Ok(Span {
                 row: fr,
                 end_row: None,
@@ -366,7 +381,8 @@ impl Table {
         } else if let Some(m) = get_pattern_row_end().captures(&s) {
             let ur = m[1]
                 .parse::<usize>()
-                .map_err(|e| format!("Failed to parse end row: {}", e))?;
+                .map_err(|e| format!("Failed to parse end row: {}", e))?
+                .saturating_sub(1);
             Ok(Span {
                 row: 0,
                 end_row: Some(ur),
@@ -375,7 +391,7 @@ impl Table {
             })
         } else if let Some(m) = get_pattern_col_range().captures(&s) {
             let fc = span_a2i(&m[1]);
-            let uc = span_a2n(&m[2]);
+            let uc = span_a2i(&m[2]);
             Ok(Span {
                 row: 0,
                 end_row: None,
@@ -391,7 +407,7 @@ impl Table {
                 end_col: None,
             })
         } else if let Some(m) = get_pattern_col_end().captures(&s) {
-            let uc = span_a2n(&m[1]);
+            let uc = span_a2i(&m[1]);
             Ok(Span {
                 row: 0,
                 end_row: None,
@@ -403,7 +419,7 @@ impl Table {
             let fr = m[2]
                 .parse::<usize>()
                 .map_err(|e| format!("Failed to parse from row: {}", e))?
-                - 1;
+                .saturating_sub(1);
             Ok(Span {
                 row: fr,
                 end_row: None,
@@ -411,10 +427,11 @@ impl Table {
                 end_col: None,
             })
         } else if let Some(m) = get_pattern_cell_end().captures(&s) {
-            let uc = span_a2n(&m[1]);
+            let uc = span_a2i(&m[1]);
             let ur = m[2]
                 .parse::<usize>()
-                .map_err(|e| format!("Failed to parse end row: {}", e))?;
+                .map_err(|e| format!("Failed to parse end row: {}", e))?
+                .saturating_sub(1);
             Ok(Span {
                 row: 0,
                 end_row: Some(ur),
@@ -425,9 +442,9 @@ impl Table {
             let fr = m[2]
                 .parse::<usize>()
                 .map_err(|e| format!("Failed to parse from row: {}", e))?
-                - 1;
+                .saturating_sub(1);
             let fc = span_a2i(&m[1]);
-            let uc = span_a2n(&m[3]);
+            let uc = span_a2i(&m[3]);
             Ok(Span {
                 row: fr,
                 end_row: None,
@@ -438,11 +455,12 @@ impl Table {
             let fr = m[2]
                 .parse::<usize>()
                 .map_err(|e| format!("Failed to parse from row: {}", e))?
-                - 1;
+                .saturating_sub(1);
             let fc = span_a2i(&m[1]);
             let ur = m[3]
                 .parse::<usize>()
-                .map_err(|e| format!("Failed to parse end row: {}", e))?;
+                .map_err(|e| format!("Failed to parse end row: {}", e))?
+                .saturating_sub(1);
             Ok(Span {
                 row: fr,
                 end_row: Some(ur),
