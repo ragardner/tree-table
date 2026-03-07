@@ -135,7 +135,6 @@ impl ChangeDropdown {
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone, PartialEq)]
 pub enum ChangeProgressBar {
-    SetName(String),
     SetBg(Option<Color3>),
     SetFg(Option<Color3>),
     SetPc(f64),
@@ -145,9 +144,6 @@ pub enum ChangeProgressBar {
 impl ChangeProgressBar {
     pub fn invert(&self, pb: &mut ProgressBar) -> ChangeProgressBar {
         match self {
-            ChangeProgressBar::SetName(old) => {
-                ChangeProgressBar::SetName(std::mem::replace(&mut pb.name, old.clone()))
-            }
             ChangeProgressBar::SetBg(old) => {
                 ChangeProgressBar::SetBg(std::mem::replace(&mut pb.bg, old.clone()))
             }
@@ -811,23 +807,6 @@ impl IndexCell {
         let props = self.props.get_or_insert_with(CellProps::default);
         let old_progress_bar = std::mem::replace(&mut props.progress_bar, new_progress_bar);
         ChangeIndexCell::SetProps(ChangeCellProps::SetProgressBar(old_progress_bar))
-    }
-    pub fn record_set_props_progress_bar_name(
-        &mut self,
-        new_name: String,
-    ) -> Result<ChangeIndexCell, String> {
-        let props = self
-            .props
-            .as_mut()
-            .ok_or(str_err!("No CellProps exist for row '{}'", self.iid))?;
-        let pb = props
-            .progress_bar
-            .as_mut()
-            .ok_or(str_err!("No ProgressBar exists for row '{}'", self.iid))?;
-        let old_name = std::mem::replace(&mut pb.name, new_name);
-        Ok(ChangeIndexCell::SetProps(
-            ChangeCellProps::UpdateProgressBar(ChangeProgressBar::SetName(old_name)),
-        ))
     }
     pub fn record_set_props_progress_bar_bg(
         &mut self,

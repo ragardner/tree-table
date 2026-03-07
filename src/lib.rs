@@ -8,11 +8,11 @@ pub mod utils;
 pub use args::{
     AddArgs, AddNumArgs, AddProgressBarArgs, AddProgressBarPosArgs, AddSelectionArgs, BorderArgs,
     BordersArgs, CellAlignArgs, CheckboxArgs, DataFormatArgs, DelArgs, DelProgressBarArgs,
-    DropdownArgs, FillDataArgs, GetDataIidsArgs, GetDataSpanArgs, GetDataYxArgs, HighlightArgs,
-    InsertArgs, ItemArgs, ItemColArgs, ItemResult, MoveArgs, MoveItemsArgs, NoteArgs, ReadonlyArgs,
-    ResetArgs, SelectRowsColsArgs, SelectionClearArgs, SetBordersArgs, SetCheckboxArgs,
-    SetDataArgs, SetDropdownArgs, SetNoteArgs, SetProgressBarArgs, TreeExtendArgs, TreeOpenArgs,
-    UndoRedoArgs,
+    DelProgressBarNameArgs, DropdownArgs, FillDataArgs, GetDataIidsArgs, GetDataSpanArgs,
+    GetDataYxArgs, HighlightArgs, InsertArgs, ItemArgs, ItemColArgs, ItemResult, MoveArgs,
+    MoveItemsArgs, NoteArgs, ReadonlyArgs, ResetArgs, SelectRowsColsArgs, SelectionClearArgs,
+    SetBordersArgs, SetCheckboxArgs, SetDataArgs, SetDropdownArgs, SetNoteArgs, SetProgressBarArgs,
+    SetProgressBarNameArgs, TreeExtendArgs, TreeOpenArgs, UndoRedoArgs,
 };
 pub use table::Table;
 pub use types::{

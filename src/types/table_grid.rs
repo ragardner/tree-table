@@ -15,7 +15,6 @@ pub struct TableGrid {
     pub merged: HashMap<(usize, usize), (usize, usize)>,
     pub frozen_rows: Vec<usize>,
     pub frozen_cols: Vec<usize>,
-    pub named_cells: HashMap<String, (usize, usize)>,
     pub disp_rows: Vec<usize>,
     pub disp_cols: Vec<usize>,
     pub canvas_rows: Vec<u64>,
@@ -32,7 +31,6 @@ impl TableGrid {
             merged: HashMap::new(),
             frozen_rows: Vec::new(),
             frozen_cols: Vec::new(),
-            named_cells: HashMap::new(),
             disp_rows: Vec::new(),
             disp_cols: Vec::new(),
             canvas_rows: Vec::new(),
@@ -47,7 +45,6 @@ impl TableGrid {
         self.merged.clear();
         self.frozen_rows.clear();
         self.frozen_cols.clear();
-        self.named_cells.clear();
         self.disp_rows.clear();
         self.disp_cols.clear();
         self.canvas_rows.clear();
@@ -55,44 +52,28 @@ impl TableGrid {
     }
 
     pub fn push_rows(&mut self, sorted_seq: &Vec<usize>) {
-        self.named_cells = self
-            .named_cells
-            .drain()
-            .map(|(k, v)| (k, (push_n(v.0, sorted_seq), v.1)))
-            .collect();
+        // TODO: add named spans
         self.frozen_rows
             .iter_mut()
             .for_each(|k| *k = push_n(*k, sorted_seq));
     }
 
     pub fn push_cols(&mut self, sorted_seq: &Vec<usize>) {
-        self.named_cells = self
-            .named_cells
-            .drain()
-            .map(|(k, v)| (k, (v.0, push_n(v.1, sorted_seq))))
-            .collect();
+        // TODO: add named spans
         self.frozen_cols
             .iter_mut()
             .for_each(|k| *k = push_n(*k, sorted_seq));
     }
 
     pub fn pull_rows(&mut self, sorted_seq: &Vec<usize>) {
-        self.named_cells = self
-            .named_cells
-            .drain()
-            .map(|(k, v)| (k, (pull_n(v.0, sorted_seq), v.1)))
-            .collect();
+        // TODO: add named spans
         self.frozen_rows
             .iter_mut()
             .for_each(|k| *k = pull_n(*k, sorted_seq));
     }
 
     pub fn pull_cols(&mut self, sorted_seq: &Vec<usize>) {
-        self.named_cells = self
-            .named_cells
-            .drain()
-            .map(|(k, v)| (k, (v.0, pull_n(v.1, sorted_seq))))
-            .collect();
+        // TODO: add named spans
         self.frozen_cols
             .iter_mut()
             .for_each(|k| *k = pull_n(*k, sorted_seq));
@@ -104,11 +85,7 @@ impl TableGrid {
         full_new_to_old: &HashMap<usize, usize>,
     ) -> Result<(), String> {
         self.index.move_rows(full_new_to_old)?;
-        self.named_cells = self
-            .named_cells
-            .drain()
-            .map(|(k, v)| (k, (full_old_to_new[v.0 as usize], v.1)))
-            .collect();
+        // TODO: add named spans
         self.frozen_rows
             .iter_mut()
             .for_each(|k| *k = full_old_to_new[*k as usize]);
@@ -122,11 +99,7 @@ impl TableGrid {
     ) -> Result<(), String> {
         self.index.move_cols(full_old_to_new);
         self.header.move_cols(full_new_to_old)?;
-        self.named_cells = self
-            .named_cells
-            .drain()
-            .map(|(k, v)| (k, (v.0, full_old_to_new[v.1 as usize])))
-            .collect();
+        // TODO: add named spans
         self.frozen_cols
             .iter_mut()
             .for_each(|k| *k = full_old_to_new[*k as usize]);

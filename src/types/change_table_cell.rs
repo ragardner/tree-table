@@ -644,32 +644,6 @@ impl IndexCell {
             change: ChangeCellProps::SetProgressBar(old_progress_bar),
         }
     }
-    pub fn record_set_table_cell_props_progress_bar_name(
-        &mut self,
-        col: usize,
-        new_name: String,
-        default_val: Val,
-    ) -> Result<ChangeIndexCell, String> {
-        let table_cell = self
-            .vals
-            .entry(col)
-            .or_insert_with(|| TableCell::new(default_val));
-        let props = table_cell.props.as_mut().ok_or(str_err!(
-            "No CellProps exist for table cell row '{}', col '{}'",
-            self.iid,
-            col
-        ))?;
-        let pb = props.progress_bar.as_mut().ok_or(str_err!(
-            "No ProgressBar exists on table cell row '{}', col '{}'",
-            self.iid,
-            col
-        ))?;
-        let old_name = std::mem::replace(&mut pb.name, new_name);
-        Ok(ChangeIndexCell::SetTableCellProps {
-            col,
-            change: ChangeCellProps::UpdateProgressBar(ChangeProgressBar::SetName(old_name)),
-        })
-    }
     pub fn record_set_table_cell_props_progress_bar_bg(
         &mut self,
         col: usize,

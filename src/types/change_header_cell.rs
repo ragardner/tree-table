@@ -500,23 +500,6 @@ impl HeaderCell {
         let old_progress_bar = std::mem::replace(&mut props.progress_bar, new_progress_bar);
         ChangeHeaderCell::SetProps(ChangeCellProps::SetProgressBar(old_progress_bar))
     }
-    pub fn record_set_props_progress_bar_name(
-        &mut self,
-        new_name: String,
-    ) -> Result<ChangeHeaderCell, String> {
-        let props = self
-            .props
-            .as_mut()
-            .ok_or(str_err!("No CellProps exist for col '{}'", self.iid))?;
-        let pb = props
-            .progress_bar
-            .as_mut()
-            .ok_or(str_err!("No ProgressBar exists on col '{}'", self.iid))?;
-        let old_name = std::mem::replace(&mut pb.name, new_name);
-        Ok(ChangeHeaderCell::SetProps(
-            ChangeCellProps::UpdateProgressBar(ChangeProgressBar::SetName(old_name)),
-        ))
-    }
     pub fn record_set_props_progress_bar_bg(
         &mut self,
         new_bg: Option<Color3>,

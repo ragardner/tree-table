@@ -640,22 +640,6 @@ impl Table {
         Ok(())
     }
 
-    // IndexCell (regular props) - ProgressBar field setters
-    #[inline]
-    pub(crate) fn acr_event_data_set_iprogressbar_name(
-        cells: &mut Vec<IndexCell>,
-        row: usize,
-        prop: String,
-        event_data: &mut EventData,
-    ) -> Result<(), String> {
-        let cell = Table::acr_icell_mut(cells, row)?;
-        event_data.changes.push(Change::IndexCell {
-            row,
-            change: cell.record_set_props_progress_bar_name(prop)?,
-        });
-        Ok(())
-    }
-
     #[inline]
     pub(crate) fn acr_event_data_set_iprogressbar_bg(
         cells: &mut Vec<IndexCell>,
@@ -716,22 +700,6 @@ impl Table {
         Ok(())
     }
 
-    // HeaderCell - ProgressBar field setters
-    #[inline]
-    pub(crate) fn acr_event_data_set_hprogressbar_name(
-        cells: &mut Vec<HeaderCell>,
-        col: usize,
-        prop: String,
-        event_data: &mut EventData,
-    ) -> Result<(), String> {
-        let cell = Table::acr_hcell_mut(cells, col)?;
-        event_data.changes.push(Change::HeaderCell {
-            col,
-            change: cell.record_set_props_progress_bar_name(prop)?,
-        });
-        Ok(())
-    }
-
     #[inline]
     pub(crate) fn acr_event_data_set_hprogressbar_bg(
         cells: &mut Vec<HeaderCell>,
@@ -788,28 +756,6 @@ impl Table {
         event_data.changes.push(Change::HeaderCell {
             col,
             change: cell.record_set_props_progress_bar_remove_on_complete(prop)?,
-        });
-        Ok(())
-    }
-
-    // TableCell - ProgressBar field setters
-    #[inline]
-    pub(crate) fn acr_event_data_set_tprogressbar_name(
-        cells: &mut Vec<IndexCell>,
-        row: usize,
-        col: usize,
-        prop: String,
-        empty_val: &Val,
-        event_data: &mut EventData,
-    ) -> Result<(), String> {
-        let cell = Table::acr_icell_mut(cells, row)?;
-        event_data.changes.push(Change::IndexCell {
-            row,
-            change: cell.record_set_table_cell_props_progress_bar_name(
-                col,
-                prop,
-                empty_val.clone(),
-            )?,
         });
         Ok(())
     }

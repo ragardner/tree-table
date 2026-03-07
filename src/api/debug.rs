@@ -48,11 +48,6 @@ impl Table {
         Ok(())
     }
 
-    pub fn log_named_cells(&self) -> Result<(), String> {
-        log!("Named Cells: {:?}", self.grid.named_cells);
-        Ok(())
-    }
-
     pub fn log_undo_stack(&self) -> Result<(), String> {
         log!("Undo Stack Size: {}", self.grid.undo_stack.len());
         log!("Redo Stack Size: {}", self.grid.redo_stack.len());
@@ -95,10 +90,6 @@ impl Table {
 
     pub fn debug_canvas_cols(&self) -> String {
         format!("Canvas Cols: {:?}", self.grid.canvas_cols)
-    }
-
-    pub fn debug_named_cells(&self) -> String {
-        format!("Named Cells: {:?}", self.grid.named_cells)
     }
 
     pub fn debug_sizes(&self) -> String {
@@ -147,8 +138,6 @@ impl Table {
         full.push_str(&self.debug_index());
         full.push_str("\n\n");
         full.push_str(&self.debug_selection());
-        full.push_str("\n\n");
-        full.push_str(&self.debug_named_cells());
         full.push_str("\n\n");
         full.push_str(&self.debug_tree_summary());
         full

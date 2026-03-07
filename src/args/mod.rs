@@ -37,7 +37,8 @@ pub use args_move::MoveArgs;
 pub use args_move_items::MoveItemsArgs;
 pub use args_note::{NoteArgs, SetNoteArgs};
 pub use args_progress_bar::{
-    AddProgressBarArgs, AddProgressBarPosArgs, DelProgressBarArgs, SetProgressBarArgs,
+    AddProgressBarArgs, AddProgressBarPosArgs, DelProgressBarArgs, DelProgressBarNameArgs,
+    SetProgressBarArgs, SetProgressBarNameArgs,
 };
 pub use args_readonly::ReadonlyArgs;
 pub use args_reset::ResetArgs;

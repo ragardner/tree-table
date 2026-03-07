@@ -21,18 +21,6 @@ impl Table {
 
         event_data.changes.push(Change::HeaderCell { col, change });
 
-        // If a progress bar exists on this header cell, update only its name field (granular)
-        if let Some(props) = cell.props.as_ref() {
-            if props.progress_bar.is_some() {
-                Self::acr_event_data_set_hprogressbar_name(
-                    &mut header.cells,
-                    col,
-                    new.to_string(),
-                    event_data,
-                )?;
-            }
-        }
-
         // Update the lookup map
         header.iid_to_col.remove(&old_rc);
         header.iid_to_col.insert(new, col);
@@ -92,22 +80,6 @@ impl Table {
                 row: par_row,
                 change,
             });
-        }
-
-        // If an index progress bar exists we update its name field
-        let cell = Self::acr_icell_mut(&mut index.cells, iid_row)?;
-        if cell
-            .props
-            .as_ref()
-            .and_then(|p| p.progress_bar.as_ref())
-            .is_some()
-        {
-            Self::acr_event_data_set_iprogressbar_name(
-                &mut index.cells,
-                iid_row,
-                new.to_string(),
-                event_data,
-            )?;
         }
 
         let cell = Self::acr_icell_mut(&mut index.cells, iid_row)?;

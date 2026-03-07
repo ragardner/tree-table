@@ -1,5 +1,7 @@
+use crate::DelProgressBarNameArgs;
 use crate::EventData;
 use crate::ProgressBar;
+use crate::SetProgressBarNameArgs;
 use crate::Table;
 use crate::args::AddProgressBarArgs;
 use crate::args::DelProgressBarArgs;
@@ -16,17 +18,14 @@ impl Table {
         kwargs: AddProgressBarArgs,
     ) -> Result<Option<Rc<RefCell<EventData>>>, String> {
         let progress_bar = Some(ProgressBar {
-            name: kwargs.name.clone(),
             bg: try_hex_to_color3(kwargs.bg)?,
             fg: try_hex_to_color3(kwargs.fg)?,
             pc: kwargs.percent,
             remove_on_complete: kwargs.remove_on_complete,
         });
-        let row = kwargs.row as usize;
-        let col = kwargs.col as usize;
-        let name = kwargs.name;
+        let row = Self::acr_pos(&self.grid.index.iid_to_row, &kwargs.row)?;
+        let col = Self::acr_pos(&self.grid.header.iid_to_col, &kwargs.col)?;
         let mut event_data: EventData = self.cr_new_event(kwargs.save_selection);
-        self.grid.named_cells.insert(name, (row, col));
         Self::acr_event_data_set_tprogressbar(
             &mut self.grid.index.cells,
             row,
@@ -43,7 +42,6 @@ impl Table {
         kwargs: AddProgressBarPosArgs,
     ) -> Result<Option<Rc<RefCell<EventData>>>, String> {
         let progress_bar = Some(ProgressBar {
-            name: kwargs.name,
             bg: try_hex_to_color3(kwargs.bg)?,
             fg: try_hex_to_color3(kwargs.fg)?,
             pc: kwargs.percent,
@@ -64,7 +62,6 @@ impl Table {
         kwargs: AddProgressBarPosArgs,
     ) -> Result<Option<Rc<RefCell<EventData>>>, String> {
         let progress_bar = Some(ProgressBar {
-            name: kwargs.name,
             bg: try_hex_to_color3(kwargs.bg)?,
             fg: try_hex_to_color3(kwargs.fg)?,
             pc: kwargs.percent,
@@ -84,16 +81,9 @@ impl Table {
         &mut self,
         kwargs: DelProgressBarArgs,
     ) -> Result<Option<Rc<RefCell<EventData>>>, String> {
-        let name = kwargs.name;
-        if !self.grid.named_cells.contains_key(&name) {
-            return Ok(None);
-        }
+        let row = Self::acr_pos(&self.grid.index.iid_to_row, &kwargs.row)?;
+        let col = Self::acr_pos(&self.grid.header.iid_to_col, &kwargs.col)?;
         let mut event_data: EventData = self.cr_new_event(kwargs.save_selection);
-        let (row, col) = self
-            .grid
-            .named_cells
-            .remove(&name)
-            .ok_or(str_err!("Failed to remove '{}' from named_cells", &name))?;
         Self::acr_event_data_set_tprogressbar(
             &mut self.grid.index.cells,
             row,
@@ -107,7 +97,7 @@ impl Table {
 
     pub fn del_progress_bar_i(
         &mut self,
-        kwargs: DelProgressBarArgs,
+        kwargs: DelProgressBarNameArgs,
     ) -> Result<Option<Rc<RefCell<EventData>>>, String> {
         let name = kwargs.name;
         let pos = Self::acr_pos(&self.grid.index.iid_to_row, name.as_str())?;
@@ -123,7 +113,7 @@ impl Table {
 
     pub fn del_progress_bar_h(
         &mut self,
-        kwargs: DelProgressBarArgs,
+        kwargs: DelProgressBarNameArgs,
     ) -> Result<Option<Rc<RefCell<EventData>>>, String> {
         let name = kwargs.name;
         let pos = Self::acr_pos(&self.grid.header.iid_to_col, name.as_str())?;
@@ -141,18 +131,8 @@ impl Table {
         &mut self,
         kwargs: SetProgressBarArgs,
     ) -> Result<Option<Rc<RefCell<EventData>>>, String> {
-        let name = kwargs.name.clone();
-        let (row, col) = match self.grid.named_cells.get(&name) {
-            Some(&(r, c)) => (r, c),
-            None => {
-                if kwargs.err_if_not_found {
-                    return Err(str_err!("Progress bar '{}' not found", name));
-                } else {
-                    return Ok(None);
-                }
-            }
-        };
-
+        let row = Self::acr_pos(&self.grid.index.iid_to_row, &kwargs.row)?;
+        let col = Self::acr_pos(&self.grid.header.iid_to_col, &kwargs.col)?;
         let mut event_data: EventData = self.cr_new_event(kwargs.save_selection);
 
         // Get current progress bar (if any)
@@ -243,7 +223,7 @@ impl Table {
 
     pub fn set_progress_bar_i(
         &mut self,
-        kwargs: SetProgressBarArgs,
+        kwargs: SetProgressBarNameArgs,
     ) -> Result<Option<Rc<RefCell<EventData>>>, String> {
         let name = kwargs.name.clone();
         let pos = match Self::acr_pos(&self.grid.index.iid_to_row, &name) {
@@ -336,7 +316,7 @@ impl Table {
 
     pub fn set_progress_bar_h(
         &mut self,
-        kwargs: SetProgressBarArgs,
+        kwargs: SetProgressBarNameArgs,
     ) -> Result<Option<Rc<RefCell<EventData>>>, String> {
         let name = kwargs.name.clone();
         let pos = match Self::acr_pos(&self.grid.header.iid_to_col, &name) {
