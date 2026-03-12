@@ -55,10 +55,7 @@ impl Header {
     }
 
     /// Remove and return multiple items, delete cols
-    pub fn del_cols(
-        &mut self,
-        sorted_seq: &Vec<usize>,
-    ) -> Result<Vec<(usize, HeaderCell)>, String> {
+    pub fn del_cols(&mut self, sorted_seq: &[usize]) -> Result<Vec<(usize, HeaderCell)>, String> {
         let largest_pos = *sorted_seq.last().ok_or(str_err!("To delete is empty."))?;
         if largest_pos >= self.cells.len() {
             return Err(str_err!(
@@ -80,25 +77,49 @@ impl Header {
         Ok(removed)
     }
 
-    pub fn move_cols(&mut self, full_new_to_old: &HashMap<usize, usize>) -> Result<(), String> {
-        if !self.cells.is_empty() {
-            let mut seq_opt = std::mem::take(&mut self.cells)
-                .into_iter()
-                .map(Some)
-                .collect::<Vec<_>>();
-            self.cells = Vec::with_capacity(seq_opt.len());
-            for i in 0..seq_opt.len() {
-                if let Some(&old_idx) = full_new_to_old.get(&i) {
-                    let cell = seq_opt[old_idx]
-                        .take()
-                        .ok_or(str_err!("Mapping error: {}", old_idx))?;
-                    if let Some(col) = self.iid_to_col.get_mut(&cell.iid) {
-                        *col = i;
-                    };
-                    self.cells.push(cell);
+    pub fn move_cols(&mut self, full_new_to_old: &[usize]) -> Result<(), String> {
+        let n = self.cells.len();
+        if n == 0 {
+            return Ok(());
+        }
+        if full_new_to_old.len() != n {
+            return Err(str_err!(
+                "move_cols: length mismatch (got {}, expected {})",
+                full_new_to_old.len(),
+                n
+            ));
+        }
+
+        #[cfg(any(debug_assertions, feature = "extra-safety"))]
+        {
+            let mut seen = vec![false; n];
+            for &old_idx in full_new_to_old {
+                if old_idx >= n || seen[old_idx] {
+                    return Err(str_err!("Mapping error: invalid old index {}", old_idx));
                 }
+                seen[old_idx] = true;
             }
         }
+
+        let mut seq_opt = std::mem::take(&mut self.cells)
+            .into_iter()
+            .map(Some)
+            .collect::<Vec<_>>();
+
+        self.cells = Vec::with_capacity(n);
+
+        for i in 0..n {
+            let old_idx = full_new_to_old[i];
+            let cell = seq_opt[old_idx]
+                .take()
+                .ok_or(str_err!("Mapping error: {}", old_idx))?;
+
+            if let Some(col) = self.iid_to_col.get_mut(&cell.iid) {
+                *col = i;
+            };
+            self.cells.push(cell);
+        }
+
         Ok(())
     }
 

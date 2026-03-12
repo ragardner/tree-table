@@ -15,7 +15,7 @@ impl Table {
     /// Get Option<borrowed TableCell> using row, col
     #[inline]
     pub(crate) fn acr_tcell<'v>(
-        cells: &'v Vec<IndexCell>,
+        cells: &'v [IndexCell],
         rn: usize,
         cn: usize,
     ) -> Option<&'v TableCell> {
@@ -26,7 +26,7 @@ impl Table {
     /// Get Option<borrowed TableCell.props> using row, col
     #[inline]
     pub(crate) fn acr_tcell_props<'v>(
-        cells: &'v Vec<IndexCell>,
+        cells: &'v [IndexCell],
         rn: usize,
         cn: usize,
     ) -> Option<&'v CellProps> {
@@ -38,7 +38,7 @@ impl Table {
     /// Get Option<borrowed TableCell> using row, col
     #[inline]
     pub(crate) fn acr_tcell_mut<'v>(
-        cells: &'v mut Vec<IndexCell>,
+        cells: &'v mut [IndexCell],
         rn: usize,
         cn: usize,
     ) -> Option<&'v mut TableCell> {
@@ -49,7 +49,7 @@ impl Table {
     /// Get borrowed val from TableCell.
     #[inline]
     pub(crate) fn acr_tcell_val<'v>(
-        cells: &'v Vec<IndexCell>,
+        cells: &'v [IndexCell],
         rn: usize,
         cn: usize,
     ) -> Option<&'v Val> {
@@ -58,18 +58,14 @@ impl Table {
 
     /// Get cloned val from TableCell.
     #[inline]
-    pub(crate) fn acr_tcell_val_cloned(
-        cells: &Vec<IndexCell>,
-        rn: usize,
-        cn: usize,
-    ) -> Option<Val> {
+    pub(crate) fn acr_tcell_val_cloned(cells: &[IndexCell], rn: usize, cn: usize) -> Option<Val> {
         Self::acr_tcell(cells, rn, cn).map(|tc| tc.val.clone())
     }
 
     /// Get borrowed align from TableCell props.
     #[inline]
     pub(crate) fn acr_tcell_align<'v>(
-        cells: &'v Vec<IndexCell>,
+        cells: &'v [IndexCell],
         rn: usize,
         cn: usize,
     ) -> Option<&'v CellAlign> {
@@ -84,7 +80,7 @@ impl Table {
     /// Get borrowed borders from TableCell props.
     #[inline]
     pub(crate) fn acr_tcell_borders<'v>(
-        cells: &'v Vec<IndexCell>,
+        cells: &'v [IndexCell],
         rn: usize,
         cn: usize,
     ) -> Option<&'v CellBorders> {
@@ -99,7 +95,7 @@ impl Table {
     /// Get borrowed checkbox from TableCell props.
     #[inline]
     pub(crate) fn acr_tcell_checkbox<'v>(
-        cells: &'v Vec<IndexCell>,
+        cells: &'v [IndexCell],
         rn: usize,
         cn: usize,
     ) -> Option<&'v Checkbox> {
@@ -114,7 +110,7 @@ impl Table {
     /// Get borrowed data_format from TableCell props.
     #[inline]
     pub(crate) fn acr_tcell_data_format<'v>(
-        cells: &'v Vec<IndexCell>,
+        cells: &'v [IndexCell],
         rn: usize,
         cn: usize,
     ) -> Option<&'v DataFormat> {
@@ -129,7 +125,7 @@ impl Table {
     /// Get borrowed dropdown from TableCell props.
     #[inline]
     pub(crate) fn acr_tcell_dropdown<'v>(
-        cells: &'v Vec<IndexCell>,
+        cells: &'v [IndexCell],
         rn: usize,
         cn: usize,
     ) -> Option<&'v Dropdown> {
@@ -144,7 +140,7 @@ impl Table {
     /// Get borrowed highlight from TableCell props.
     #[inline]
     pub(crate) fn acr_tcell_highlight<'v>(
-        cells: &'v Vec<IndexCell>,
+        cells: &'v [IndexCell],
         rn: usize,
         cn: usize,
     ) -> Option<&'v Highlight> {
@@ -159,7 +155,7 @@ impl Table {
     /// Get borrowed note from TableCell props.
     #[inline]
     pub(crate) fn acr_tcell_note<'v>(
-        cells: &'v Vec<IndexCell>,
+        cells: &'v [IndexCell],
         rn: usize,
         cn: usize,
     ) -> Option<&'v Note> {
@@ -174,7 +170,7 @@ impl Table {
     /// Get borrowed progress_bar from TableCell props.
     #[inline]
     pub(crate) fn acr_tcell_progress_bar<'v>(
-        cells: &'v Vec<IndexCell>,
+        cells: &'v [IndexCell],
         rn: usize,
         cn: usize,
     ) -> Option<&'v ProgressBar> {
@@ -189,7 +185,7 @@ impl Table {
     /// Get readonly from TableCell props.
     #[inline]
     pub(crate) fn acr_tcell_readonly<'v>(
-        cells: &'v Vec<IndexCell>,
+        cells: &'v [IndexCell],
         rn: usize,
         cn: usize,
     ) -> Option<bool> {

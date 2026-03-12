@@ -53,7 +53,7 @@ impl Index {
 
     /// Use a Vec of tuples of usize, Indexcell to push the existing
     /// indices of the Index forward.
-    pub(crate) fn add_rows_just_push_hm(&mut self, sorted_seq: &Vec<usize>) {
+    pub(crate) fn add_rows_just_push_hm(&mut self, sorted_seq: &[usize]) {
         // Adjust existing HashMap indices
         for (_, row) in self.iid_to_row.iter_mut() {
             *row = push_n(*row, &sorted_seq);
@@ -90,7 +90,7 @@ impl Index {
     /// Remove and return multiple items, delete rows
     pub(crate) fn del_rows(
         &mut self,
-        sorted_seq: &Vec<usize>,
+        sorted_seq: &[usize],
     ) -> Result<Vec<(usize, IndexCell)>, String> {
         let largest_pos = *sorted_seq.last().ok_or(str_err!("To delete is empty."))?;
         if largest_pos >= self.cells.len() {
@@ -113,28 +113,49 @@ impl Index {
         Ok(removed)
     }
 
-    pub(crate) fn move_rows(
-        &mut self,
-        full_new_to_old: &HashMap<usize, usize>,
-    ) -> Result<(), String> {
-        if !self.cells.is_empty() {
-            let mut seq_opt = std::mem::take(&mut self.cells)
-                .into_iter()
-                .map(Some)
-                .collect::<Vec<_>>();
-            self.cells = Vec::with_capacity(seq_opt.len());
-            for i in 0..seq_opt.len() {
-                if let Some(&old_idx) = full_new_to_old.get(&i) {
-                    let cell = seq_opt[old_idx]
-                        .take()
-                        .ok_or(str_err!("Mapping error: {}", old_idx))?;
-                    if let Some(row) = self.iid_to_row.get_mut(&cell.iid) {
-                        *row = i;
-                    };
-                    self.cells.push(cell);
+    pub(crate) fn move_rows(&mut self, full_new_to_old: &[usize]) -> Result<(), String> {
+        let n = self.cells.len();
+        if n == 0 {
+            return Ok(());
+        }
+        if full_new_to_old.len() != n {
+            return Err(str_err!(
+                "move_rows: length mismatch (got {}, expected {})",
+                full_new_to_old.len(),
+                n
+            ));
+        }
+
+        #[cfg(any(debug_assertions, feature = "extra-safety"))]
+        {
+            let mut seen = vec![false; n];
+            for &old_idx in full_new_to_old {
+                if old_idx >= n || seen[old_idx] {
+                    return Err(str_err!("Mapping error: invalid old index {}", old_idx));
                 }
+                seen[old_idx] = true;
             }
         }
+
+        let mut seq_opt = std::mem::take(&mut self.cells)
+            .into_iter()
+            .map(Some)
+            .collect::<Vec<_>>();
+
+        self.cells = Vec::with_capacity(n);
+
+        for i in 0..n {
+            let old_idx = full_new_to_old[i];
+            let cell = seq_opt[old_idx]
+                .take()
+                .ok_or(str_err!("Mapping error: {}", old_idx))?;
+
+            if let Some(row) = self.iid_to_row.get_mut(&cell.iid) {
+                *row = i;
+            };
+            self.cells.push(cell);
+        }
+
         Ok(())
     }
 
@@ -142,7 +163,7 @@ impl Index {
     pub(crate) fn add_cols(
         &mut self,
         to_add: Option<Vec<(usize, Vec<(usize, TableCell)>)>>,
-        sorted_seq: &Vec<usize>,
+        sorted_seq: &[usize],
     ) {
         // Adjust existing HashMap indices
         for icell in self.cells.iter_mut() {
@@ -170,7 +191,7 @@ impl Index {
 
     pub(crate) fn del_cols(
         &mut self,
-        sorted_seq: &Vec<usize>,
+        sorted_seq: &[usize],
     ) -> Vec<(usize, Vec<(usize, TableCell)>)> {
         let mut removed: Vec<(usize, Vec<(usize, TableCell)>)> = Vec::new();
 
@@ -218,7 +239,7 @@ impl Index {
         removed
     }
 
-    pub(crate) fn move_cols(&mut self, full_new_idxs: &Vec<usize>) {
+    pub(crate) fn move_cols(&mut self, full_new_idxs: &[usize]) {
         for icell in self.cells.iter_mut() {
             let max_map = &mut icell.vals;
             if max_map.is_empty() {

@@ -32,7 +32,7 @@ impl Table {
 
     #[inline]
     pub(crate) fn acr_compute_deleted_disp_cols(
-        disp_cols: &Vec<usize>,
+        disp_cols: &[usize],
         deleted_data_positions: &[usize], // already sorted + unique from caller
     ) -> Vec<usize> {
         // No sort/dedup needed — output is guaranteed sorted ascending

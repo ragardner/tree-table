@@ -467,7 +467,7 @@ impl Table {
     /// Restores cells when undo/redo OR modifies parents children if adding rows.
     pub(crate) fn acr_tree_add_rows(
         grid: &mut TableGrid,
-        index_cells: &Vec<(usize, IndexCell)>,
+        index_cells: &[(usize, IndexCell)],
         event_data: &mut EventData,
     ) -> Result<(), String> {
         if !event_data.tree_changes.is_empty() {
@@ -528,7 +528,7 @@ impl Table {
     pub(crate) fn acr_tree_del_rows(
         mut cells: &mut Vec<IndexCell>,
         iid_to_row: &HashMap<Rc<str>, usize>,
-        positions: &Vec<usize>,
+        positions: &[usize],
         mut event_data: &mut EventData,
     ) -> Result<(), String> {
         // positons should be sorted and unique

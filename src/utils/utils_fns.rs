@@ -68,7 +68,7 @@ pub(crate) fn pull_n(k: usize, sorted_seq: &[usize]) -> usize {
 }
 
 #[inline]
-pub(crate) fn push_n_add<T>(k: usize, sorted_seq: &Vec<(usize, T)>) -> usize {
+pub(crate) fn push_n_add<T>(k: usize, sorted_seq: &[(usize, T)]) -> usize {
     if sorted_seq.is_empty() || k < sorted_seq[0].0 {
         k
     } else {
@@ -111,34 +111,29 @@ pub(crate) fn offset_move_indices(
     old_to_new
 }
 
-pub(crate) fn move_using_map_usize_get_inverse(
-    seq: &Vec<usize>,
-    old: &HashSet<usize>,
-    new_to_old: &HashMap<usize, usize>,
-) -> (Vec<usize>, HashMap<usize, usize>) {
-    let slen = seq.len();
-    let mut remaining_elements =
-        (0..slen).filter_map(|i| if old.contains(&i) { None } else { Some(seq[i]) });
-    let mut full_old_to_new: Vec<usize> = Vec::with_capacity(slen);
-    let mut full_new_to_old: HashMap<usize, usize> = HashMap::new();
-    for i in 0..slen {
-        if let Some(&old_idx) = new_to_old.get(&i) {
-            full_old_to_new.push(seq[old_idx]);
-            full_new_to_old.insert(i, old_idx);
-        } else if let Some(e) = remaining_elements.next() {
-            full_old_to_new.push(e);
-            full_new_to_old.insert(i, e);
-        }
-    }
-    (full_old_to_new, full_new_to_old)
-}
-
 pub(crate) fn get_full_move_map(
     len: usize,
     old: &HashSet<usize>,
-    new_to_old: &HashMap<usize, usize>,
-) -> (Vec<usize>, HashMap<usize, usize>) {
-    move_using_map_usize_get_inverse(&(0..len).collect(), old, new_to_old)
+    new_to_old: &HashMap<usize, usize>, // still sparse — unchanged
+) -> (Vec<usize>, Vec<usize>) {
+    // (full_old_to_new: old→new, full_new_to_old: new→old)
+    let mut full_old_to_new = vec![0usize; len]; // index = old pos, value = new pos
+    let mut full_new_to_old = vec![0usize; len]; // index = new pos, value = old pos
+
+    let mut remaining_old = (0..len).filter(|&i| !old.contains(&i));
+
+    for new_i in 0..len {
+        let old_i = if let Some(&oi) = new_to_old.get(&new_i) {
+            oi
+        } else {
+            remaining_old.next().unwrap_or(new_i) // fallback, should never hit
+        };
+
+        full_new_to_old[new_i] = old_i;
+        full_old_to_new[old_i] = new_i;
+    }
+
+    (full_old_to_new, full_new_to_old)
 }
 
 /// Converts a usize to a compact String using base-62 bijective encoding (A-Z, a-z, 0-9).

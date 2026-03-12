@@ -16,7 +16,7 @@ use std::rc::Rc;
 impl Table {
     #[inline]
     pub(crate) fn acr_col_iid_is_vis<'v>(
-        cells: &Vec<HeaderCell>,
+        cells: &[HeaderCell],
         iid_to_col: &HashMap<Rc<str>, usize>,
         iid: &str,
     ) -> Result<bool, String> {
@@ -28,7 +28,7 @@ impl Table {
     /// Get Result<borrowed iid, String> using col
     #[inline]
     pub(crate) fn acr_borrow_ciid<'v>(
-        v: &'v Vec<HeaderCell>,
+        v: &'v [HeaderCell],
         pos: usize,
     ) -> Result<&'v Rc<str>, String> {
         v.get(pos)
@@ -38,7 +38,7 @@ impl Table {
 
     /// Get Result<iid, String> using col
     #[inline]
-    pub(crate) fn acr_copy_ciid<'v>(v: &'v Vec<HeaderCell>, pos: usize) -> Result<Rc<str>, String> {
+    pub(crate) fn acr_copy_ciid<'v>(v: &'v [HeaderCell], pos: usize) -> Result<Rc<str>, String> {
         v.get(pos)
             .map(|cell| cell.iid.clone())
             .ok_or(str_err!("pos out of bounds: {}", pos))
@@ -47,7 +47,7 @@ impl Table {
     /// Get Result<borrowed HeaderCell, String> using col
     #[inline]
     pub(crate) fn acr_hcell<'v>(
-        cells: &'v Vec<HeaderCell>,
+        cells: &'v [HeaderCell],
         cn: usize,
     ) -> Result<&'v HeaderCell, String> {
         cells.get(cn).ok_or(str_err!("Col not found: {}", cn))
@@ -55,7 +55,7 @@ impl Table {
 
     #[inline]
     pub(crate) fn acr_hcell_mut<'v>(
-        cells: &'v mut Vec<HeaderCell>,
+        cells: &'v mut [HeaderCell],
         cn: usize,
     ) -> Result<&'v mut HeaderCell, String> {
         cells.get_mut(cn).ok_or(str_err!("Col not found: {}", cn))
@@ -63,10 +63,7 @@ impl Table {
 
     /// Get borrowed val from HeaderCell.
     #[inline]
-    pub(crate) fn acr_hcell_val<'v>(
-        cells: &'v Vec<HeaderCell>,
-        cn: usize,
-    ) -> Result<&'v Val, String> {
+    pub(crate) fn acr_hcell_val<'v>(cells: &'v [HeaderCell], cn: usize) -> Result<&'v Val, String> {
         let cell = cells.get(cn).ok_or(str_err!("Col not found: {}", cn))?;
         Ok(&cell.val)
     }
@@ -74,7 +71,7 @@ impl Table {
     /// Get borrowed align from HeaderCell props.
     #[inline]
     pub(crate) fn acr_hcell_align<'v>(
-        cells: &'v Vec<HeaderCell>,
+        cells: &'v [HeaderCell],
         cn: usize,
     ) -> Result<Option<&'v CellAlign>, String> {
         let cell = cells.get(cn).ok_or(str_err!("Col not found: {}", cn))?;
@@ -84,7 +81,7 @@ impl Table {
     /// Get borrowed borders from HeaderCell props.
     #[inline]
     pub(crate) fn acr_hcell_borders<'v>(
-        cells: &'v Vec<HeaderCell>,
+        cells: &'v [HeaderCell],
         cn: usize,
     ) -> Result<Option<&'v CellBorders>, String> {
         let cell = cells.get(cn).ok_or(str_err!("Col not found: {}", cn))?;
@@ -94,7 +91,7 @@ impl Table {
     /// Get borrowed checkbox from HeaderCell props.
     #[inline]
     pub(crate) fn acr_hcell_checkbox<'v>(
-        cells: &'v Vec<HeaderCell>,
+        cells: &'v [HeaderCell],
         cn: usize,
     ) -> Result<Option<&'v Checkbox>, String> {
         let cell = cells.get(cn).ok_or(str_err!("Col not found: {}", cn))?;
@@ -107,7 +104,7 @@ impl Table {
     /// Get borrowed data_format from HeaderCell props.
     #[inline]
     pub(crate) fn acr_hcell_data_format<'v>(
-        cells: &'v Vec<HeaderCell>,
+        cells: &'v [HeaderCell],
         cn: usize,
     ) -> Result<Option<&'v DataFormat>, String> {
         let cell = cells.get(cn).ok_or(str_err!("Col not found: {}", cn))?;
@@ -120,7 +117,7 @@ impl Table {
     /// Get borrowed dropdown from HeaderCell props.
     #[inline]
     pub(crate) fn acr_hcell_dropdown<'v>(
-        cells: &'v Vec<HeaderCell>,
+        cells: &'v [HeaderCell],
         cn: usize,
     ) -> Result<Option<&'v Dropdown>, String> {
         let cell = cells.get(cn).ok_or(str_err!("Col not found: {}", cn))?;
@@ -133,7 +130,7 @@ impl Table {
     /// Get borrowed highlight from HeaderCell props.
     #[inline]
     pub(crate) fn acr_hcell_highlight<'v>(
-        cells: &'v Vec<HeaderCell>,
+        cells: &'v [HeaderCell],
         cn: usize,
     ) -> Result<Option<&'v Highlight>, String> {
         let cell = cells.get(cn).ok_or(str_err!("Col not found: {}", cn))?;
@@ -146,7 +143,7 @@ impl Table {
     /// Get borrowed note from HeaderCell props.
     #[inline]
     pub(crate) fn acr_hcell_note<'v>(
-        cells: &'v Vec<HeaderCell>,
+        cells: &'v [HeaderCell],
         cn: usize,
     ) -> Result<Option<&'v Note>, String> {
         let cell = cells.get(cn).ok_or(str_err!("Col not found: {}", cn))?;
@@ -156,7 +153,7 @@ impl Table {
     /// Get borrowed progress_bar from HeaderCell props.
     #[inline]
     pub(crate) fn acr_hcell_progress_bar<'v>(
-        cells: &'v Vec<HeaderCell>,
+        cells: &'v [HeaderCell],
         cn: usize,
     ) -> Result<Option<&'v ProgressBar>, String> {
         let cell = cells.get(cn).ok_or(str_err!("Col not found: {}", cn))?;
@@ -169,7 +166,7 @@ impl Table {
     /// Get borrowed readonly from HeaderCell props.
     #[inline]
     pub(crate) fn acr_hcell_readonly<'v>(
-        cells: &'v Vec<HeaderCell>,
+        cells: &'v [HeaderCell],
         cn: usize,
     ) -> Result<bool, String> {
         let cell = cells.get(cn).ok_or(str_err!("Col not found: {}", cn))?;

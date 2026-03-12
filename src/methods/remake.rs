@@ -7,7 +7,7 @@ impl Table {
     pub(crate) fn acr_remake_rows(
         canvas_rows: &mut Vec<u64>,
         disp_rows: &mut Vec<usize>,
-        cells: &Vec<IndexCell>,
+        cells: &[IndexCell],
         mut line_width: u64,
     ) {
         line_width -= 1;
@@ -35,7 +35,7 @@ impl Table {
     pub(crate) fn acr_remake_cols(
         canvas_cols: &mut Vec<u64>,
         disp_cols: &mut Vec<usize>,
-        cells: &Vec<HeaderCell>,
+        cells: &[HeaderCell],
         mut line_width: u64,
     ) {
         line_width -= 1;

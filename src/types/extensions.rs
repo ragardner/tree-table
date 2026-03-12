@@ -52,3 +52,34 @@ impl<T> TrySetExt<T> for Vec<T> {
         }
     }
 }
+
+impl GetCellResultExt for [IndexCell] {
+    fn get_res(&self, index: usize) -> Result<&IndexCell, String> {
+        let len = self.len();
+        self.get(index)
+            .ok_or(str_err!("Index {} out of bounds (len: {})", index, len))
+    }
+}
+
+impl GetCellMutResultExt for [IndexCell] {
+    fn get_res_mut(&mut self, index: usize) -> Result<&mut IndexCell, String> {
+        let len = self.len();
+        self.get_mut(index)
+            .ok_or(str_err!("Index {} out of bounds (len: {})", index, len))
+    }
+}
+
+impl<T> TrySetExt<T> for [T] {
+    fn try_set(&mut self, index: usize, value: T) -> Result<(), String> {
+        if index < self.len() {
+            self[index] = value;
+            Ok(())
+        } else {
+            Err(format!(
+                "index {} out of bounds for length {}",
+                index,
+                self.len()
+            ))
+        }
+    }
+}

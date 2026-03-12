@@ -61,7 +61,7 @@ impl Table {
     /// Builds table cells for a given row specification, handling both provided values and inherited properties.
     #[inline]
     pub(crate) fn build_row_cells(
-        icells: &Vec<IndexCell>,
+        icells: &[IndexCell],
         header: &Header,
         vals: Option<Vec<(String, Val)>>,
         inherit_row: usize,

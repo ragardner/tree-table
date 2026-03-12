@@ -51,28 +51,28 @@ impl TableGrid {
         self.canvas_cols.clear();
     }
 
-    pub fn push_rows(&mut self, sorted_seq: &Vec<usize>) {
+    pub fn push_rows(&mut self, sorted_seq: &[usize]) {
         // TODO: add named spans
         self.frozen_rows
             .iter_mut()
             .for_each(|k| *k = push_n(*k, sorted_seq));
     }
 
-    pub fn push_cols(&mut self, sorted_seq: &Vec<usize>) {
+    pub fn push_cols(&mut self, sorted_seq: &[usize]) {
         // TODO: add named spans
         self.frozen_cols
             .iter_mut()
             .for_each(|k| *k = push_n(*k, sorted_seq));
     }
 
-    pub fn pull_rows(&mut self, sorted_seq: &Vec<usize>) {
+    pub fn pull_rows(&mut self, sorted_seq: &[usize]) {
         // TODO: add named spans
         self.frozen_rows
             .iter_mut()
             .for_each(|k| *k = pull_n(*k, sorted_seq));
     }
 
-    pub fn pull_cols(&mut self, sorted_seq: &Vec<usize>) {
+    pub fn pull_cols(&mut self, sorted_seq: &[usize]) {
         // TODO: add named spans
         self.frozen_cols
             .iter_mut()
@@ -81,8 +81,8 @@ impl TableGrid {
 
     pub fn move_rows(
         &mut self,
-        full_old_to_new: &Vec<usize>,
-        full_new_to_old: &HashMap<usize, usize>,
+        full_old_to_new: &[usize],
+        full_new_to_old: &[usize],
     ) -> Result<(), String> {
         self.index.move_rows(full_new_to_old)?;
         // TODO: add named spans
@@ -94,8 +94,8 @@ impl TableGrid {
 
     pub fn move_cols(
         &mut self,
-        full_old_to_new: &Vec<usize>,
-        full_new_to_old: &HashMap<usize, usize>,
+        full_old_to_new: &[usize],
+        full_new_to_old: &[usize],
     ) -> Result<(), String> {
         self.index.move_cols(full_old_to_new);
         self.header.move_cols(full_new_to_old)?;
