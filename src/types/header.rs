@@ -90,7 +90,7 @@ impl Header {
             ));
         }
 
-        #[cfg(any(debug_assertions, feature = "extra-safety"))]
+        #[cfg(any(debug_assertions, feature = "safety"))]
         {
             let mut seen = vec![false; n];
             for &old_idx in full_new_to_old {

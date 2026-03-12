@@ -1,11 +1,77 @@
+use crate::Change;
 use crate::EventData;
 use crate::Table;
 use crate::args::TreeOpenArgs;
 use crate::utils::consecutive_ranges::consecutive_ranges_borrowed;
 use std::cell::RefCell;
+use std::collections::HashSet;
 use std::rc::Rc;
 
 impl Table {
+    // Sets IndexCells to open/close and returns a Set of rows to show/hide.
+    pub(crate) fn cr_tree_open_close<I>(
+        &mut self,
+        rows: I,
+        open: bool,
+        event_data: Option<&mut EventData>,
+    ) -> Result<Vec<usize>, String>
+    where
+        I: IntoIterator<Item = usize>,
+    {
+        // Rows to be shown after opening `rows`
+        let mut to_show_or_hide: Vec<usize> = Vec::new();
+        // Helper to determine if a row is visible
+        let mut vis_check: HashSet<usize> = HashSet::new();
+
+        match event_data {
+            Some(event_data_mut) => {
+                for rn in rows {
+                    let cell = Self::acr_icell_mut(&mut self.grid.index.cells, rn)?;
+                    event_data_mut.changes.push(Change::IndexCell {
+                        row: rn,
+                        change: cell.record_set_open(open),
+                    });
+                    if !cell.chn.is_empty() && cell.vis || vis_check.contains(&rn) {
+                        for res in Self::acr_tree_descendants_rows(
+                            &self.grid.index.cells,
+                            &self.grid.index.iid_to_row,
+                            rn,
+                            true,
+                        ) {
+                            let did_row = res?;
+                            if open {
+                                vis_check.insert(did_row);
+                            }
+                            to_show_or_hide.push(did_row);
+                        }
+                    }
+                }
+            }
+            None => {
+                for rn in rows {
+                    let cell = Self::acr_icell_mut(&mut self.grid.index.cells, rn)?;
+                    cell.open = open;
+                    if !cell.chn.is_empty() && cell.vis || vis_check.contains(&rn) {
+                        for res in Self::acr_tree_descendants_rows(
+                            &self.grid.index.cells,
+                            &self.grid.index.iid_to_row,
+                            rn,
+                            true,
+                        ) {
+                            let did_row = res?;
+                            if open {
+                                vis_check.insert(did_row);
+                            }
+                            to_show_or_hide.push(did_row);
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(to_show_or_hide)
+    }
+
     pub(crate) fn tree_set_open_or_closed(
         &mut self,
         kwargs: TreeOpenArgs,
@@ -51,7 +117,12 @@ impl Table {
             event_data.changes.push(boxes);
         }
 
-        self.cr_finalize_event_if_any_non_selection_change(event_data, kwargs.undo, kwargs.emit, false)
+        self.cr_finalize_event_if_any_non_selection_change(
+            event_data,
+            kwargs.undo,
+            kwargs.emit,
+            false,
+        )
     }
 
     pub(crate) fn acr_adjust_selections_after_row_visibility_change(

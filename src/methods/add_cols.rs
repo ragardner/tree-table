@@ -20,7 +20,7 @@ impl Table {
         sorted_seq: Vec<usize>,
         event_data: &mut EventData,
         remake_cols: bool,
-    ) -> Result<(), String> {
+    ) {
         // insert into table data
         if !cols.is_empty() {
             self.grid.index.add_cols(Some(cols), &sorted_seq);
@@ -46,7 +46,6 @@ impl Table {
 
         // Update event_data, but not selections
         event_data.changes.push(Change::AddCols(sorted_seq));
-        Ok(())
     }
 
     pub(crate) fn cr_add_cols_get_args(
@@ -138,7 +137,7 @@ impl Table {
             let cr_add_cols_pos = Self::acr_total_cols(&self.grid.header.cells);
             let (cols, header, sorted_seq) =
                 self.cr_add_cols_get_args(iids, cr_add_cols_pos, DEFAULT_INHERIT, true)?;
-            self.cr_add_cols(cols, header, sorted_seq, event_data, remake_cols)?;
+            self.cr_add_cols(cols, header, sorted_seq, event_data, remake_cols);
         };
         Ok(cols_to_add)
     }

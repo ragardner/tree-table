@@ -5,13 +5,11 @@ use crate::GetResultExt;
 use crate::Index;
 use crate::IndexCell;
 use crate::Table;
-use crate::TableGrid;
 use crate::str_err;
 use crate::types::TreeMove;
 use crate::types::event_data::TreeChange;
 use crate::types::event_data::TreeChangeKind;
 use crate::utils::utils_fns::binary_search_exact_pos;
-use crate::utils::utils_fns::binary_search_ins_pos;
 use crate::utils::utils_fns::{offset_move_indices, remove_duplicates_outside_section};
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
@@ -22,27 +20,93 @@ impl Table {
         restore_from: &mut HashMap<Rc<str>, TreeChange>,
         record_to: Option<&mut EventData>,
     ) -> Result<(), String> {
+        let mut error: Option<String> = None;
         if let Some(record_to) = record_to {
             for (iid, tree_change) in restore_from.drain() {
-                let rn = Self::acr_pos(&index.iid_to_row, &iid)?;
+                let rn = match Self::acr_pos(&index.iid_to_row, &iid) {
+                    Ok(rn) => rn,
+                    Err(e) => {
+                        error = Some(e);
+                        break;
+                    }
+                };
                 if let Some(change) = tree_change.par {
-                    let inv = change.invert(&mut index.cells, &mut index.iid_to_row, rn)?;
+                    let inv = match change.invert(&mut index.cells, &mut index.iid_to_row, rn) {
+                        Ok(inv) => inv,
+                        Err(e) => {
+                            error = Some(e);
+                            break;
+                        }
+                    };
                     record_to.add_tree_change(&iid, inv);
                 }
                 if let Some(change) = tree_change.chn {
-                    let inv = change.invert(&mut index.cells, &mut index.iid_to_row, rn)?;
+                    let inv = match change.invert(&mut index.cells, &mut index.iid_to_row, rn) {
+                        Ok(inv) => inv,
+                        Err(e) => {
+                            error = Some(e);
+                            break;
+                        }
+                    };
                     record_to.add_tree_change(&iid, inv);
                 }
             }
+            if let Some(error) = error {
+                for (iid, tree_change) in record_to.tree_changes.drain() {
+                    if let Ok(rn) = Self::acr_pos(&index.iid_to_row, &iid) {
+                        if let Some(change) = tree_change.par {
+                            let _ = change.invert(&mut index.cells, &mut index.iid_to_row, rn);
+                        }
+                        if let Some(change) = tree_change.chn {
+                            let _ = change.invert(&mut index.cells, &mut index.iid_to_row, rn);
+                        }
+                    }
+                }
+                return Err(error);
+            }
         } else {
+            let mut temp: EventData = EventData::new();
             for (iid, tree_change) in restore_from.drain() {
-                let rn = Self::acr_pos(&index.iid_to_row, &iid)?;
+                let rn = match Self::acr_pos(&index.iid_to_row, &iid) {
+                    Ok(rn) => rn,
+                    Err(e) => {
+                        error = Some(e);
+                        break;
+                    }
+                };
                 if let Some(change) = tree_change.par {
-                    change.invert(&mut index.cells, &mut index.iid_to_row, rn)?;
+                    let inv = match change.invert(&mut index.cells, &mut index.iid_to_row, rn) {
+                        Ok(inv) => inv,
+                        Err(e) => {
+                            error = Some(e);
+                            break;
+                        }
+                    };
+                    temp.add_tree_change(&iid, inv);
                 }
                 if let Some(change) = tree_change.chn {
-                    change.invert(&mut index.cells, &mut index.iid_to_row, rn)?;
+                    let inv = match change.invert(&mut index.cells, &mut index.iid_to_row, rn) {
+                        Ok(inv) => inv,
+                        Err(e) => {
+                            error = Some(e);
+                            break;
+                        }
+                    };
+                    temp.add_tree_change(&iid, inv);
                 }
+            }
+            if let Some(error) = error {
+                for (iid, tree_change) in temp.tree_changes.drain() {
+                    if let Ok(rn) = Self::acr_pos(&index.iid_to_row, &iid) {
+                        if let Some(change) = tree_change.par {
+                            let _ = change.invert(&mut index.cells, &mut index.iid_to_row, rn);
+                        }
+                        if let Some(change) = tree_change.chn {
+                            let _ = change.invert(&mut index.cells, &mut index.iid_to_row, rn);
+                        }
+                    }
+                }
+                return Err(error);
             }
         }
         Ok(())
@@ -464,36 +528,6 @@ impl Table {
         Ok(())
     }
 
-    /// Restores cells when undo/redo OR modifies parents children if adding rows.
-    pub(crate) fn acr_tree_add_rows(
-        grid: &mut TableGrid,
-        index_cells: &[(usize, IndexCell)],
-        event_data: &mut EventData,
-    ) -> Result<(), String> {
-        if !event_data.tree_changes.is_empty() {
-            Self::acr_tree_restore_cells(&mut grid.index, &mut event_data.tree_changes, None)?;
-            return Ok(());
-        }
-        for (row, cell) in index_cells.iter() {
-            let par = &cell.par;
-            if !par.is_empty() {
-                // Parent's children
-                let chn =
-                    Self::acr_tree_iid_chn_mut(&mut grid.index.cells, &grid.index.iid_to_row, par)?;
-                // Parent has children, find Vec position to add new
-                if !chn.is_empty() {
-                    let pos = binary_search_ins_pos(&chn, &grid.index.iid_to_row, *row)?;
-                    chn.insert(pos, cell.iid.clone());
-
-                // Parent has NO children, extend with new
-                } else {
-                    chn.push(cell.iid.clone());
-                }
-            }
-        }
-        Ok(())
-    }
-
     #[inline]
     pub(crate) fn acr_tree_remove_iid_from_pars_chn(
         cells: &mut Vec<IndexCell>,
@@ -520,29 +554,6 @@ impl Table {
                     par_cell.chn.remove(index);
                 }
             }
-        }
-        Ok(())
-    }
-
-    /// Stores index cells prior to change
-    pub(crate) fn acr_tree_del_rows(
-        mut cells: &mut Vec<IndexCell>,
-        iid_to_row: &HashMap<Rc<str>, usize>,
-        positions: &[usize],
-        mut event_data: &mut EventData,
-    ) -> Result<(), String> {
-        // positons should be sorted and unique
-        for pos in positions.iter() {
-            let cell = Self::acr_icell_mut(&mut cells, *pos)?;
-            let change = cell.record_set_open(false);
-            event_data.add_tree_change(&cell.iid, change);
-            let iid = cell.iid.clone();
-            Self::acr_tree_remove_iid_from_pars_chn(
-                &mut cells,
-                &iid_to_row,
-                &iid,
-                &mut event_data,
-            )?;
         }
         Ok(())
     }
@@ -675,69 +686,5 @@ impl Table {
     #[inline]
     pub(crate) fn acr_tree_exists(iid_to_row: &HashMap<Rc<str>, usize>, iid: &str) -> bool {
         iid_to_row.get(iid).is_some()
-    }
-
-    // Sets IndexCells to open/close and returns a Set of rows to show/hide.
-    pub(crate) fn cr_tree_open_close<I>(
-        &mut self,
-        rows: I,
-        open: bool,
-        event_data: Option<&mut EventData>,
-    ) -> Result<Vec<usize>, String>
-    where
-        I: IntoIterator<Item = usize>,
-    {
-        // Rows to be shown after opening `rows`
-        let mut to_show_or_hide: Vec<usize> = Vec::new();
-        // Helper to determine if a row is visible
-        let mut vis_check: HashSet<usize> = HashSet::new();
-
-        match event_data {
-            Some(event_data_mut) => {
-                for rn in rows {
-                    let cell = Self::acr_icell_mut(&mut self.grid.index.cells, rn)?;
-                    event_data_mut.changes.push(Change::IndexCell {
-                        row: rn,
-                        change: cell.record_set_open(open),
-                    });
-                    if !cell.chn.is_empty() && cell.vis || vis_check.contains(&rn) {
-                        for res in Self::acr_tree_descendants_rows(
-                            &self.grid.index.cells,
-                            &self.grid.index.iid_to_row,
-                            rn,
-                            true,
-                        ) {
-                            let did_row = res?;
-                            if open {
-                                vis_check.insert(did_row);
-                            }
-                            to_show_or_hide.push(did_row);
-                        }
-                    }
-                }
-            }
-            None => {
-                for rn in rows {
-                    let cell = Self::acr_icell_mut(&mut self.grid.index.cells, rn)?;
-                    cell.open = open;
-                    if !cell.chn.is_empty() && cell.vis || vis_check.contains(&rn) {
-                        for res in Self::acr_tree_descendants_rows(
-                            &self.grid.index.cells,
-                            &self.grid.index.iid_to_row,
-                            rn,
-                            true,
-                        ) {
-                            let did_row = res?;
-                            if open {
-                                vis_check.insert(did_row);
-                            }
-                            to_show_or_hide.push(did_row);
-                        }
-                    }
-                }
-            }
-        }
-
-        Ok(to_show_or_hide)
     }
 }

@@ -1,9 +1,11 @@
 use crate::Change;
 use crate::Coords;
 use crate::EventData;
+use crate::IndexCell;
 use crate::SelectionBox;
 use crate::SelectionKind;
 use crate::Table;
+use std::collections::HashMap;
 use std::collections::HashSet;
 use std::rc::Rc;
 
@@ -179,5 +181,28 @@ impl Table {
                 }
             }
         }
+    }
+
+    /// Stores index cells prior to change
+    pub(crate) fn acr_tree_del_rows(
+        mut cells: &mut Vec<IndexCell>,
+        iid_to_row: &HashMap<Rc<str>, usize>,
+        positions: &[usize],
+        mut event_data: &mut EventData,
+    ) -> Result<(), String> {
+        // positons should be sorted and unique
+        for pos in positions.iter() {
+            let cell = Self::acr_icell_mut(&mut cells, *pos)?;
+            let change = cell.record_set_open(false);
+            event_data.add_tree_change(&cell.iid, change);
+            let iid = cell.iid.clone();
+            Self::acr_tree_remove_iid_from_pars_chn(
+                &mut cells,
+                &iid_to_row,
+                &iid,
+                &mut event_data,
+            )?;
+        }
+        Ok(())
     }
 }

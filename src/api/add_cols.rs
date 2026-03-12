@@ -90,7 +90,7 @@ impl Table {
 
         let num_visible_added = if vis { sorted_seq.len() } else { 0 };
         let disp_insert_pos = Self::acr_compute_disp_insert_pos(&self.grid.disp_cols, pos);
-        self.cr_add_cols(cols, header, sorted_seq, &mut event_data, true)?;
+        self.cr_add_cols(cols, header, sorted_seq, &mut event_data, true);
 
         let boxes = save_selection.then_some(Self::acr_new_change_with_old_boxes(&self.sel));
         self.acr_adjust_selections_after_col_insert(disp_insert_pos, num_visible_added);

@@ -97,8 +97,8 @@ impl TableGrid {
         full_old_to_new: &[usize],
         full_new_to_old: &[usize],
     ) -> Result<(), String> {
-        self.index.move_cols(full_old_to_new);
         self.header.move_cols(full_new_to_old)?;
+        self.index.move_cols(full_old_to_new);
         // TODO: add named spans
         self.frozen_cols
             .iter_mut()

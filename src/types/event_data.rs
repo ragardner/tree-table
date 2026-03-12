@@ -30,6 +30,15 @@ pub struct EventData {
 }
 
 impl EventData {
+    pub fn new() -> Self {
+        Self {
+            widget_name: "".into(),
+            widget_id: 0,
+            changes: Vec::new(),
+            tree_changes: HashMap::new(),
+        }
+    }
+
     #[inline]
     pub fn tree_change_required(&self, iid: &Rc<str>, kind: TreeChangeKind) -> bool {
         if let Some(tree_change) = self.tree_changes.get(iid) {

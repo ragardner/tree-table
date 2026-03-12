@@ -101,21 +101,6 @@ impl Table {
         }
 
         let mut event_data = self.cr_new_event(false);
-
-        /*
-        so when undoing... the selections should be last
-        paste -> insert rows -> edit cells in one go, we will need
-        a whole new paste function... but
-        probably it'll involve sending a 2d array of Vals
-        and a location
-        and then we add rows then edit cells
-        so in the changes then added rows are first, then selections, then edit cells
-        so undo -> forward would be del rows -> mod selections -> edit cells
-        then redo -> forward would be -> add rows (keeps lost data) -> mod selections -> edit cells
-
-        so we always go forwards when iterating over to_undo.changes?
-
-         */
         let mut to_undo_mut = to_undo.borrow_mut();
         let changes = std::mem::take(&mut to_undo_mut.changes);
         let mut tree_changes = std::mem::take(&mut to_undo_mut.tree_changes);
@@ -159,7 +144,7 @@ impl Table {
                         sorted_seq,
                         &mut event_data,
                         true,
-                    )?;
+                    );
                 }
                 Change::RemoveRows(removed_rows) => {
                     let sorted_seq = removed_rows.iter().map(|t| t.0.clone()).collect();

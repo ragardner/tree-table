@@ -357,6 +357,12 @@ impl Table {
         if tree_map.is_empty() {
             return Err(str_err!("No rows to be added"));
         }
+
+        let orig_disp_len = self.grid.disp_rows.len();
+        let orig_canvas_len = self.grid.canvas_rows.len();
+        let orig_index_cells_len = self.grid.index.cells.len();
+        // Iterate over index cells from truncate point, remove the iids from iid_to_row
+
         let mut sorted_seq: Vec<usize> = Vec::with_capacity(tree_map.len());
 
         // self.cr_remake_rows()
@@ -364,42 +370,56 @@ impl Table {
         let mut stack: Vec<(Rc<str>, bool, Rc<str>)> = Vec::with_capacity(100);
         self.grid.index.cells.reserve(tree_map.len());
         self.grid.index.iid_to_row.reserve(tree_map.len());
-        for top in tops.into_iter() {
-            sorted_seq.push(row_ctr);
-            let icell = tree_map
-                .remove(&top)
-                .ok_or(str_err!("IndexCell: {} not found in tree_map", top))?;
-            let child_vis = icell.open;
-            for child in icell.chn.iter().rev().cloned() {
-                stack.push((child, child_vis, top.clone()));
-            }
-            self.grid.disp_rows.push(row_ctr);
-            acc += icell.dim;
-            self.grid.canvas_rows.push(acc);
-            self.grid.index.push_row(row_ctr, icell.iid.clone(), icell);
-            row_ctr += 1;
 
-            while let Some((not_top, inherited_vis, par_iid)) = stack.pop() {
+        let mut_result: Result<(), String> = (|| -> Result<(), String> {
+            for top in tops.into_iter() {
                 sorted_seq.push(row_ctr);
-                let mut icell = tree_map
-                    .remove(&not_top)
-                    .ok_or(str_err!("IndexCell: {} not found in tree_map", not_top))?;
-                icell.par = par_iid;
-                icell.vis = inherited_vis;
-                let child_vis = inherited_vis && icell.open;
+                let icell = tree_map
+                    .remove(&top)
+                    .ok_or(str_err!("IndexCell: {} not found in tree_map", top))?;
+                let child_vis = icell.open;
                 for child in icell.chn.iter().rev().cloned() {
-                    stack.push((child, child_vis, not_top.clone()));
+                    stack.push((child, child_vis, top.clone()));
                 }
-                // Row grid lines, self.cr_remake_rows()
-                if inherited_vis {
-                    self.grid.disp_rows.push(row_ctr);
-                    acc += icell.dim;
-                    self.grid.canvas_rows.push(acc);
-                }
-                // Push cell to index, self.grid.index.add_rows()
+                self.grid.disp_rows.push(row_ctr);
+                acc += icell.dim;
+                self.grid.canvas_rows.push(acc);
                 self.grid.index.push_row(row_ctr, icell.iid.clone(), icell);
                 row_ctr += 1;
+
+                while let Some((not_top, inherited_vis, par_iid)) = stack.pop() {
+                    sorted_seq.push(row_ctr);
+                    let mut icell = tree_map
+                        .remove(&not_top)
+                        .ok_or(str_err!("IndexCell: {} not found in tree_map", not_top))?;
+                    icell.par = par_iid;
+                    icell.vis = inherited_vis;
+                    let child_vis = inherited_vis && icell.open;
+                    for child in icell.chn.iter().rev().cloned() {
+                        stack.push((child, child_vis, not_top.clone()));
+                    }
+                    // Row grid lines, self.cr_remake_rows()
+                    if inherited_vis {
+                        self.grid.disp_rows.push(row_ctr);
+                        acc += icell.dim;
+                        self.grid.canvas_rows.push(acc);
+                    }
+                    // Push cell to index, self.grid.index.add_rows()
+                    self.grid.index.push_row(row_ctr, icell.iid.clone(), icell);
+                    row_ctr += 1;
+                }
             }
+            Ok(())
+        })();
+
+        if let Err(e) = mut_result {
+            self.grid.disp_rows.truncate(orig_disp_len);
+            self.grid.canvas_rows.truncate(orig_canvas_len);
+            for cell in &self.grid.index.cells[orig_index_cells_len..] {
+                self.grid.index.iid_to_row.remove(&cell.iid);
+            }
+            self.grid.index.cells.truncate(orig_index_cells_len);
+            return Err(e);
         }
 
         let boxes = kwargs

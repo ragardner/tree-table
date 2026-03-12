@@ -7,9 +7,11 @@ use crate::SelectionBox;
 use crate::SelectionKind;
 use crate::Table;
 use crate::TableCell;
+use crate::TableGrid;
 use crate::Val;
 use crate::statics::DEFAULT_INHERIT;
 use crate::str_err;
+use crate::utils::utils_fns::binary_search_ins_pos;
 use std::rc::Rc;
 
 impl Table {
@@ -138,6 +140,40 @@ impl Table {
             ));
         }
         Ok((index, sorted_seq))
+    }
+
+    /// Restores cells when undo/redo OR modifies parents children if adding rows.
+    pub(crate) fn acr_tree_add_rows(
+        grid: &mut TableGrid,
+        index_cells: &[(usize, IndexCell)],
+        event_data: &mut EventData,
+    ) -> Result<(), String> {
+        // e.g. when undoing a del_rows change
+        if !event_data.tree_changes.is_empty() {
+            Self::acr_tree_restore_cells(&mut grid.index, &mut event_data.tree_changes, None)?;
+            return Ok(());
+        }
+        // Don't record to event data because when
+        // del_rows occurs it does record to event data AND
+        // it also modifies the chn and pars
+        for (row, cell) in index_cells.iter() {
+            let par = &cell.par;
+            if !par.is_empty() {
+                // Parent's children
+                let chn =
+                    Self::acr_tree_iid_chn_mut(&mut grid.index.cells, &grid.index.iid_to_row, par)?;
+                // Parent has children, find Vec position to add new
+                if !chn.is_empty() {
+                    let pos = binary_search_ins_pos(&chn, &grid.index.iid_to_row, *row)?;
+                    chn.insert(pos, cell.iid.clone());
+
+                // Parent has NO children, extend with new
+                } else {
+                    chn.push(cell.iid.clone());
+                }
+            }
+        }
+        Ok(())
     }
 
     pub(crate) fn cr_ensure_widget_nrows(

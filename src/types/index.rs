@@ -126,7 +126,7 @@ impl Index {
             ));
         }
 
-        #[cfg(any(debug_assertions, feature = "extra-safety"))]
+        #[cfg(any(debug_assertions, feature = "safety"))]
         {
             let mut seen = vec![false; n];
             for &old_idx in full_new_to_old {
@@ -239,7 +239,7 @@ impl Index {
         removed
     }
 
-    pub(crate) fn move_cols(&mut self, full_new_idxs: &[usize]) {
+    pub(crate) fn move_cols(&mut self, full_old_to_new: &[usize]) {
         for icell in self.cells.iter_mut() {
             let max_map = &mut icell.vals;
             if max_map.is_empty() {
@@ -247,7 +247,7 @@ impl Index {
             }
             let mut new_hm: HashMap<usize, TableCell> = HashMap::new();
             let mut max: usize = 0;
-            for (old_pos, new_pos) in full_new_idxs.iter().enumerate() {
+            for (old_pos, new_pos) in full_old_to_new.iter().enumerate() {
                 if let Some(cell) = max_map.hm.remove(&old_pos) {
                     new_hm.insert(*new_pos, cell);
                     if *new_pos > max {
