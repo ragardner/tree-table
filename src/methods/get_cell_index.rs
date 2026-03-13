@@ -117,7 +117,7 @@ impl Table {
     }
 
     #[inline]
-    pub(crate) fn acr_tree_pars_equal(
+    pub(crate) fn acr_tree_iids_par_is_equal_to(
         cells: &[IndexCell],
         iid_to_row: &HashMap<Rc<str>, usize>,
         iid_to_check: &str,

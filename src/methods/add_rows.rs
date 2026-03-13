@@ -98,6 +98,18 @@ impl Table {
         let default_dim = self.cr_get_default_row_dim();
         let tree_mode = self.opts.tree_mode;
 
+        // Calculate new parent by using the insert rows existing parent
+        let par = if tree_mode {
+            let move_to_iid = Self::acr_borrow_riid(&self.grid.index.cells, pos)?;
+            Self::acr_tree_iid_par(
+                &self.grid.index.cells,
+                &self.grid.index.iid_to_row,
+                &move_to_iid,
+            )?
+        } else {
+            self.grid.index.empty_par.clone()
+        };
+
         // Create index
         for (rn, iid) in (pos..end).zip(iids.into_iter()) {
             sorted_seq.push(rn);
@@ -122,8 +134,7 @@ impl Table {
             } else {
                 empty_index_val.clone()
             };
-            let par =
-                Self::acr_tree_iid_par(&self.grid.index.cells, &self.grid.index.iid_to_row, &iid)?;
+
             index.push((
                 rn,
                 IndexCell {
@@ -132,7 +143,7 @@ impl Table {
                     vals: cols_map,
                     dim: default_dim,
                     vis: show_new_rows,
-                    par: par,
+                    par: par.clone(),
                     chn: Vec::new(),
                     open: false,
                     props: index_props.clone(),
@@ -153,25 +164,37 @@ impl Table {
             Self::acr_tree_restore_cells(&mut grid.index, &mut event_data.tree_changes, None)?;
             return Ok(());
         }
+
+        if index_cells.is_empty() {
+            return Ok(());
+        }
+
+        // Add new rows to a pars chn
+
         // Don't record to event data because when
         // del_rows occurs it does record to event data AND
         // it also modifies the chn and pars
-        for (row, cell) in index_cells.iter() {
-            let par = &cell.par;
-            if !par.is_empty() {
-                // Parent's children
-                let chn =
-                    Self::acr_tree_iid_chn_mut(&mut grid.index.cells, &grid.index.iid_to_row, par)?;
-                // Parent has children, find Vec position to add new
-                if !chn.is_empty() {
-                    let pos = binary_search_ins_pos(&chn, &grid.index.iid_to_row, *row)?;
-                    chn.insert(pos, cell.iid.clone());
 
-                // Parent has NO children, extend with new
-                } else {
-                    chn.push(cell.iid.clone());
-                }
-            }
+        let (row, par) = {
+            let first = &index_cells[0];
+            (first.0, first.1.par.clone())
+        };
+        if par.is_empty() {
+            return Ok(());
+        }
+
+        // Parent's children
+        let chn = Self::acr_tree_iid_chn_mut(&mut grid.index.cells, &grid.index.iid_to_row, &par)?;
+
+        // To add
+        let new_chn: Vec<Rc<str>> = index_cells.iter().map(|t| t.1.iid.clone()).collect();
+        if chn.is_empty() {
+            // Parent has NO children, extend with new
+            chn.extend(new_chn);
+        } else {
+            // Parent has children, find Vec position to add new
+            let pos = binary_search_ins_pos(&chn, &grid.index.iid_to_row, row)?;
+            chn.splice(pos..pos, new_chn);
         }
         Ok(())
     }
