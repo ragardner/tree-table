@@ -19,7 +19,7 @@ impl Table {
             self.grid.header.reset();
         }
         if kwargs.selections {
-            Self::acr_deselect_all(&mut self.sel);
+            Self::acr_deselect_all(&mut self.sel, None);
         }
         if kwargs.undo_stack {
             self.grid.undo_stack.clear();

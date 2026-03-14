@@ -1,3 +1,4 @@
+use crate::Span;
 use crate::statics::CELLS;
 use crate::statics::COLS;
 use crate::statics::ROWS;
@@ -6,29 +7,7 @@ use crate::str_err;
 #[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
 #[cfg_attr(feature = "tsify", tsify(from_wasm_abi))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[derive(Debug, Clone, PartialEq)]
-pub struct Coords {
-    pub row: usize,
-    pub end_row: Option<usize>,
-    pub col: usize,
-    pub end_col: Option<usize>,
-}
-
-impl Coords {
-    pub fn new(row: usize, end_row: Option<usize>, col: usize, end_col: Option<usize>) -> Self {
-        Coords {
-            row,
-            end_row,
-            col,
-            end_col,
-        }
-    }
-}
-
-#[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
-#[cfg_attr(feature = "tsify", tsify(from_wasm_abi))]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 // #[serde(rename_all = "lowercase")]
 pub enum SelectionKind {
     Rows,
@@ -99,23 +78,11 @@ impl SelectionState {
 #[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
 #[cfg_attr(feature = "tsify", tsify(from_wasm_abi))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Selected {
     pub row: usize,
     pub col: usize,
-    pub coords: Coords,
-    pub kind: SelectionKind,
-    pub pos: usize,
-}
-
-#[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
-#[cfg_attr(feature = "tsify", tsify(from_wasm_abi))]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[derive(Debug, Clone, PartialEq)]
-pub struct SelectionBox {
-    pub coords: Coords,
-    pub kind: SelectionKind,
-    pub state: SelectionState,
+    pub coords: Span,
 }
 
 #[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
@@ -123,7 +90,7 @@ pub struct SelectionBox {
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone, PartialEq)]
 pub struct Selection {
-    pub selection_boxes: Vec<SelectionBox>,
+    pub selection_boxes: Vec<Span>,
     pub selected: Option<Selected>,
 }
 

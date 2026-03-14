@@ -1,7 +1,6 @@
 use crate::Change;
 use crate::EventData;
-use crate::SelectionKind;
-use crate::SelectionState;
+use crate::NO_END;
 use crate::Table;
 use crate::args::MoveArgs;
 use crate::statics::default_emit_event_for_api;
@@ -74,10 +73,7 @@ impl Table {
             return Ok(None);
         }
 
-        let mut event_data = self.cr_new_event(false);
-        let boxes = kwargs
-            .save_selection
-            .then_some(Self::acr_new_change_with_old_boxes(&self.sel));
+        let mut event_data = self.cr_new_event(kwargs.save_selection);
 
         self.cr_move_rows(
             &mut event_data,
@@ -90,7 +86,7 @@ impl Table {
         )?;
 
         if kwargs.select {
-            Self::acr_deselect_all(&mut self.sel);
+            Self::acr_deselect_all(&mut self.sel, None);
             let mut moved: Vec<usize> = event_data
                 .changes
                 .iter()
@@ -109,20 +105,13 @@ impl Table {
                         &mut self.sel,
                         &self.grid,
                         start,
-                        Some(end),
+                        end,
                         0,
-                        None,
-                        SelectionKind::Rows,
-                        SelectionState::Normal,
+                        NO_END,
                         true,
                     );
                 }
             }
-        }
-
-        if let Some(mut boxes) = boxes {
-            Self::acr_change_set_new_boxes(&self.sel, &mut boxes);
-            event_data.changes.push(boxes);
         }
 
         self.cr_finalize_event(event_data, kwargs.undo, kwargs.emit)

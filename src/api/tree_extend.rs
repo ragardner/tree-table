@@ -3,8 +3,7 @@ use crate::EventData;
 use crate::Header;
 use crate::IndexCell;
 use crate::MaxMap;
-use crate::SelectionKind;
-use crate::SelectionState;
+use crate::NO_END;
 use crate::Table;
 use crate::TableCell;
 use crate::Val;
@@ -125,7 +124,7 @@ impl Table {
         let empty_val: Val = self.opts.empty_val.clone();
         let empty_ival: Val = self.opts.empty_index_val.clone();
         let default_dim = self.cr_get_default_row_dim();
-        let mut event_data: EventData = self.cr_new_event(true);
+        let mut event_data: EventData = self.cr_new_event(false);
         let ncols = Self::acr_total_cols(&self.grid.header.cells);
         let mut row_ctr = Self::acr_total_rows(&self.grid.index.cells);
 
@@ -422,38 +421,32 @@ impl Table {
             return Err(e);
         }
 
-        let boxes = kwargs
-            .save_selection
-            .then_some(Self::acr_new_change_with_old_boxes(&self.sel));
         // Select the added rows
         if kwargs.select {
-            Self::acr_deselect_all(&mut self.sel);
+            Self::acr_deselect_all(
+                &mut self.sel,
+                if kwargs.save_selection {
+                    Some(&mut event_data)
+                } else {
+                    None
+                },
+            );
             for (start, end) in consecutive_ranges_owned(
                 sorted_seq
                     .iter()
                     .filter_map(|n| Self::acr_data_to_disp_opt(&self.grid.disp_rows, *n)),
             ) {
-                Self::acr_add_selection_box(
-                    &mut self.sel,
-                    &self.grid,
-                    start,
-                    Some(end),
-                    0,
+                Self::acr_add_selection_box(&mut self.sel, &self.grid, start, end, 0, NO_END, true);
+            }
+            if kwargs.save_selection {
+                event_data.changes.push(Change::add_selection_boxes(
+                    self.sel.selection_boxes.len(),
                     None,
-                    SelectionKind::Rows,
-                    SelectionState::Normal,
-                    true,
-                );
+                ));
             }
         }
 
         event_data.changes.push(Change::AddRows(sorted_seq));
-
-        if let Some(mut boxes) = boxes {
-            Self::acr_change_set_new_boxes(&self.sel, &mut boxes);
-            event_data.changes.push(boxes);
-        }
-
         self.cr_finalize_event(event_data, kwargs.undo, kwargs.emit)
     }
 }

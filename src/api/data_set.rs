@@ -52,7 +52,12 @@ impl Table {
             }
         }
 
-        self.cr_finalize_event_if_any_non_selection_change(event_data, kwargs.undo, kwargs.emit, true)
+        self.cr_finalize_event_if_any_non_selection_change(
+            event_data,
+            kwargs.undo,
+            kwargs.emit,
+            true,
+        )
     }
 
     /// Sets table cell data using a key and a single value.
@@ -76,9 +81,7 @@ impl Table {
         }
 
         let row_start = span.row;
-        let row_end = span
-            .end_row
-            .unwrap_or(Self::acr_total_rows(&self.grid.index.cells));
+        let row_end = span.max_row(&self.grid);
         let effective_row_end = if kwargs.add_rows {
             row_end
         } else {
@@ -86,9 +89,7 @@ impl Table {
         };
 
         let col_start = span.col;
-        let col_end = span
-            .end_col
-            .unwrap_or(Self::acr_total_cols(&self.grid.header.cells));
+        let col_end = span.max_col(&self.grid);
         let effective_col_end = if kwargs.add_cols {
             col_end
         } else {
@@ -97,8 +98,8 @@ impl Table {
 
         let empty_val = &self.opts.empty_val;
 
-        for row in row_start..effective_row_end {
-            for col in col_start..effective_col_end {
+        for row in row_start..=effective_row_end {
+            for col in col_start..=effective_col_end {
                 Self::acr_event_data_fmt_set_tval(
                     &mut self.grid.index.cells,
                     row,
@@ -110,6 +111,11 @@ impl Table {
             }
         }
 
-        self.cr_finalize_event_if_any_non_selection_change(event_data, kwargs.undo, kwargs.emit, true)
+        self.cr_finalize_event_if_any_non_selection_change(
+            event_data,
+            kwargs.undo,
+            kwargs.emit,
+            true,
+        )
     }
 }

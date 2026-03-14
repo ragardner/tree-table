@@ -77,7 +77,7 @@ impl Table {
         kwargs: TreeOpenArgs,
         open: bool,
     ) -> Result<Option<Rc<RefCell<EventData>>>, String> {
-        let mut event_data: EventData = self.cr_new_event(false);
+        let mut event_data: EventData = self.cr_new_event(true);
         let to_show_or_hide = if kwargs.rows.is_empty() {
             let end_row = Self::acr_total_rows(&self.grid.index.cells);
             self.cr_tree_open_close((0..end_row).into_iter(), open, Some(&mut event_data))?
@@ -90,10 +90,6 @@ impl Table {
             rows.dedup();
             self.cr_tree_open_close(rows.into_iter(), open, Some(&mut event_data))?
         };
-
-        let boxes = kwargs
-            .save_selection
-            .then_some(Self::acr_new_change_with_old_boxes(&self.sel));
 
         if !to_show_or_hide.is_empty() {
             self.acr_adjust_selections_after_row_visibility_change(&to_show_or_hide, open);
@@ -110,11 +106,6 @@ impl Table {
                 &self.grid.index.cells,
                 self.opts.horizontal_grid_line_width.clone(),
             );
-        }
-
-        if let Some(mut boxes) = boxes {
-            Self::acr_change_set_new_boxes(&self.sel, &mut boxes);
-            event_data.changes.push(boxes);
         }
 
         self.cr_finalize_event_if_any_non_selection_change(
@@ -146,7 +137,7 @@ impl Table {
             }
         } else {
             // Collapse
-            self.acr_adjust_selections_after_row_delete(
+            self.cr_adjust_selections_after_row_delete(
                 &changed_data_rows
                     .iter()
                     .filter_map(|&d| Self::acr_data_to_disp_row_opt(&self.grid.disp_rows, d))

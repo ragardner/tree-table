@@ -185,34 +185,39 @@ impl Table {
                     }
                     Err(e) => Err(e),
                 },
-                Change::SaveSelection {
+                Change::SetSelectionBoxes {
                     old_selection_boxes,
                     old_selected,
                 } => {
-                    let change = Change::UpdateSelection {
-                        old_selection_boxes: self.sel.selection_boxes.clone(),
-                        old_selected: self.sel.selected.clone(),
-                        new_selection_boxes: old_selection_boxes.clone(),
-                        new_selected: old_selected.clone(),
-                    };
+                    let change = Change::set_selection_boxes(
+                        self.sel.selection_boxes.clone(),
+                        self.sel.selected.clone(),
+                    );
                     self.sel.selection_boxes = old_selection_boxes;
                     self.sel.selected = old_selected;
                     event_data.changes.push(change);
                     Ok(())
                 }
-                Change::UpdateSelection {
-                    old_selection_boxes,
+                Change::AddSelectionBoxes {
+                    count,
                     old_selected,
-                    new_selection_boxes,
-                    new_selected,
                 } => {
-                    let change = Change::UpdateSelection {
-                        old_selection_boxes: new_selection_boxes,
-                        old_selected: new_selected,
-                        new_selection_boxes: old_selection_boxes.clone(),
-                        new_selected: old_selected.clone(),
-                    };
-                    self.sel.selection_boxes = old_selection_boxes;
+                    let split_at = self.sel.selection_boxes.len().saturating_sub(count);
+                    let change = Change::remove_selection_boxes(
+                        self.sel.selection_boxes.split_off(split_at),
+                        self.sel.selected.clone(),
+                    );
+                    self.sel.selected = old_selected;
+                    event_data.changes.push(change);
+                    Ok(())
+                }
+                Change::RemoveSelectionBoxes {
+                    removed,
+                    old_selected,
+                } => {
+                    let count = removed.len();
+                    self.sel.selection_boxes.extend(removed);
+                    let change = Change::add_selection_boxes(count, self.sel.selected.clone());
                     self.sel.selected = old_selected;
                     event_data.changes.push(change);
                     Ok(())

@@ -2,8 +2,7 @@ use crate::CellProps;
 use crate::Change;
 use crate::EventData;
 use crate::IndexCell;
-use crate::SelectionKind;
-use crate::SelectionState;
+use crate::NO_END;
 use crate::Table;
 use crate::Val;
 use crate::args::{InsertArgs, InsertRow};
@@ -174,42 +173,35 @@ impl Table {
             &self.grid.index.cells,
             self.opts.horizontal_grid_line_width.clone(),
         );
-
-        let boxes = kwargs
-            .save_selection
-            .then_some(Self::acr_new_change_with_old_boxes(&self.sel));
         self.acr_adjust_selections_after_row_insert(disp_insert_pos, num_visible_added);
 
         // Select the added rows
         if kwargs.select {
-            Self::acr_deselect_all(&mut self.sel);
+            Self::acr_deselect_all(
+                &mut self.sel,
+                if kwargs.save_selection {
+                    Some(&mut event_data)
+                } else {
+                    None
+                },
+            );
             for (start, end) in consecutive_ranges_owned(
                 sorted_seq
                     .iter()
                     .filter_map(|n| Self::acr_data_to_disp_opt(&self.grid.disp_rows, *n)),
             ) {
-                Self::acr_add_selection_box(
-                    &mut self.sel,
-                    &self.grid,
-                    start,
-                    Some(end),
-                    0,
+                Self::acr_add_selection_box(&mut self.sel, &self.grid, start, end, 0, NO_END, true);
+            }
+            if kwargs.save_selection {
+                event_data.changes.push(Change::add_selection_boxes(
+                    self.sel.selection_boxes.len(),
                     None,
-                    SelectionKind::Rows,
-                    SelectionState::Normal,
-                    true,
-                );
+                ));
             }
         }
 
         // Add changes to event data and deal with undo
         event_data.changes.push(Change::AddRows(sorted_seq));
-
-        if let Some(mut boxes) = boxes {
-            Self::acr_change_set_new_boxes(&self.sel, &mut boxes);
-            event_data.changes.push(boxes);
-        }
-
         self.cr_finalize_event(event_data, kwargs.undo, kwargs.emit)
     }
 }

@@ -1,10 +1,9 @@
 use crate::CellProps;
 use crate::Change;
-use crate::Coords;
 use crate::EventData;
 use crate::HeaderCell;
-use crate::SelectionBox;
-use crate::SelectionKind;
+use crate::NO_END;
+use crate::Span;
 use crate::Table;
 use crate::TableCell;
 use crate::Val;
@@ -142,7 +141,7 @@ impl Table {
         Ok(cols_to_add)
     }
 
-    pub(crate) fn acr_adjust_selections_after_col_insert(
+    pub(crate) fn cr_adjust_selections_after_col_insert(
         &mut self,
         disp_insert_pos: usize, // insertion point in DISPLAYED coordinates
         num_visible_added: usize,
@@ -158,22 +157,20 @@ impl Table {
         while i < original_len {
             let b = &mut self.sel.selection_boxes[i];
 
-            if b.kind == SelectionKind::Rows {
+            if b.end_col == NO_END {
                 i += 1;
                 continue;
             }
 
-            let start = b.coords.col;
-            let end = b.coords.end_col.unwrap_or(start); // inclusive
+            let start = b.col;
+            let end = b.end_col; // inclusive
 
             if end < disp_insert_pos {
                 // completely before insertion point → untouched
             } else if start >= disp_insert_pos {
                 // completely at/after insertion point → shift whole box
-                b.coords.col += num_visible_added;
-                if let Some(ec) = &mut b.coords.end_col {
-                    *ec += num_visible_added;
-                }
+                b.col += num_visible_added;
+                b.end_col = b.end_col.saturating_add(num_visible_added);
             } else {
                 // straddles the insertion point → split the box
                 // (new columns are never selected)
@@ -181,26 +178,20 @@ impl Table {
 
                 if start <= left_end {
                     // shorten existing box to left part (inclusive)
-                    b.coords.end_col = Some(left_end);
+                    b.end_col = left_end;
 
                     // append new box for right part (shifted)
                     let right_start = disp_insert_pos + num_visible_added;
-                    let right_end = end + num_visible_added;
+                    let right_end = end.saturating_add(num_visible_added);
 
-                    let new_coords = Coords::new(
-                        b.coords.row,
-                        b.coords.end_row,
+                    let new_coords = Span::new(
+                        b.row,
+                        b.end_row,
                         right_start,
-                        Some(right_end), // always inclusive — works for single or multi
+                        right_end, // always inclusive — works for single or multi
                     );
 
-                    let kind = b.kind.clone();
-                    let state = b.state.clone();
-                    self.sel.selection_boxes.push(SelectionBox {
-                        coords: new_coords,
-                        kind,
-                        state,
-                    });
+                    self.sel.selection_boxes.push(new_coords);
                 }
             }
             i += 1;
@@ -212,9 +203,7 @@ impl Table {
             if sel.col >= disp_insert_pos {
                 sel.col += num_visible_added;
                 sel.coords.col += num_visible_added;
-                if let Some(ec) = &mut sel.coords.end_col {
-                    *ec += num_visible_added;
-                }
+                sel.coords.end_col = sel.coords.end_col.saturating_add(num_visible_added);
             }
         }
     }

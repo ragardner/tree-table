@@ -3,7 +3,7 @@ use crate::ChangeIndexCell;
 use crate::HeaderCell;
 use crate::IndexCell;
 use crate::Selected;
-use crate::SelectionBox;
+use crate::Span;
 use crate::TableCell;
 
 #[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
@@ -33,20 +33,22 @@ pub enum Change {
     MoveRows(Vec<(usize, usize)>), // from → to
     MoveCols(Vec<(usize, usize)>),
 
-    UpdateSelection {
-        old_selection_boxes: Vec<SelectionBox>,
+    AddSelectionBoxes {
+        count: usize,
         old_selected: Option<Selected>,
-        new_selection_boxes: Vec<SelectionBox>,
-        new_selected: Option<Selected>,
     },
-    SaveSelection {
-        old_selection_boxes: Vec<SelectionBox>,
+    RemoveSelectionBoxes {
+        removed: Vec<Span>,
+        old_selected: Option<Selected>,
+    },
+    SetSelectionBoxes {
+        old_selection_boxes: Vec<Span>,
         old_selected: Option<Selected>,
     },
 }
 
 impl Change {
-    // ───── Cell edit constructors ─────
+    // ───── Change constructors ─────
     pub fn index_cell(row: usize, change: ChangeIndexCell) -> Self {
         Change::IndexCell { row, change }
     }
@@ -86,27 +88,40 @@ impl Change {
         Change::MoveCols(map)
     }
 
-    pub fn update_selection(
-        old_selection_boxes: Vec<SelectionBox>,
-        old_selected: Option<Selected>,
-        new_selection_boxes: Vec<SelectionBox>,
-        new_selected: Option<Selected>,
-    ) -> Self {
-        Change::UpdateSelection {
-            old_selection_boxes,
+    // ───── Selection box constructors ─────
+    /// One or more boxes were pushed to the end.
+    pub fn add_selection_boxes(count: usize, old_selected: Option<Selected>) -> Self {
+        Change::AddSelectionBoxes {
+            count,
             old_selected,
-            new_selection_boxes,
-            new_selected,
         }
     }
 
-    pub fn save_selection(
-        old_selection_boxes: Vec<SelectionBox>,
+    /// One or more boxes were removed (any indices).
+    pub fn remove_selection_boxes(removed: Vec<Span>, old_selected: Option<Selected>) -> Self {
+        Change::RemoveSelectionBoxes {
+            removed,
+            old_selected,
+        }
+    }
+
+    pub fn set_selection_boxes(
+        old_selection_boxes: Vec<Span>,
         old_selected: Option<Selected>,
     ) -> Self {
-        Change::SaveSelection {
+        Change::SetSelectionBoxes {
             old_selection_boxes,
             old_selected,
         }
+    }
+
+    #[inline]
+    pub fn is_selection_change(&self) -> bool {
+        matches!(
+            self,
+            Change::AddSelectionBoxes { .. }
+                | Change::RemoveSelectionBoxes { .. }
+                | Change::SetSelectionBoxes { .. }
+        )
     }
 }

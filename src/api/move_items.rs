@@ -1,11 +1,11 @@
 use crate::Change;
 use crate::EventData;
+use crate::NO_END;
 use crate::Table;
 use crate::TreeMove;
 use crate::args::MoveItemsArgs;
 use crate::str_err;
 use crate::utils::consecutive_ranges::consecutive_ranges_borrowed;
-use crate::{SelectionKind, SelectionState};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::collections::HashSet;
@@ -55,7 +55,7 @@ impl Table {
             }
 
             // Create a new event
-            let mut event_data = self.cr_new_event(true);
+            let mut event_data = self.cr_new_event(kwargs.save_selection);
 
             // Set up TreeMove object
             let move_op: TreeMove = TreeMove {
@@ -77,7 +77,7 @@ impl Table {
 
             // Select moved rows if true
             if kwargs.select {
-                Self::acr_deselect_all(&mut self.sel);
+                Self::acr_deselect_all(&mut self.sel, None);
                 let mut moved: Vec<usize> = event_data
                     .changes
                     .iter()
@@ -95,11 +95,9 @@ impl Table {
                             &mut self.sel,
                             &self.grid,
                             start,
-                            Some(end),
+                            end,
                             0,
-                            None,
-                            SelectionKind::Rows,
-                            SelectionState::Normal,
+                            NO_END,
                             true,
                         );
                     }

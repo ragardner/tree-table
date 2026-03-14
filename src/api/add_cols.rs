@@ -1,8 +1,11 @@
-use crate::args::{AddArgs, AddNumArgs};
+use crate::Change;
+use crate::EventData;
+use crate::NO_END;
+use crate::Table;
+use crate::args::AddArgs;
+use crate::args::AddNumArgs;
+use crate::str_err;
 use crate::utils::consecutive_ranges::consecutive_ranges_owned;
-use crate::{Change, Table};
-use crate::{EventData, str_err};
-use crate::{SelectionKind, SelectionState};
 use std::cell::RefCell;
 use std::collections::HashSet;
 use std::rc::Rc;
@@ -14,7 +17,7 @@ impl Table {
         kwargs: Option<AddArgs>,
     ) -> Result<Option<Rc<RefCell<EventData>>>, String> {
         let kwargs: AddArgs = kwargs.unwrap_or_default();
-        let event_data = self.cr_new_event(false);
+        let event_data = self.cr_new_event(kwargs.save_selection);
         let pos = if let Some(pos) = kwargs.pos {
             pos as usize
         } else {
@@ -90,13 +93,19 @@ impl Table {
 
         let num_visible_added = if vis { sorted_seq.len() } else { 0 };
         let disp_insert_pos = Self::acr_compute_disp_insert_pos(&self.grid.disp_cols, pos);
-        self.cr_add_cols(cols, header, sorted_seq, &mut event_data, true);
 
-        let boxes = save_selection.then_some(Self::acr_new_change_with_old_boxes(&self.sel));
-        self.acr_adjust_selections_after_col_insert(disp_insert_pos, num_visible_added);
+        self.cr_add_cols(cols, header, sorted_seq, &mut event_data, true);
+        self.cr_adjust_selections_after_col_insert(disp_insert_pos, num_visible_added);
 
         if select {
-            Self::acr_deselect_all(&mut self.sel);
+            Self::acr_deselect_all(
+                &mut self.sel,
+                if save_selection {
+                    Some(&mut event_data)
+                } else {
+                    None
+                },
+            );
             for (start, end) in consecutive_ranges_owned(
                 event_data
                     .changes
@@ -108,23 +117,14 @@ impl Table {
                     .flatten()
                     .filter_map(|n| Self::acr_data_to_disp_opt(&self.grid.disp_cols, *n)),
             ) {
-                Self::acr_add_selection_box(
-                    &mut self.sel,
-                    &self.grid,
-                    0,
-                    None,
-                    start,
-                    Some(end),
-                    SelectionKind::Cols,
-                    SelectionState::Normal,
-                    true,
-                );
+                Self::acr_add_selection_box(&mut self.sel, &self.grid, 0, NO_END, start, end, true);
             }
-        }
-
-        if let Some(mut boxes) = boxes {
-            Self::acr_change_set_new_boxes(&self.sel, &mut boxes);
-            event_data.changes.push(boxes);
+            if save_selection {
+                event_data.changes.push(Change::add_selection_boxes(
+                    self.sel.selection_boxes.len(),
+                    None,
+                ));
+            }
         }
 
         self.cr_finalize_event(event_data, undo, emit)

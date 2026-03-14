@@ -93,17 +93,10 @@ impl EventData {
 
     #[inline]
     pub fn has_non_selection_change(&self, reverse: bool) -> bool {
-        let is_selection_change = |c: &Change| {
-            matches!(
-                c,
-                Change::UpdateSelection { .. } | Change::SaveSelection { .. }
-            )
-        };
         if reverse {
-            // Start from the end → finds non-selection changes at the tail instantly
-            self.changes.iter().rev().any(|c| !is_selection_change(c))
+            self.changes.iter().rev().any(|c| !c.is_selection_change())
         } else {
-            self.changes.iter().any(|c| !is_selection_change(c))
+            self.changes.iter().any(|c| !c.is_selection_change())
         }
     }
 }

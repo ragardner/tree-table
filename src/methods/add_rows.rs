@@ -1,10 +1,9 @@
 use crate::Change;
-use crate::Coords;
 use crate::EventData;
 use crate::IndexCell;
 use crate::MaxMap;
-use crate::SelectionBox;
-use crate::SelectionKind;
+use crate::NO_END;
+use crate::Span;
 use crate::Table;
 use crate::TableCell;
 use crate::TableGrid;
@@ -239,22 +238,20 @@ impl Table {
         while i < original_len {
             let b = &mut self.sel.selection_boxes[i];
 
-            if b.kind == SelectionKind::Cols {
+            if b.end_row == NO_END {
                 i += 1;
                 continue;
             }
 
-            let start = b.coords.row;
-            let end = b.coords.end_row.unwrap_or(start); // inclusive
+            let start = b.row;
+            let end = b.end_row; // inclusive
 
             if end < disp_insert_pos {
                 // completely before insertion point → untouched
             } else if start >= disp_insert_pos {
                 // completely at/after insertion point → shift whole box
-                b.coords.row += num_visible_added;
-                if let Some(er) = &mut b.coords.end_row {
-                    *er += num_visible_added;
-                }
+                b.row += num_visible_added;
+                b.end_row = b.end_row.saturating_add(num_visible_added);
             } else {
                 // straddles the insertion point → split the box
                 // (new rows are never selected)
@@ -262,26 +259,20 @@ impl Table {
 
                 if start <= left_end {
                     // shorten existing box to left part (inclusive)
-                    b.coords.end_row = Some(left_end);
+                    b.end_row = left_end;
 
                     // append new box for right part (shifted)
                     let right_start = disp_insert_pos + num_visible_added;
                     let right_end = end + num_visible_added;
 
-                    let new_coords = Coords::new(
+                    let new_coords = Span::new(
                         right_start,
-                        Some(right_end), // always inclusive — works for single or multi
-                        b.coords.col,
-                        b.coords.end_col,
+                        right_end, // always inclusive — works for single or multi
+                        b.col,
+                        b.end_col,
                     );
 
-                    let kind = b.kind.clone();
-                    let state = b.state.clone();
-                    self.sel.selection_boxes.push(SelectionBox {
-                        coords: new_coords,
-                        kind,
-                        state,
-                    });
+                    self.sel.selection_boxes.push(new_coords);
                 }
             }
             i += 1;
@@ -293,9 +284,7 @@ impl Table {
             if sel.row >= disp_insert_pos {
                 sel.row += num_visible_added;
                 sel.coords.row += num_visible_added;
-                if let Some(er) = &mut sel.coords.end_row {
-                    *er += num_visible_added;
-                }
+                sel.coords.end_row = sel.coords.end_row.saturating_add(num_visible_added);
             }
         }
     }

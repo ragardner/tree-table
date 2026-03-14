@@ -32,7 +32,7 @@ impl Table {
             Self::acr_borrow_ciid(&self.grid.header.cells, num_cols.saturating_sub(1))?.to_string(),
         ]);
 
-        let mut event_data = self.cr_new_event(false);
+        let mut event_data = self.cr_new_event(kwargs.save_selection);
         let mut positions: Vec<usize> = Vec::new();
 
         for iid in items.iter() {
@@ -41,25 +41,13 @@ impl Table {
 
         if positions.is_empty() {
             return Ok(None);
-        } else {
-            positions.sort_unstable();
-            positions.dedup();
         }
+        positions.sort_unstable();
+        positions.dedup();
 
         let deleted_disp = Self::acr_compute_deleted_disp_cols(&self.grid.disp_cols, &positions);
-        let boxes = kwargs
-            .save_selection
-            .then_some(Self::acr_new_change_with_old_boxes(&self.sel));
-
         self.cr_del_cols(positions, &mut event_data)?;
-
-        self.acr_adjust_selections_after_col_delete(&deleted_disp);
-
-        if let Some(mut boxes) = boxes {
-            Self::acr_change_set_new_boxes(&self.sel, &mut boxes);
-            event_data.changes.push(boxes);
-        }
-
+        self.cr_adjust_selections_after_col_delete(&deleted_disp);
         self.cr_finalize_event(event_data, kwargs.undo, kwargs.emit)
     }
 
@@ -88,27 +76,14 @@ impl Table {
 
         if positions.is_empty() {
             return Ok(None);
-        } else {
-            positions.sort_unstable();
-            positions.dedup();
         }
+        positions.sort_unstable();
+        positions.dedup();
 
-        let mut event_data = self.cr_new_event(false);
-
+        let mut event_data = self.cr_new_event(kwargs.save_selection);
         let deleted_disp = Self::acr_compute_deleted_disp_cols(&self.grid.disp_cols, &positions);
-        let boxes = kwargs
-            .save_selection
-            .then_some(Self::acr_new_change_with_old_boxes(&self.sel));
-
         self.cr_del_cols(positions, &mut event_data)?;
-
-        self.acr_adjust_selections_after_col_delete(&deleted_disp);
-
-        if let Some(mut boxes) = boxes {
-            Self::acr_change_set_new_boxes(&self.sel, &mut boxes);
-            event_data.changes.push(boxes);
-        }
-
+        self.cr_adjust_selections_after_col_delete(&deleted_disp);
         self.cr_finalize_event(event_data, kwargs.undo, kwargs.emit)
     }
 }

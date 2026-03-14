@@ -9,7 +9,7 @@ impl Table {
             widget_name: self.opts.widget_name.clone(),
             widget_id: self.opts.widget_id.clone(),
             changes: if boxes {
-                vec![Change::SaveSelection {
+                vec![Change::SetSelectionBoxes {
                     old_selection_boxes: self.sel.selection_boxes.clone(),
                     old_selected: self.sel.selected.clone(),
                 }]

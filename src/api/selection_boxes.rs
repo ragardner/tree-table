@@ -1,6 +1,6 @@
+use crate::Change;
 use crate::EventData;
-use crate::SelectionKind;
-use crate::SelectionState;
+use crate::NO_END;
 use crate::Table;
 use crate::args::AddSelectionArgs;
 use crate::args::SelectRowsColsArgs;
@@ -21,22 +21,8 @@ impl Table {
         }
         let kwargs: SelectionClearArgs = kwargs.unwrap_or_default();
         let mut event_data: EventData = self.cr_new_event(false);
-
-        let mut boxes = Self::acr_new_change_with_old_boxes(&self.sel);
-        Self::acr_deselect_all(&mut self.sel);
-        Self::acr_change_set_new_boxes(&self.sel, &mut boxes);
-        event_data.changes.push(boxes);
-
-        if !event_data.changes.is_empty() {
-            self.cr_event_modified(true)?;
-            let shared = Rc::new(RefCell::new(event_data));
-            if self.opts.enabled_undo && kwargs.undo && self.grid.undo_stack.get_maxlen() > 0 {
-                self.grid.undo_stack.push_back(shared.clone());
-            }
-            Ok(kwargs.emit.then_some(shared))
-        } else {
-            Ok(None)
-        }
+        Self::acr_deselect_all(&mut self.sel, Some(&mut event_data));
+        self.cr_finalize_event(event_data, kwargs.undo, kwargs.emit)
     }
 
     /// Create a selection box using a span. Uses displayed indices.
@@ -47,8 +33,7 @@ impl Table {
         let kwargs: AddSelectionArgs = kwargs.unwrap_or_default();
         let span = self.cr_key_to_span(kwargs.key)?;
         let mut event_data: EventData = self.cr_new_event(false);
-
-        let mut boxes = Self::acr_new_change_with_old_boxes(&self.sel);
+        let change = Change::add_selection_boxes(1, self.sel.selected.clone());
         Self::acr_add_selection_box(
             &mut self.sel,
             &self.grid,
@@ -56,13 +41,9 @@ impl Table {
             span.end_row,
             span.col,
             span.end_col,
-            span.kind(),
-            SelectionState::Normal,
             kwargs.current,
         );
-        Self::acr_change_set_new_boxes(&self.sel, &mut boxes);
-        event_data.changes.push(boxes);
-
+        event_data.changes.push(change);
         self.cr_finalize_event(event_data, kwargs.undo, kwargs.emit)
     }
 
@@ -97,7 +78,6 @@ impl Table {
         row_nums.dedup();
 
         let mut event_data: EventData = self.cr_new_event(false);
-        let mut boxes = Self::acr_new_change_with_old_boxes(&self.sel);
 
         // If we're using tree mode then we need to expand rows
         if self.opts.tree_mode {
@@ -141,10 +121,14 @@ impl Table {
             self.opts.horizontal_grid_line_width.clone(),
         );
 
+        let old_selected = self.sel.selected.clone();
+
         // Clear current selections if kwargs.replace
         if kwargs.replace {
-            Self::acr_deselect_all(&mut self.sel);
+            Self::acr_deselect_all(&mut self.sel, Some(&mut event_data));
         }
+
+        let old_len = self.sel.selection_boxes.len();
 
         // Select the items, converting data item indices to displayed
         for (start, end) in consecutive_ranges_owned(
@@ -156,19 +140,17 @@ impl Table {
                 &mut self.sel,
                 &self.grid,
                 start,
-                Some(end),
+                end,
                 0,
-                None,
-                SelectionKind::Rows,
-                SelectionState::Normal,
+                NO_END,
                 kwargs.current,
             );
         }
 
-        // Update event_data with new selections
-        Self::acr_change_set_new_boxes(&self.sel, &mut boxes);
-        event_data.changes.push(boxes);
-
+        let num_added = self.sel.selection_boxes.len() - old_len;
+        event_data
+            .changes
+            .push(Change::add_selection_boxes(num_added, old_selected));
         self.cr_finalize_event(event_data, kwargs.undo, kwargs.emit)
     }
 
@@ -204,7 +186,6 @@ impl Table {
         items.dedup();
 
         let mut event_data: EventData = self.cr_new_event(false);
-        let mut boxes = Self::acr_new_change_with_old_boxes(&self.sel);
 
         // Unhide any currently hidden items
         Self::acr_set_col_vis(
@@ -222,10 +203,14 @@ impl Table {
             self.opts.vertical_grid_line_width.clone(),
         );
 
+        let old_selected = self.sel.selected.clone();
+
         // Clear current selections if kwargs.replace
         if kwargs.replace {
-            Self::acr_deselect_all(&mut self.sel);
+            Self::acr_deselect_all(&mut self.sel, Some(&mut event_data));
         }
+
+        let old_len = self.sel.selection_boxes.len();
 
         // Select the items, converting data item indices to displayed
         for (start, end) in consecutive_ranges_owned(
@@ -237,18 +222,17 @@ impl Table {
                 &mut self.sel,
                 &self.grid,
                 0,
-                None,
+                NO_END,
                 start,
-                Some(end),
-                SelectionKind::Cols,
-                SelectionState::Normal,
+                end,
                 kwargs.current,
             );
         }
 
-        // Update event_data with new selections
-        Self::acr_change_set_new_boxes(&self.sel, &mut boxes);
-        event_data.changes.push(boxes);
+        let num_added = self.sel.selection_boxes.len() - old_len;
+        event_data
+            .changes
+            .push(Change::add_selection_boxes(num_added, old_selected));
 
         self.cr_finalize_event(event_data, kwargs.undo, kwargs.emit)
     }
