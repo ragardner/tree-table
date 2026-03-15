@@ -8,7 +8,7 @@ use std::fmt;
 // #[cfg_attr(feature = "tsify", tsify(from_wasm_abi))]
 #[cfg_attr(feature = "serde", serde(untagged))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Clone, Debug)]
 pub enum Val {
     Str(String),
     Chr(char),

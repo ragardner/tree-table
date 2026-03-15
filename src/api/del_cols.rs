@@ -87,3 +87,6 @@ impl Table {
         self.cr_finalize_event(event_data, kwargs.undo, kwargs.emit)
     }
 }
+
+// cols deleted, selections not saved
+// undo -> selections not updated, could be out of whack, what to do?

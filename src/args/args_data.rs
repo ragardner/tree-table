@@ -4,6 +4,8 @@ use crate::Val;
 use crate::statics::default_emit_event_for_api;
 use crate::statics::default_save_selection_for_api;
 use crate::statics::default_undo_for_api;
+#[cfg(feature = "serde")]
+use crate::statics::get_true;
 
 #[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
 #[cfg_attr(feature = "tsify", tsify(from_wasm_abi))]
@@ -23,6 +25,8 @@ pub struct FillDataArgs {
     pub undo: bool,
     #[cfg_attr(feature = "serde", serde(default = "default_save_selection_for_api"))]
     pub save_selection: bool,
+    #[cfg_attr(feature = "serde", serde(default = "get_true"))]
+    pub ignore_fmt_errs: bool,
 }
 
 impl Default for FillDataArgs {
@@ -30,11 +34,12 @@ impl Default for FillDataArgs {
         FillDataArgs {
             key: SpanKey::None,
             val: None,
-            undo: default_undo_for_api(),
-            emit: default_emit_event_for_api(),
             add_rows: false,
             add_cols: false,
+            undo: default_undo_for_api(),
+            emit: default_emit_event_for_api(),
             save_selection: default_save_selection_for_api(),
+            ignore_fmt_errs: true,
         }
     }
 }
@@ -53,6 +58,8 @@ pub struct SetDataArgs {
     pub undo: bool,
     #[cfg_attr(feature = "serde", serde(default = "default_save_selection_for_api"))]
     pub save_selection: bool,
+    #[cfg_attr(feature = "serde", serde(default = "get_true"))]
+    pub ignore_fmt_errs: bool,
 }
 
 impl Default for SetDataArgs {
@@ -63,6 +70,7 @@ impl Default for SetDataArgs {
             emit: default_emit_event_for_api(),
             undo: default_undo_for_api(),
             save_selection: default_save_selection_for_api(),
+            ignore_fmt_errs: true,
         }
     }
 }

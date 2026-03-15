@@ -7,9 +7,4 @@ impl Table {
     pub(crate) fn acr_format_data(data_format: &DataFormat, val: Val) -> Val {
         val
     }
-
-    #[inline(always)]
-    pub(crate) fn acr_format_hdata(data_format: &DataFormat, val: Val) -> Val {
-        val
-    }
 }

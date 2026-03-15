@@ -76,9 +76,6 @@ macro_rules! define_options {
                 )*
             }
         }
-
-        pub(crate) use merge_self_opts_fields;
-        pub(crate) use merge_opts_fields;
     };
 }
 

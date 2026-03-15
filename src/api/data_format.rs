@@ -29,6 +29,7 @@ impl Table {
         let (start_row, end_row) = span.rows_start_end(&self.grid);
         let (start_col, end_col) = span.cols_start_end(&self.grid);
         let empty_val = &self.opts.empty_val;
+        let set_vals = kwargs.set_vals;
         for row in start_row..end_row {
             for col in start_col..end_col {
                 Self::acr_event_data_set_tdata_format(
@@ -39,6 +40,14 @@ impl Table {
                     empty_val,
                     &mut event_data,
                 )?;
+                // TODO:
+                // - roll back code, including in other API functions
+                // - here we need to determine the best course of action
+                //      - perhaps add a parameter to set_tdata_format?
+                //      - perhaps a whole new function?
+                //      - we can't take the value from the cells in case an error occurs before the change goes ahead
+                //      - so a whole new function is probably best, event_data_apply_tformat or something
+                if set_vals {}
             }
         }
         self.cr_finalize_event_if_any_non_selection_change(
