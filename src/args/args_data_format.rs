@@ -15,6 +15,10 @@ pub struct DataFormatArgs {
     pub fmt: Option<String>,
     #[cfg_attr(feature = "serde", serde(default = "get_true"))]
     pub set_vals: bool,
+    #[cfg_attr(feature = "serde", serde(default = "get_true"))]
+    pub ignore_fmt_errs: bool,
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub fmt_normalize: bool,
     #[cfg_attr(feature = "serde", serde(default = "default_emit_event_for_api"))]
     pub emit: bool,
     #[cfg_attr(feature = "serde", serde(default = "default_undo_for_api"))]
@@ -31,6 +35,8 @@ impl Default for DataFormatArgs {
             key: SpanKey::None,
             fmt: None,
             set_vals: true,
+            ignore_fmt_errs: true,
+            fmt_normalize: false,
             emit: default_emit_event_for_api(),
             undo: default_undo_for_api(),
             save_selection: default_save_selection_for_api(),

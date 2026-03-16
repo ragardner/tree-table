@@ -48,7 +48,7 @@ impl Table {
             .undo_stack
             .pop_back()
             .ok_or(str_err!("Undo stack unexpectedly empty"))?;
-        let event_data = self.cr_undo_and_invert_event(change, kwargs.invalid_indices, false)?;
+        let event_data = self.cr_undo_and_invert_event(change, kwargs.invalid_indices, true)?;
         self.cr_event_modified(false)?;
         let shared = Rc::new(RefCell::new(event_data));
         if self.opts.enabled_undo && self.grid.redo_stack.get_maxlen() > 0 {
@@ -70,7 +70,7 @@ impl Table {
             .redo_stack
             .pop_back()
             .ok_or(str_err!("Redo stack unexpectedly empty"))?;
-        let event_data = self.cr_undo_and_invert_event(change, kwargs.invalid_indices, false)?;
+        let event_data = self.cr_undo_and_invert_event(change, kwargs.invalid_indices, true)?;
         self.cr_event_modified(false)?;
         let shared = Rc::new(RefCell::new(event_data));
         if self.opts.enabled_undo && self.grid.undo_stack.get_maxlen() > 0 {
@@ -83,7 +83,7 @@ impl Table {
         &mut self,
         to_undo: Rc<RefCell<EventData>>,
         mut invalid_indices: Vec<u64>,
-        recursive: bool,
+        repeat_on_err: bool,
     ) -> Result<EventData, String> {
         // For move rows, move cols
         fn prepare_move_mappings(
@@ -231,9 +231,9 @@ impl Table {
         }
 
         if let Some(e) = error {
-            if !recursive {
+            if repeat_on_err {
                 let roll_back = Rc::new(RefCell::new(event_data));
-                let _ = self.cr_undo_and_invert_event(roll_back, vec![], true);
+                let _ = self.cr_undo_and_invert_event(roll_back, vec![], false);
             }
             return Err(e);
         }

@@ -15,8 +15,11 @@ impl Table {
 
         let empty_val = &self.opts.empty_val;
         let mut event_data: EventData = self.cr_new_event(kwargs.save_selection);
+        let normalize = kwargs.fmt_normalize;
+        let ignore_fmt_errs = kwargs.ignore_fmt_errs;
+        let mut error: Option<String> = None;
 
-        if kwargs.ignore_invalid {
+        if kwargs.ignore_id_errs {
             for (row_pos, cols) in kwargs.data.into_iter() {
                 let Ok(rn) = Self::acr_pos(&self.grid.index.iid_to_row, &row_pos) else {
                     continue;
@@ -25,14 +28,22 @@ impl Table {
                     let Ok(cn) = Self::acr_pos(&self.grid.header.iid_to_col, &col_pos) else {
                         continue;
                     };
-                    Self::acr_event_data_fmt_set_tval(
+                    match Self::acr_event_data_fmt_set_tval(
                         &mut self.grid.index.cells,
                         rn,
                         cn,
                         val,
+                        normalize,
+                        ignore_fmt_errs,
                         empty_val,
                         &mut event_data,
-                    )?;
+                    ) {
+                        Err(e) => {
+                            error = Some(e);
+                            break;
+                        }
+                        _ => {}
+                    }
                 }
             }
         } else {
@@ -40,24 +51,37 @@ impl Table {
                 let rn = Self::acr_pos(&self.grid.index.iid_to_row, &row_pos)?;
                 for (col_pos, val) in cols.into_iter() {
                     let cn = Self::acr_pos(&self.grid.header.iid_to_col, &col_pos)?;
-                    Self::acr_event_data_fmt_set_tval(
+                    match Self::acr_event_data_fmt_set_tval(
                         &mut self.grid.index.cells,
                         rn,
                         cn,
                         val,
+                        normalize,
+                        ignore_fmt_errs,
                         empty_val,
                         &mut event_data,
-                    )?;
+                    ) {
+                        Err(e) => {
+                            error = Some(e);
+                            break;
+                        }
+                        _ => {}
+                    }
                 }
             }
         }
 
-        self.cr_finalize_event_if_any_non_selection_change(
-            event_data,
-            kwargs.undo,
-            kwargs.emit,
-            true,
-        )
+        if let Some(e) = error {
+            let _ = self.cr_undo_and_invert_event(Rc::new(RefCell::new(event_data)), vec![], false);
+            return Err(e);
+        } else {
+            self.cr_finalize_event_if_any_non_selection_change(
+                event_data,
+                kwargs.undo,
+                kwargs.emit,
+                true,
+            )
+        }
     }
 
     /// Sets table cell data using a key and a single value.
@@ -70,6 +94,8 @@ impl Table {
         let span = self.cr_key_to_span(kwargs.key)?;
         let mut event_data: EventData = self.cr_new_event(kwargs.save_selection);
         let val = kwargs.val.unwrap_or(self.opts.empty_val.clone());
+        let normalize = kwargs.fmt_normalize;
+        let ignore_fmt_errs = kwargs.ignore_fmt_errs;
 
         if kwargs.add_rows {
             let span_max_row = span.max_row(&self.grid);
@@ -97,25 +123,39 @@ impl Table {
         };
 
         let empty_val = &self.opts.empty_val;
+        let mut error: Option<String> = None;
 
         for row in row_start..=effective_row_end {
             for col in col_start..=effective_col_end {
-                Self::acr_event_data_fmt_set_tval(
+                match Self::acr_event_data_fmt_set_tval(
                     &mut self.grid.index.cells,
                     row,
                     col,
                     val.clone(),
+                    normalize,
+                    ignore_fmt_errs,
                     empty_val,
                     &mut event_data,
-                )?;
+                ) {
+                    Err(e) => {
+                        error = Some(e);
+                        break;
+                    }
+                    _ => {}
+                }
             }
         }
 
-        self.cr_finalize_event_if_any_non_selection_change(
-            event_data,
-            kwargs.undo,
-            kwargs.emit,
-            true,
-        )
+        if let Some(e) = error {
+            let _ = self.cr_undo_and_invert_event(Rc::new(RefCell::new(event_data)), vec![], false);
+            return Err(e);
+        } else {
+            self.cr_finalize_event_if_any_non_selection_change(
+                event_data,
+                kwargs.undo,
+                kwargs.emit,
+                true,
+            )
+        }
     }
 }

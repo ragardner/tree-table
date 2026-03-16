@@ -6,6 +6,7 @@ use bigdecimal::FromPrimitive;
 use chrono::{DateTime, Duration, Utc};
 use num_bigint::BigInt as NumBigInt;
 use rust_decimal::Decimal;
+use std::borrow::Cow;
 use std::str::FromStr;
 
 #[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
@@ -203,20 +204,29 @@ impl DataFormat {
     }
 
     /// Tries to format a borrowed `&Val` into this `DataFormat`'s exact type.
-    /// When normalize is true it applies decimals, max_length, etc.
-    pub fn try_format_val(&self, val: &Val, normalize: bool) -> Result<Val, String> {
+    ///
+    /// Returns `Cow::Borrowed(original)` when types already match and `normalize = false`
+    /// (zero-cost fast path — no clone).
+    /// Returns `Cow::Owned(new_val)` in every other success case.
+    pub fn try_format_val<'a>(
+        &self,
+        val: &'a Val,
+        normalize: bool,
+    ) -> Result<Cow<'a, Val>, String> {
         // Same type?
         if self.val_type() == val.val_type() {
             if normalize {
-                return self.apply_formatting(val); // apply decimals, max_length etc.
+                // apply decimals / max_length etc.
+                return self.apply_formatting(val).map(Cow::Owned);
             } else {
-                return Ok(val.clone());
+                return Ok(Cow::Borrowed(val)); // ← this is the clone-killer
             }
         }
 
+        // Type conversion path (different type)
         let s = val.to_string();
 
-        match self {
+        let new_val = match self {
             DataFormat::Str(fmt) => {
                 let mut res = s;
                 if normalize && fmt.max_length.is_some() {
@@ -224,55 +234,55 @@ impl DataFormat {
                         res.truncate(max as usize);
                     }
                 }
-                Ok(Val::Str(res))
+                Val::Str(res)
             }
             DataFormat::Chr(_) => s
                 .chars()
                 .next()
                 .map(Val::Chr)
-                .ok_or_else(|| "Cannot convert empty value to char".to_string()),
+                .ok_or_else(|| "Cannot convert empty value to char".to_string())?,
 
-            DataFormat::Un8(_) => Self::parse_numeric::<u8>(&s).map(Val::Un8),
-            DataFormat::Un16(_) => Self::parse_numeric::<u16>(&s).map(Val::Un16),
-            DataFormat::Un32(_) => Self::parse_numeric::<u32>(&s).map(Val::Un32),
-            DataFormat::Un64(_) => Self::parse_numeric::<u64>(&s).map(Val::Un64),
-            DataFormat::Un128(_) => Self::parse_numeric::<u128>(&s).map(Val::Un128),
+            DataFormat::Un8(_) => Self::parse_numeric::<u8>(&s).map(Val::Un8)?,
+            DataFormat::Un16(_) => Self::parse_numeric::<u16>(&s).map(Val::Un16)?,
+            DataFormat::Un32(_) => Self::parse_numeric::<u32>(&s).map(Val::Un32)?,
+            DataFormat::Un64(_) => Self::parse_numeric::<u64>(&s).map(Val::Un64)?,
+            DataFormat::Un128(_) => Self::parse_numeric::<u128>(&s).map(Val::Un128)?,
 
-            DataFormat::Sn8(_) => Self::parse_numeric::<i8>(&s).map(Val::Sn8),
-            DataFormat::Sn16(_) => Self::parse_numeric::<i16>(&s).map(Val::Sn16),
-            DataFormat::Sn32(_) => Self::parse_numeric::<i32>(&s).map(Val::Sn32),
-            DataFormat::Sn64(_) => Self::parse_numeric::<i64>(&s).map(Val::Sn64),
-            DataFormat::Sn128(_) => Self::parse_numeric::<i128>(&s).map(Val::Sn128),
+            DataFormat::Sn8(_) => Self::parse_numeric::<i8>(&s).map(Val::Sn8)?,
+            DataFormat::Sn16(_) => Self::parse_numeric::<i16>(&s).map(Val::Sn16)?,
+            DataFormat::Sn32(_) => Self::parse_numeric::<i32>(&s).map(Val::Sn32)?,
+            DataFormat::Sn64(_) => Self::parse_numeric::<i64>(&s).map(Val::Sn64)?,
+            DataFormat::Sn128(_) => Self::parse_numeric::<i128>(&s).map(Val::Sn128)?,
 
-            DataFormat::Fl64(fmt) => Self::parse_fl64(&s, normalize.then_some(fmt.decimals)),
-            DataFormat::Dec(fmt) => Self::parse_dec(&s, normalize.then_some(fmt.decimals)),
+            DataFormat::Fl64(fmt) => Self::parse_fl64(&s, normalize.then_some(fmt.decimals))?,
+            DataFormat::Dec(fmt) => Self::parse_dec(&s, normalize.then_some(fmt.decimals))?,
 
             DataFormat::Bigdec(_) => BigDecimal::from_str(s.trim())
                 .map(Val::Bigdec)
-                .map_err(|e| str_err!("Cannot parse '{}' as BigDecimal: {}", s, e)),
+                .map_err(|e| str_err!("Cannot parse '{}' as BigDecimal: {}", s, e))?,
+
             DataFormat::Bigint(_) => NumBigInt::from_str(s.trim())
                 .map(Val::Bigint)
-                .map_err(|e| str_err!("Cannot parse '{}' as BigInt: {}", s, e)),
+                .map_err(|e| str_err!("Cannot parse '{}' as BigInt: {}", s, e))?,
 
             DataFormat::Bl(_) => {
                 let lower = s.trim().to_lowercase();
-                Ok(Val::Bl(matches!(
-                    lower.as_str(),
-                    "true" | "1" | "yes" | "y"
-                )))
+                Val::Bl(matches!(lower.as_str(), "true" | "1" | "yes" | "y"))
             }
 
-            DataFormat::Dt(_) => Self::parse_datetime(&s),
+            DataFormat::Dt(_) => Self::parse_datetime(&s)?,
             DataFormat::Dur(_) => s
                 .trim()
                 .parse::<i64>()
                 .map(Duration::milliseconds)
                 .map(Val::Dur)
-                .map_err(|e| str_err!("Cannot convert '{}' to Duration (ms expected): {}", s, e)),
+                .map_err(|e| str_err!("Cannot convert '{}' to Duration (ms expected): {}", s, e))?,
 
-            DataFormat::Nil(_) => Ok(Val::Nil(())),
-            DataFormat::Undf(_) => Ok(Val::Undf(())),
-        }
+            DataFormat::Nil(_) => Val::Nil(()),
+            DataFormat::Undf(_) => Val::Undf(()),
+        };
+
+        Ok(Cow::Owned(new_val))
     }
 
     fn apply_formatting(&self, val: &Val) -> Result<Val, String> {

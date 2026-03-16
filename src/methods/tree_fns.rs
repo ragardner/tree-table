@@ -62,7 +62,7 @@ impl Table {
                 return Err(error);
             }
         } else {
-            let mut temp: EventData = EventData::new();
+            let mut temp: EventData = EventData::default();
             for (iid, tree_change) in restore_from.drain() {
                 let rn = match Self::acr_pos(&index.iid_to_row, &iid) {
                     Ok(rn) => rn,

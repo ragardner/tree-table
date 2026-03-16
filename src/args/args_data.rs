@@ -19,14 +19,16 @@ pub struct FillDataArgs {
     pub add_rows: bool,
     #[cfg_attr(feature = "serde", serde(default))]
     pub add_cols: bool,
+    #[cfg_attr(feature = "serde", serde(default = "get_true"))]
+    pub ignore_fmt_errs: bool,
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub fmt_normalize: bool,
     #[cfg_attr(feature = "serde", serde(default = "default_emit_event_for_api"))]
     pub emit: bool,
     #[cfg_attr(feature = "serde", serde(default = "default_undo_for_api"))]
     pub undo: bool,
     #[cfg_attr(feature = "serde", serde(default = "default_save_selection_for_api"))]
     pub save_selection: bool,
-    #[cfg_attr(feature = "serde", serde(default = "get_true"))]
-    pub ignore_fmt_errs: bool,
 }
 
 impl Default for FillDataArgs {
@@ -36,10 +38,11 @@ impl Default for FillDataArgs {
             val: None,
             add_rows: false,
             add_cols: false,
+            ignore_fmt_errs: true,
+            fmt_normalize: false,
             undo: default_undo_for_api(),
             emit: default_emit_event_for_api(),
             save_selection: default_save_selection_for_api(),
-            ignore_fmt_errs: true,
         }
     }
 }
@@ -51,7 +54,7 @@ impl Default for FillDataArgs {
 pub struct SetDataArgs {
     pub data: Vec<(String, Vec<(String, Val)>)>,
     #[cfg_attr(feature = "serde", serde(default))]
-    pub ignore_invalid: bool,
+    pub ignore_id_errs: bool,
     #[cfg_attr(feature = "serde", serde(default = "default_emit_event_for_api"))]
     pub emit: bool,
     #[cfg_attr(feature = "serde", serde(default = "default_undo_for_api"))]
@@ -60,17 +63,20 @@ pub struct SetDataArgs {
     pub save_selection: bool,
     #[cfg_attr(feature = "serde", serde(default = "get_true"))]
     pub ignore_fmt_errs: bool,
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub fmt_normalize: bool,
 }
 
 impl Default for SetDataArgs {
     fn default() -> Self {
         SetDataArgs {
             data: vec![],
-            ignore_invalid: true,
+            ignore_id_errs: true,
             emit: default_emit_event_for_api(),
             undo: default_undo_for_api(),
             save_selection: default_save_selection_for_api(),
             ignore_fmt_errs: true,
+            fmt_normalize: false,
         }
     }
 }

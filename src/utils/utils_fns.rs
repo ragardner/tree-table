@@ -27,12 +27,13 @@ pub(crate) fn remove_duplicates_outside_section(
     }
     let section_end = section_start + section_size;
     let section_set: HashSet<Rc<str>> = items[section_start..section_end].iter().cloned().collect();
-    let len = items.len();
     items
         .into_iter()
-        .zip(0..len)
-        .filter(|(s, i)| *i >= section_start && *i < section_end || !section_set.contains(s))
-        .map(|(s, _)| s)
+        .enumerate()
+        .filter(|(i, s)| {
+            *i >= section_start && *i < section_end || !section_set.contains(s.as_ref())
+        })
+        .map(|(_, s)| s)
         .collect()
 }
 
@@ -90,7 +91,7 @@ pub(crate) fn offset_move_indices(
     move_to: usize,
     to_move: &[usize],
     new_to_old: &mut HashMap<usize, usize>,
-) -> HashMap<usize, usize> {
+) -> Vec<(usize, usize)> {
     // Count elements in to_move less than move_to
     let offset = to_move.iter().filter(|i| *i < &move_to).count();
 
@@ -98,13 +99,13 @@ pub(crate) fn offset_move_indices(
     let correct_move_to = move_to.saturating_sub(offset);
 
     // Initialize hashmaps
-    let mut old_to_new = HashMap::new();
+    let mut old_to_new = Vec::new();
     new_to_old.clear();
 
     // Map old indices to new and vice versa
     for (i, &elem) in to_move.iter().enumerate() {
         let value = correct_move_to + i;
-        old_to_new.insert(elem, value);
+        old_to_new.push((elem, value));
         new_to_old.insert(value, elem);
     }
 

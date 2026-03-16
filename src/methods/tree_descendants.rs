@@ -224,7 +224,6 @@ impl Table {
                 res.extend(desc?);
             }
         }
-        // TODO: is sorting necessary?
         res.sort_unstable();
         Ok(res)
     }

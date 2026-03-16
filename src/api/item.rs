@@ -13,6 +13,9 @@ impl Table {
         let mut iid: String = kwargs.item;
         let row = Self::acr_pos(&self.grid.index.iid_to_row, &iid)?;
         let mut event_data = self.cr_new_event(kwargs.save_selection);
+        let normalize = kwargs.fmt_normalize;
+        let ignore_fmt_errs = kwargs.ignore_fmt_errs;
+
         // Deal with open parameter
         if let Some(open) = kwargs.open {
             Self::acr_tree_iid_set_open(
@@ -51,6 +54,8 @@ impl Table {
                 &mut self.grid.index.cells,
                 row,
                 val,
+                normalize,
+                ignore_fmt_errs,
                 &mut event_data,
             )?;
         }
@@ -73,6 +78,8 @@ impl Table {
                     row,
                     col,
                     val,
+                    normalize,
+                    ignore_fmt_errs,
                     empty_val,
                     &mut event_data,
                 )?;
@@ -95,7 +102,12 @@ impl Table {
             )?;
         }
 
-        self.cr_finalize_event_if_any_non_selection_change(event_data, kwargs.undo, kwargs.emit, true)
+        self.cr_finalize_event_if_any_non_selection_change(
+            event_data,
+            kwargs.undo,
+            kwargs.emit,
+            true,
+        )
     }
 
     /// Get information about an item (row).
@@ -128,6 +140,8 @@ impl Table {
         let iid: String = kwargs.item;
         let col = Self::acr_pos(&self.grid.header.iid_to_col, &iid)?;
         let mut event_data = self.cr_new_event(kwargs.save_selection);
+        let normalize = kwargs.fmt_normalize;
+        let ignore_fmt_errs = kwargs.ignore_fmt_errs;
 
         // Deal with val parameter (header cell value / column label)
         if let Some(val) = kwargs.val {
@@ -135,6 +149,8 @@ impl Table {
                 &mut self.grid.header.cells,
                 col,
                 val,
+                normalize,
+                ignore_fmt_errs,
                 &mut event_data,
             )?;
         }
@@ -157,6 +173,8 @@ impl Table {
                     row,
                     col,
                     val,
+                    normalize,
+                    ignore_fmt_errs,
                     empty_val,
                     &mut event_data,
                 )?;
@@ -180,7 +198,12 @@ impl Table {
             )?;
         }
 
-        self.cr_finalize_event_if_any_non_selection_change(event_data, kwargs.undo, kwargs.emit, true)
+        self.cr_finalize_event_if_any_non_selection_change(
+            event_data,
+            kwargs.undo,
+            kwargs.emit,
+            true,
+        )
     }
 
     /// Get information about a column.

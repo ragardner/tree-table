@@ -20,7 +20,7 @@ pub enum TreeChangeKind {
 #[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
 #[cfg_attr(feature = "tsify", tsify(from_wasm_abi))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Default, Clone, PartialEq)]
 pub struct EventData {
     pub widget_name: String,
     pub widget_id: u32,
@@ -30,15 +30,6 @@ pub struct EventData {
 }
 
 impl EventData {
-    pub fn new() -> Self {
-        Self {
-            widget_name: "".into(),
-            widget_id: 0,
-            changes: Vec::new(),
-            tree_changes: HashMap::new(),
-        }
-    }
-
     #[inline]
     pub fn tree_change_required(&self, iid: &Rc<str>, kind: TreeChangeKind) -> bool {
         if let Some(tree_change) = self.tree_changes.get(iid) {

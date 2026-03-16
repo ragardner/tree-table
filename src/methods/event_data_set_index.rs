@@ -8,7 +8,6 @@ use crate::DataFormat;
 use crate::Dropdown;
 use crate::DropdownState;
 use crate::EventData;
-use crate::HeaderCell;
 use crate::Highlight;
 use crate::IndexCell;
 use crate::Note;
@@ -22,20 +21,17 @@ impl Table {
         cells: &mut Vec<IndexCell>,
         row: usize,
         val: Val,
+        normalize: bool,
+        ignore_fmt_errs: bool,
         event_data: &mut EventData,
     ) -> Result<bool, String> {
-        let is_valid = Self::acr_val_valid_i(cells, &row, &val, false);
         let fmt_opt = Self::acr_icell_data_format(cells, row)?;
-        if fmt_opt.is_some() || is_valid {
-            let formatted_val = if let Some(fmt_ref) = fmt_opt {
-                Self::acr_format_data(&fmt_ref, val)
-            } else {
-                val
-            };
-            let cell = Table::acr_icell_mut(cells, row)?;
+        if fmt_opt.is_some() || Self::acr_val_valid_i(cells, &row, &val, false) {
+            let val = Self::acr_apply_format(fmt_opt, val, normalize, ignore_fmt_errs)?;
+            let cell = Self::acr_icell_mut(cells, row)?;
             event_data.changes.push(Change::IndexCell {
                 row,
-                change: cell.record_set_val(formatted_val),
+                change: cell.record_set_val(val),
             });
             Ok(true)
         } else {
@@ -51,7 +47,7 @@ impl Table {
     //     event_data: &mut EventData,
     // ) -> Result<bool, String> {
     //     if Self::acr_val_valid_i(cells, &row, &val, false) {
-    //         let cell = Table::acr_icell_mut(cells, row)?;
+    //         let cell = Self::acr_icell_mut(cells, row)?;
     //         event_data.changes.push(Change::IndexCell {
     //             row,
     //             change: cell.record_set_val(val),
@@ -69,24 +65,9 @@ impl Table {
         vis: bool,
         event_data: &mut EventData,
     ) -> Result<(), String> {
-        let cell = Table::acr_icell_mut(cells, row)?;
+        let cell = Self::acr_icell_mut(cells, row)?;
         event_data.changes.push(Change::IndexCell {
             row,
-            change: cell.record_set_vis(vis),
-        });
-        Ok(())
-    }
-
-    #[inline]
-    pub(crate) fn acr_event_data_set_hvis(
-        cells: &mut Vec<HeaderCell>,
-        col: usize,
-        vis: bool,
-        event_data: &mut EventData,
-    ) -> Result<(), String> {
-        let cell = Table::acr_hcell_mut(cells, col)?;
-        event_data.changes.push(Change::HeaderCell {
-            col,
             change: cell.record_set_vis(vis),
         });
         Ok(())
@@ -99,7 +80,7 @@ impl Table {
     //     open: bool,
     //     event_data: &mut EventData,
     // ) -> Result<(), String> {
-    //     let cell = Table::acr_icell_mut(cells, row)?;
+    //     let cell = Self::acr_icell_mut(cells, row)?;
     //     event_data.changes.push(Change::IndexCell {
     //         row,
     //         change: cell.record_set_open(open),
@@ -114,7 +95,7 @@ impl Table {
         prop: Option<CellAlign>,
         event_data: &mut EventData,
     ) -> Result<(), String> {
-        let cell = Table::acr_icell_mut(cells, row)?;
+        let cell = Self::acr_icell_mut(cells, row)?;
         event_data.changes.push(Change::IndexCell {
             row,
             change: cell.record_set_props_align(prop),
@@ -129,7 +110,7 @@ impl Table {
         prop: Option<CellBorders>,
         event_data: &mut EventData,
     ) -> Result<(), String> {
-        let cell = Table::acr_icell_mut(cells, row)?;
+        let cell = Self::acr_icell_mut(cells, row)?;
         event_data.changes.push(Change::IndexCell {
             row,
             change: cell.record_set_props_borders(prop),
@@ -144,7 +125,7 @@ impl Table {
         prop: Option<Checkbox>,
         event_data: &mut EventData,
     ) -> Result<(), String> {
-        let cell = Table::acr_icell_mut(cells, row)?;
+        let cell = Self::acr_icell_mut(cells, row)?;
         event_data.changes.push(Change::IndexCell {
             row,
             change: cell.record_set_props_checkbox(prop),
@@ -159,8 +140,7 @@ impl Table {
         prop: Option<DataFormat>,
         event_data: &mut EventData,
     ) -> Result<(), String> {
-        // TODO: set cell val?
-        let cell = Table::acr_icell_mut(cells, row)?;
+        let cell = Self::acr_icell_mut(cells, row)?;
         event_data.changes.push(Change::IndexCell {
             row,
             change: cell.record_set_props_data_format(prop),
@@ -175,7 +155,7 @@ impl Table {
         prop: Option<Dropdown>,
         event_data: &mut EventData,
     ) -> Result<(), String> {
-        let cell = Table::acr_icell_mut(cells, row)?;
+        let cell = Self::acr_icell_mut(cells, row)?;
         event_data.changes.push(Change::IndexCell {
             row,
             change: cell.record_set_props_dropdown(prop),
@@ -190,7 +170,7 @@ impl Table {
         prop: Option<Highlight>,
         event_data: &mut EventData,
     ) -> Result<(), String> {
-        let cell = Table::acr_icell_mut(cells, row)?;
+        let cell = Self::acr_icell_mut(cells, row)?;
         event_data.changes.push(Change::IndexCell {
             row,
             change: cell.record_set_props_highlight(prop),
@@ -205,7 +185,7 @@ impl Table {
         prop: Option<Note>,
         event_data: &mut EventData,
     ) -> Result<(), String> {
-        let cell = Table::acr_icell_mut(cells, row)?;
+        let cell = Self::acr_icell_mut(cells, row)?;
         event_data.changes.push(Change::IndexCell {
             row,
             change: cell.record_set_props_note(prop),
@@ -220,7 +200,7 @@ impl Table {
         prop: Option<ProgressBar>,
         event_data: &mut EventData,
     ) -> Result<(), String> {
-        let cell = Table::acr_icell_mut(cells, row)?;
+        let cell = Self::acr_icell_mut(cells, row)?;
         event_data.changes.push(Change::IndexCell {
             row,
             change: cell.record_set_props_progress_bar(prop),
@@ -235,7 +215,7 @@ impl Table {
         prop: bool,
         event_data: &mut EventData,
     ) -> Result<(), String> {
-        let cell = Table::acr_icell_mut(cells, row)?;
+        let cell = Self::acr_icell_mut(cells, row)?;
         event_data.changes.push(Change::IndexCell {
             row,
             change: cell.record_set_props_readonly(prop),
@@ -250,7 +230,7 @@ impl Table {
         prop: Option<Color3>,
         event_data: &mut EventData,
     ) -> Result<(), String> {
-        let cell = Table::acr_icell_mut(cells, row)?;
+        let cell = Self::acr_icell_mut(cells, row)?;
         event_data.changes.push(Change::IndexCell {
             row,
             change: cell.record_set_props_progress_bar_bg(prop)?,
@@ -265,7 +245,7 @@ impl Table {
         prop: Option<Color3>,
         event_data: &mut EventData,
     ) -> Result<(), String> {
-        let cell = Table::acr_icell_mut(cells, row)?;
+        let cell = Self::acr_icell_mut(cells, row)?;
         event_data.changes.push(Change::IndexCell {
             row,
             change: cell.record_set_props_progress_bar_fg(prop)?,
@@ -280,7 +260,7 @@ impl Table {
         prop: f64,
         event_data: &mut EventData,
     ) -> Result<(), String> {
-        let cell = Table::acr_icell_mut(cells, row)?;
+        let cell = Self::acr_icell_mut(cells, row)?;
         event_data.changes.push(Change::IndexCell {
             row,
             change: cell.record_set_props_progress_bar_pc(prop)?,
@@ -295,7 +275,7 @@ impl Table {
         prop: bool,
         event_data: &mut EventData,
     ) -> Result<(), String> {
-        let cell = Table::acr_icell_mut(cells, row)?;
+        let cell = Self::acr_icell_mut(cells, row)?;
         event_data.changes.push(Change::IndexCell {
             row,
             change: cell.record_set_props_progress_bar_remove_on_complete(prop)?,
@@ -310,7 +290,7 @@ impl Table {
         prop: String,
         event_data: &mut EventData,
     ) -> Result<(), String> {
-        let cell = Table::acr_icell_mut(cells, row)?;
+        let cell = Self::acr_icell_mut(cells, row)?;
         event_data.changes.push(Change::IndexCell {
             row,
             change: cell.record_set_props_note_text(prop)?,
@@ -325,7 +305,7 @@ impl Table {
         prop: Option<Color3>,
         event_data: &mut EventData,
     ) -> Result<(), String> {
-        let cell = Table::acr_icell_mut(cells, row)?;
+        let cell = Self::acr_icell_mut(cells, row)?;
         event_data.changes.push(Change::IndexCell {
             row,
             change: cell.record_set_props_note_bg(prop)?,
@@ -340,7 +320,7 @@ impl Table {
         prop: Option<Color3>,
         event_data: &mut EventData,
     ) -> Result<(), String> {
-        let cell = Table::acr_icell_mut(cells, row)?;
+        let cell = Self::acr_icell_mut(cells, row)?;
         event_data.changes.push(Change::IndexCell {
             row,
             change: cell.record_set_props_note_fg(prop)?,
@@ -355,7 +335,7 @@ impl Table {
         prop: bool,
         event_data: &mut EventData,
     ) -> Result<(), String> {
-        let cell = Table::acr_icell_mut(cells, row)?;
+        let cell = Self::acr_icell_mut(cells, row)?;
         event_data.changes.push(Change::IndexCell {
             row,
             change: cell.record_set_props_note_readonly(prop)?,
@@ -370,7 +350,7 @@ impl Table {
         prop: Vec<Val>,
         event_data: &mut EventData,
     ) -> Result<(), String> {
-        let cell = Table::acr_icell_mut(cells, row)?;
+        let cell = Self::acr_icell_mut(cells, row)?;
         event_data.changes.push(Change::IndexCell {
             row,
             change: cell.record_set_props_dropdown_vals(prop)?,
@@ -385,7 +365,7 @@ impl Table {
         prop: Option<Val>,
         event_data: &mut EventData,
     ) -> Result<(), String> {
-        let cell = Table::acr_icell_mut(cells, row)?;
+        let cell = Self::acr_icell_mut(cells, row)?;
         event_data.changes.push(Change::IndexCell {
             row,
             change: cell.record_set_props_dropdown_default_val(prop)?,
@@ -400,7 +380,7 @@ impl Table {
         prop: bool,
         event_data: &mut EventData,
     ) -> Result<(), String> {
-        let cell = Table::acr_icell_mut(cells, row)?;
+        let cell = Self::acr_icell_mut(cells, row)?;
         event_data.changes.push(Change::IndexCell {
             row,
             change: cell.record_set_props_dropdown_validation(prop)?,
@@ -415,7 +395,7 @@ impl Table {
         prop: Option<String>,
         event_data: &mut EventData,
     ) -> Result<(), String> {
-        let cell = Table::acr_icell_mut(cells, row)?;
+        let cell = Self::acr_icell_mut(cells, row)?;
         event_data.changes.push(Change::IndexCell {
             row,
             change: cell.record_set_props_dropdown_text(prop)?,
@@ -430,7 +410,7 @@ impl Table {
         prop: DropdownState,
         event_data: &mut EventData,
     ) -> Result<(), String> {
-        let cell = Table::acr_icell_mut(cells, row)?;
+        let cell = Self::acr_icell_mut(cells, row)?;
         event_data.changes.push(Change::IndexCell {
             row,
             change: cell.record_set_props_dropdown_state(prop)?,
@@ -445,7 +425,7 @@ impl Table {
         prop: Val,
         event_data: &mut EventData,
     ) -> Result<(), String> {
-        let cell = Table::acr_icell_mut(cells, row)?;
+        let cell = Self::acr_icell_mut(cells, row)?;
         event_data.changes.push(Change::IndexCell {
             row,
             change: cell.record_set_props_checkbox_true_val(prop)?,
@@ -460,7 +440,7 @@ impl Table {
         prop: Val,
         event_data: &mut EventData,
     ) -> Result<(), String> {
-        let cell = Table::acr_icell_mut(cells, row)?;
+        let cell = Self::acr_icell_mut(cells, row)?;
         event_data.changes.push(Change::IndexCell {
             row,
             change: cell.record_set_props_checkbox_false_val(prop)?,
@@ -475,7 +455,7 @@ impl Table {
         prop: Option<String>,
         event_data: &mut EventData,
     ) -> Result<(), String> {
-        let cell = Table::acr_icell_mut(cells, row)?;
+        let cell = Self::acr_icell_mut(cells, row)?;
         event_data.changes.push(Change::IndexCell {
             row,
             change: cell.record_set_props_checkbox_text(prop)?,
@@ -490,7 +470,7 @@ impl Table {
         prop: bool,
         event_data: &mut EventData,
     ) -> Result<(), String> {
-        let cell = Table::acr_icell_mut(cells, row)?;
+        let cell = Self::acr_icell_mut(cells, row)?;
         event_data.changes.push(Change::IndexCell {
             row,
             change: cell.record_set_props_checkbox_state(prop)?,
@@ -505,7 +485,7 @@ impl Table {
         prop: Option<Border>,
         event_data: &mut EventData,
     ) -> Result<(), String> {
-        let cell = Table::acr_icell_mut(cells, row)?;
+        let cell = Self::acr_icell_mut(cells, row)?;
         event_data.changes.push(Change::IndexCell {
             row,
             change: cell.record_set_props_borders_top(prop)?,
@@ -520,7 +500,7 @@ impl Table {
         prop: Option<Border>,
         event_data: &mut EventData,
     ) -> Result<(), String> {
-        let cell = Table::acr_icell_mut(cells, row)?;
+        let cell = Self::acr_icell_mut(cells, row)?;
         event_data.changes.push(Change::IndexCell {
             row,
             change: cell.record_set_props_borders_right(prop)?,
@@ -535,7 +515,7 @@ impl Table {
         prop: Option<Border>,
         event_data: &mut EventData,
     ) -> Result<(), String> {
-        let cell = Table::acr_icell_mut(cells, row)?;
+        let cell = Self::acr_icell_mut(cells, row)?;
         event_data.changes.push(Change::IndexCell {
             row,
             change: cell.record_set_props_borders_bottom(prop)?,
@@ -550,7 +530,7 @@ impl Table {
         prop: Option<Border>,
         event_data: &mut EventData,
     ) -> Result<(), String> {
-        let cell = Table::acr_icell_mut(cells, row)?;
+        let cell = Self::acr_icell_mut(cells, row)?;
         event_data.changes.push(Change::IndexCell {
             row,
             change: cell.record_set_props_borders_left(prop)?,
