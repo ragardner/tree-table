@@ -86,20 +86,34 @@ impl Table {
             })
         };
         let (start_row, end_row) = span.rows_start_end(&self.grid);
+        let mut error: Option<String> = None;
+
         for row in start_row..=end_row {
-            Self::acr_event_data_set_icheckbox(
+            match Self::acr_event_data_set_icheckbox(
                 &mut self.grid.index.cells,
                 row,
                 checkbox.clone(),
                 &mut event_data,
-            )?;
+            ) {
+                Err(e) => {
+                    error = Some(e);
+                    break;
+                }
+                _ => {}
+            }
         }
-        self.cr_finalize_event_if_any_non_selection_change(
-            event_data,
-            kwargs.undo,
-            kwargs.emit,
-            true,
-        )
+
+        if let Some(e) = error {
+            self.cr_roll_back(Rc::new(RefCell::new(event_data)));
+            return Err(e);
+        } else {
+            self.cr_finalize_event_if_any_non_selection_change(
+                event_data,
+                kwargs.undo,
+                kwargs.emit,
+                true,
+            )
+        }
     }
 
     pub fn checkbox_h(
@@ -123,20 +137,34 @@ impl Table {
             })
         };
         let (start_col, end_col) = span.cols_start_end(&self.grid);
+        let mut error: Option<String> = None;
+
         for col in start_col..=end_col {
-            Self::acr_event_data_set_hcheckbox(
+            match Self::acr_event_data_set_hcheckbox(
                 &mut self.grid.header.cells,
                 col,
                 checkbox.clone(),
                 &mut event_data,
-            )?;
+            ) {
+                Err(e) => {
+                    error = Some(e);
+                    break;
+                }
+                _ => {}
+            }
         }
-        self.cr_finalize_event_if_any_non_selection_change(
-            event_data,
-            kwargs.undo,
-            kwargs.emit,
-            true,
-        )
+
+        if let Some(e) = error {
+            self.cr_roll_back(Rc::new(RefCell::new(event_data)));
+            return Err(e);
+        } else {
+            self.cr_finalize_event_if_any_non_selection_change(
+                event_data,
+                kwargs.undo,
+                kwargs.emit,
+                true,
+            )
+        }
     }
 
     pub fn set_checkbox(
@@ -150,50 +178,57 @@ impl Table {
         let (start_col, end_col) = span.cols_start_end(&self.grid);
         let empty_val = &self.opts.empty_val;
 
-        for row in start_row..=end_row {
-            for col in start_col..=end_col {
-                if let Some(true_val) = &kwargs.true_val {
-                    Self::acr_event_data_set_tcheckbox_true_val(
-                        &mut self.grid.index.cells,
-                        row,
-                        col,
-                        true_val.clone(),
-                        empty_val,
-                        &mut event_data,
-                    )?;
-                }
-                if let Some(false_val) = &kwargs.false_val {
-                    Self::acr_event_data_set_tcheckbox_false_val(
-                        &mut self.grid.index.cells,
-                        row,
-                        col,
-                        false_val.clone(),
-                        empty_val,
-                        &mut event_data,
-                    )?;
-                }
-                if let Some(text) = &kwargs.text {
-                    Self::acr_event_data_set_tcheckbox_text(
-                        &mut self.grid.index.cells,
-                        row,
-                        col,
-                        text.clone(),
-                        empty_val,
-                        &mut event_data,
-                    )?;
-                }
-                if let Some(state) = kwargs.state {
-                    Self::acr_event_data_set_tcheckbox_state(
-                        &mut self.grid.index.cells,
-                        row,
-                        col,
-                        state,
-                        empty_val,
-                        &mut event_data,
-                    )?;
+        if let Err(e) = (|| -> Result<(), String> {
+            for row in start_row..=end_row {
+                for col in start_col..=end_col {
+                    if let Some(true_val) = &kwargs.true_val {
+                        Self::acr_event_data_set_tcheckbox_true_val(
+                            &mut self.grid.index.cells,
+                            row,
+                            col,
+                            true_val.clone(),
+                            empty_val,
+                            &mut event_data,
+                        )?;
+                    }
+                    if let Some(false_val) = &kwargs.false_val {
+                        Self::acr_event_data_set_tcheckbox_false_val(
+                            &mut self.grid.index.cells,
+                            row,
+                            col,
+                            false_val.clone(),
+                            empty_val,
+                            &mut event_data,
+                        )?;
+                    }
+                    if let Some(text) = &kwargs.text {
+                        Self::acr_event_data_set_tcheckbox_text(
+                            &mut self.grid.index.cells,
+                            row,
+                            col,
+                            text.clone(),
+                            empty_val,
+                            &mut event_data,
+                        )?;
+                    }
+                    if let Some(state) = kwargs.state {
+                        Self::acr_event_data_set_tcheckbox_state(
+                            &mut self.grid.index.cells,
+                            row,
+                            col,
+                            state,
+                            empty_val,
+                            &mut event_data,
+                        )?;
+                    }
                 }
             }
+            Ok(())
+        })() {
+            self.cr_roll_back(Rc::new(RefCell::new(event_data)));
+            return Err(e);
         }
+
         self.cr_finalize_event_if_any_non_selection_change(
             event_data,
             kwargs.undo,
@@ -210,39 +245,46 @@ impl Table {
         let span = self.cr_key_to_span(kwargs.key)?;
         let mut event_data = self.cr_new_event(kwargs.save_selection);
         let (start_row, end_row) = span.rows_start_end(&self.grid);
-        for row in start_row..=end_row {
-            if let Some(true_val) = &kwargs.true_val {
-                Self::acr_event_data_set_icheckbox_true_val(
-                    &mut self.grid.index.cells,
-                    row,
-                    true_val.clone(),
-                    &mut event_data,
-                )?;
+
+        if let Err(e) = (|| -> Result<(), String> {
+            for row in start_row..=end_row {
+                if let Some(true_val) = &kwargs.true_val {
+                    Self::acr_event_data_set_icheckbox_true_val(
+                        &mut self.grid.index.cells,
+                        row,
+                        true_val.clone(),
+                        &mut event_data,
+                    )?;
+                }
+                if let Some(false_val) = &kwargs.false_val {
+                    Self::acr_event_data_set_icheckbox_false_val(
+                        &mut self.grid.index.cells,
+                        row,
+                        false_val.clone(),
+                        &mut event_data,
+                    )?;
+                }
+                if let Some(text) = &kwargs.text {
+                    Self::acr_event_data_set_icheckbox_text(
+                        &mut self.grid.index.cells,
+                        row,
+                        text.clone(),
+                        &mut event_data,
+                    )?;
+                }
+                if let Some(state) = kwargs.state {
+                    Self::acr_event_data_set_icheckbox_state(
+                        &mut self.grid.index.cells,
+                        row,
+                        state,
+                        &mut event_data,
+                    )?;
+                }
             }
-            if let Some(false_val) = &kwargs.false_val {
-                Self::acr_event_data_set_icheckbox_false_val(
-                    &mut self.grid.index.cells,
-                    row,
-                    false_val.clone(),
-                    &mut event_data,
-                )?;
-            }
-            if let Some(text) = &kwargs.text {
-                Self::acr_event_data_set_icheckbox_text(
-                    &mut self.grid.index.cells,
-                    row,
-                    text.clone(),
-                    &mut event_data,
-                )?;
-            }
-            if let Some(state) = kwargs.state {
-                Self::acr_event_data_set_icheckbox_state(
-                    &mut self.grid.index.cells,
-                    row,
-                    state,
-                    &mut event_data,
-                )?;
-            }
+            Ok(())
+        })() {
+            self.cr_roll_back(Rc::new(RefCell::new(event_data)));
+            return Err(e);
         }
         self.cr_finalize_event_if_any_non_selection_change(
             event_data,
@@ -260,39 +302,46 @@ impl Table {
         let span = self.cr_key_to_span(kwargs.key)?;
         let mut event_data = self.cr_new_event(kwargs.save_selection);
         let (start_col, end_col) = span.cols_start_end(&self.grid);
-        for col in start_col..=end_col {
-            if let Some(true_val) = &kwargs.true_val {
-                Self::acr_event_data_set_hcheckbox_true_val(
-                    &mut self.grid.header.cells,
-                    col,
-                    true_val.clone(),
-                    &mut event_data,
-                )?;
+
+        if let Err(e) = (|| -> Result<(), String> {
+            for col in start_col..=end_col {
+                if let Some(true_val) = &kwargs.true_val {
+                    Self::acr_event_data_set_hcheckbox_true_val(
+                        &mut self.grid.header.cells,
+                        col,
+                        true_val.clone(),
+                        &mut event_data,
+                    )?;
+                }
+                if let Some(false_val) = &kwargs.false_val {
+                    Self::acr_event_data_set_hcheckbox_false_val(
+                        &mut self.grid.header.cells,
+                        col,
+                        false_val.clone(),
+                        &mut event_data,
+                    )?;
+                }
+                if let Some(text) = &kwargs.text {
+                    Self::acr_event_data_set_hcheckbox_text(
+                        &mut self.grid.header.cells,
+                        col,
+                        text.clone(),
+                        &mut event_data,
+                    )?;
+                }
+                if let Some(state) = kwargs.state {
+                    Self::acr_event_data_set_hcheckbox_state(
+                        &mut self.grid.header.cells,
+                        col,
+                        state,
+                        &mut event_data,
+                    )?;
+                }
             }
-            if let Some(false_val) = &kwargs.false_val {
-                Self::acr_event_data_set_hcheckbox_false_val(
-                    &mut self.grid.header.cells,
-                    col,
-                    false_val.clone(),
-                    &mut event_data,
-                )?;
-            }
-            if let Some(text) = &kwargs.text {
-                Self::acr_event_data_set_hcheckbox_text(
-                    &mut self.grid.header.cells,
-                    col,
-                    text.clone(),
-                    &mut event_data,
-                )?;
-            }
-            if let Some(state) = kwargs.state {
-                Self::acr_event_data_set_hcheckbox_state(
-                    &mut self.grid.header.cells,
-                    col,
-                    state,
-                    &mut event_data,
-                )?;
-            }
+            Ok(())
+        })() {
+            self.cr_roll_back(Rc::new(RefCell::new(event_data)));
+            return Err(e);
         }
         self.cr_finalize_event_if_any_non_selection_change(
             event_data,

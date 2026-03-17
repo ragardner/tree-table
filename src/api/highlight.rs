@@ -29,24 +29,38 @@ impl Table {
         let (start_row, end_row) = span.rows_start_end(&self.grid);
         let (start_col, end_col) = span.cols_start_end(&self.grid);
         let empty_val = &self.opts.empty_val;
+        let mut error: Option<String> = None;
+
         for row in start_row..=end_row {
             for col in start_col..=end_col {
-                Self::acr_event_data_set_thighlight(
+                match Self::acr_event_data_set_thighlight(
                     &mut self.grid.index.cells,
                     row,
                     col,
                     highlight.clone(),
                     empty_val,
                     &mut event_data,
-                )?;
+                ) {
+                    Err(e) => {
+                        error = Some(e);
+                        break;
+                    }
+                    _ => {}
+                }
             }
         }
-        self.cr_finalize_event_if_any_non_selection_change(
-            event_data,
-            kwargs.undo,
-            kwargs.emit,
-            true,
-        )
+
+        if let Some(e) = error {
+            self.cr_roll_back(Rc::new(RefCell::new(event_data)));
+            return Err(e);
+        } else {
+            self.cr_finalize_event_if_any_non_selection_change(
+                event_data,
+                kwargs.undo,
+                kwargs.emit,
+                true,
+            )
+        }
     }
 
     pub fn highlight_i(
@@ -68,20 +82,34 @@ impl Table {
             })
         };
         let (start_row, end_row) = span.rows_start_end(&self.grid);
+        let mut error: Option<String> = None;
+
         for row in start_row..=end_row {
-            Self::acr_event_data_set_ihighlight(
+            match Self::acr_event_data_set_ihighlight(
                 &mut self.grid.index.cells,
                 row,
                 highlight.clone(),
                 &mut event_data,
-            )?;
+            ) {
+                Err(e) => {
+                    error = Some(e);
+                    break;
+                }
+                _ => {}
+            }
         }
-        self.cr_finalize_event_if_any_non_selection_change(
-            event_data,
-            kwargs.undo,
-            kwargs.emit,
-            true,
-        )
+
+        if let Some(e) = error {
+            self.cr_roll_back(Rc::new(RefCell::new(event_data)));
+            return Err(e);
+        } else {
+            self.cr_finalize_event_if_any_non_selection_change(
+                event_data,
+                kwargs.undo,
+                kwargs.emit,
+                true,
+            )
+        }
     }
 
     pub fn highlight_h(
@@ -103,19 +131,33 @@ impl Table {
             })
         };
         let (start_col, end_col) = span.cols_start_end(&self.grid);
+        let mut error: Option<String> = None;
+
         for col in start_col..=end_col {
-            Self::acr_event_data_set_hhighlight(
+            match Self::acr_event_data_set_hhighlight(
                 &mut self.grid.header.cells,
                 col,
                 highlight.clone(),
                 &mut event_data,
-            )?;
+            ) {
+                Err(e) => {
+                    error = Some(e);
+                    break;
+                }
+                _ => {}
+            }
         }
-        self.cr_finalize_event_if_any_non_selection_change(
-            event_data,
-            kwargs.undo,
-            kwargs.emit,
-            true,
-        )
+
+        if let Some(e) = error {
+            self.cr_roll_back(Rc::new(RefCell::new(event_data)));
+            return Err(e);
+        } else {
+            self.cr_finalize_event_if_any_non_selection_change(
+                event_data,
+                kwargs.undo,
+                kwargs.emit,
+                true,
+            )
+        }
     }
 }
