@@ -338,7 +338,7 @@ impl DataFormat {
         let d = if let Ok(d) = Decimal::from_str_exact(s.trim()) {
             d
         } else if let Ok(f) = s.trim().parse::<f64>() {
-            Decimal::from_f64(f).ok_or(str_err!("Cannot convert f64 '{}' to exact Decimal", f))?
+            Decimal::from_f64(f).ok_or_else(|| str_err!("Cannot convert f64 '{}' to exact Decimal", f))?
         } else {
             return Err(str_err!("Cannot parse '{}' as Decimal", s));
         };

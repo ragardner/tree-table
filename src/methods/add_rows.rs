@@ -46,6 +46,7 @@ impl Table {
 
         // Update event_data, but not selections
         event_data.changes.push(Change::AddRows(sorted_seq));
+
         Ok(())
     }
 
@@ -81,7 +82,7 @@ impl Table {
         if pos > Self::acr_total_rows(&self.grid.index.cells) {
             pos = Self::acr_total_rows(&self.grid.index.cells);
         }
-        let end = pos.checked_add(iids.len()).ok_or(str_err!("Max. rows"))?;
+        let end = pos.checked_add(iids.len()).ok_or_else(|| str_err!("Max. rows"))?;
         let mut index: Vec<(usize, IndexCell)> = Vec::new();
         let mut sorted_seq: Vec<usize> = Vec::new();
         let empty_val: &Val = &self.opts.empty_val;

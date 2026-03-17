@@ -8,7 +8,7 @@ pub trait GetResultExt {
 }
 impl GetResultExt for HashMap<Rc<str>, usize> {
     fn get_res(&self, key: &str) -> Result<&usize, String> {
-        self.get(key).ok_or(str_err!("Key '{}' not found", key))
+        self.get(key).ok_or_else(|| str_err!("Key '{}' not found", key))
     }
 }
 
@@ -19,7 +19,7 @@ impl GetCellResultExt for Vec<IndexCell> {
     fn get_res(&self, index: usize) -> Result<&IndexCell, String> {
         let len = self.len();
         self.get(index)
-            .ok_or(str_err!("Index {} out of bounds (len: {})", index, len))
+            .ok_or_else(|| str_err!("Index {} out of bounds (len: {})", index, len))
     }
 }
 
@@ -30,7 +30,7 @@ impl GetCellMutResultExt for Vec<IndexCell> {
     fn get_res_mut(&mut self, index: usize) -> Result<&mut IndexCell, String> {
         let len = self.len();
         self.get_mut(index)
-            .ok_or(str_err!("Index {} out of bounds (len: {})", index, len))
+            .ok_or_else(|| str_err!("Index {} out of bounds (len: {})", index, len))
     }
 }
 
@@ -57,7 +57,7 @@ impl GetCellResultExt for [IndexCell] {
     fn get_res(&self, index: usize) -> Result<&IndexCell, String> {
         let len = self.len();
         self.get(index)
-            .ok_or(str_err!("Index {} out of bounds (len: {})", index, len))
+            .ok_or_else(|| str_err!("Index {} out of bounds (len: {})", index, len))
     }
 }
 
@@ -65,7 +65,7 @@ impl GetCellMutResultExt for [IndexCell] {
     fn get_res_mut(&mut self, index: usize) -> Result<&mut IndexCell, String> {
         let len = self.len();
         self.get_mut(index)
-            .ok_or(str_err!("Index {} out of bounds (len: {})", index, len))
+            .ok_or_else(|| str_err!("Index {} out of bounds (len: {})", index, len))
     }
 }
 

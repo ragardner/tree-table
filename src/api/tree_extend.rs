@@ -375,7 +375,7 @@ impl Table {
                 sorted_seq.push(row_ctr);
                 let icell = tree_map
                     .remove(&top)
-                    .ok_or(str_err!("IndexCell: {} not found in tree_map", top))?;
+                    .ok_or_else(|| str_err!("IndexCell: {} not found in tree_map", top))?;
                 let child_vis = icell.open;
                 for child in icell.chn.iter().rev().cloned() {
                     stack.push((child, child_vis, top.clone()));
@@ -390,7 +390,7 @@ impl Table {
                     sorted_seq.push(row_ctr);
                     let mut icell = tree_map
                         .remove(&not_top)
-                        .ok_or(str_err!("IndexCell: {} not found in tree_map", not_top))?;
+                        .ok_or_else(|| str_err!("IndexCell: {} not found in tree_map", not_top))?;
                     icell.par = par_iid;
                     icell.vis = inherited_vis;
                     let child_vis = inherited_vis && icell.open;

@@ -93,6 +93,7 @@ impl Span {
         }
     }
 
+    /// Iterate over a spans rows
     pub fn rows(&self, grid: &TableGrid) -> std::ops::Range<usize> {
         let start = self.row;
         if self.end_row != NO_END {
@@ -102,6 +103,7 @@ impl Span {
         }
     }
 
+    /// Inclusive start index and end index of the span
     pub fn rows_start_end(&self, grid: &TableGrid) -> (usize, usize) {
         let start = self.row;
         if self.end_row != NO_END {
@@ -114,6 +116,7 @@ impl Span {
         }
     }
 
+    /// Iterate over a spans cols
     pub fn cols(&self, grid: &TableGrid) -> std::ops::Range<usize> {
         let start = self.col;
         if self.end_col != NO_END {
@@ -123,6 +126,7 @@ impl Span {
         }
     }
 
+    /// Inclusive start index and end index of the span
     pub fn cols_start_end(&self, grid: &TableGrid) -> (usize, usize) {
         let start = self.col;
         if self.end_col != NO_END {
@@ -135,6 +139,7 @@ impl Span {
         }
     }
 
+    /// The max. row index of the span
     pub fn max_row(&self, grid: &TableGrid) -> usize {
         if self.end_row != NO_END {
             self.end_row
@@ -143,6 +148,7 @@ impl Span {
         }
     }
 
+    /// The max. col index of the span
     pub fn max_col(&self, grid: &TableGrid) -> usize {
         if self.end_col != NO_END {
             self.end_col

@@ -3,11 +3,15 @@ use crate::EventData;
 use crate::IndexCell;
 use crate::NO_END;
 use crate::Table;
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::rc::Rc;
 
 impl Table {
+    /// Core del rows function
+    /// This is a special case:
+    ///     - It rolls back any tree changes should an error occur.
     pub(crate) fn cr_del_rows(
         &mut self,
         mut positions: Vec<usize>,
@@ -29,18 +33,32 @@ impl Table {
                         .collect::<HashSet<Rc<str>>>(),
                 )?;
             }
-            Self::acr_tree_del_rows(
+            match Self::acr_tree_del_rows(
                 &mut self.grid.index.cells,
                 &self.grid.index.iid_to_row,
                 &positions,
                 event_data,
-            )?;
+            ) {
+                Err(e) => {
+                    self.cr_roll_back(Rc::new(RefCell::new(std::mem::take(event_data))));
+                    return Err(e);
+                }
+                _ => {}
+            }
         }
 
         // Retrieve data from index
-        event_data
-            .changes
-            .push(Change::RemoveRows(self.grid.index.del_rows(&positions)?));
+        let removed = match self.grid.index.del_rows(&positions) {
+            Ok(r) => r,
+            Err(e) => {
+                if self.opts.tree_mode {
+                    self.cr_roll_back(Rc::new(RefCell::new(std::mem::take(event_data))));
+                }
+                return Err(e);
+            }
+        };
+
+        event_data.changes.push(Change::RemoveRows(removed));
 
         // Pull outstanding row numbers
         self.grid.pull_rows(&positions);
@@ -182,7 +200,9 @@ impl Table {
         for pos in positions.iter() {
             let cell = Self::acr_icell_mut(&mut cells, *pos)?;
             let change = cell.record_set_open(false);
-            event_data.add_tree_change(&cell.iid, change);
+            event_data
+                .changes
+                .push(Change::IndexCell { row: *pos, change });
             let iid = cell.iid.clone();
             Self::acr_tree_remove_iid_from_pars_chn(
                 &mut cells,

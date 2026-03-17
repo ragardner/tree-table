@@ -65,7 +65,9 @@ impl Table {
         if pos > Self::acr_total_cols(&self.grid.header.cells) {
             pos = Self::acr_total_cols(&self.grid.header.cells);
         }
-        let end = pos.checked_add(iids.len()).ok_or(str_err!("Max. cols"))?;
+        let end = pos
+            .checked_add(iids.len())
+            .ok_or_else(|| str_err!("Max. cols"))?;
         let mut cols: Vec<(usize, Vec<(usize, TableCell)>)> = Vec::new();
         let mut header: Vec<(usize, HeaderCell)> = Vec::new();
         let mut sorted_seq: Vec<usize> = Vec::new();

@@ -92,12 +92,12 @@ impl IndexCell {
             .vals
             .entry(col)
             .or_insert_with(|| TableCell::new(default_val));
-        let props = table_cell.props.as_mut().ok_or(str_err!(
+        let props = table_cell.props.as_mut().ok_or_else(|| str_err!(
             "No CellProps exist for table cell row '{}', col '{}'",
             self.iid,
             col
         ))?;
-        let borders = props.borders.as_mut().ok_or(str_err!(
+        let borders = props.borders.as_mut().ok_or_else(|| str_err!(
             "No CellBorders exists on table cell row '{}', col '{}'",
             self.iid,
             col
@@ -118,12 +118,12 @@ impl IndexCell {
             .vals
             .entry(col)
             .or_insert_with(|| TableCell::new(default_val));
-        let props = table_cell.props.as_mut().ok_or(str_err!(
+        let props = table_cell.props.as_mut().ok_or_else(|| str_err!(
             "No CellProps exist for table cell row '{}', col '{}'",
             self.iid,
             col
         ))?;
-        let borders = props.borders.as_mut().ok_or(str_err!(
+        let borders = props.borders.as_mut().ok_or_else(|| str_err!(
             "No CellBorders exists on table cell row '{}', col '{}'",
             self.iid,
             col
@@ -144,12 +144,12 @@ impl IndexCell {
             .vals
             .entry(col)
             .or_insert_with(|| TableCell::new(default_val));
-        let props = table_cell.props.as_mut().ok_or(str_err!(
+        let props = table_cell.props.as_mut().ok_or_else(|| str_err!(
             "No CellProps exist for table cell row '{}', col '{}'",
             self.iid,
             col
         ))?;
-        let borders = props.borders.as_mut().ok_or(str_err!(
+        let borders = props.borders.as_mut().ok_or_else(|| str_err!(
             "No CellBorders exists on table cell row '{}', col '{}'",
             self.iid,
             col
@@ -170,12 +170,12 @@ impl IndexCell {
             .vals
             .entry(col)
             .or_insert_with(|| TableCell::new(default_val));
-        let props = table_cell.props.as_mut().ok_or(str_err!(
+        let props = table_cell.props.as_mut().ok_or_else(|| str_err!(
             "No CellProps exist for table cell row '{}', col '{}'",
             self.iid,
             col
         ))?;
-        let borders = props.borders.as_mut().ok_or(str_err!(
+        let borders = props.borders.as_mut().ok_or_else(|| str_err!(
             "No CellBorders exists on table cell row '{}', col '{}'",
             self.iid,
             col
@@ -216,12 +216,12 @@ impl IndexCell {
             .vals
             .entry(col)
             .or_insert_with(|| TableCell::new(default_val));
-        let props = table_cell.props.as_mut().ok_or(str_err!(
+        let props = table_cell.props.as_mut().ok_or_else(|| str_err!(
             "No CellProps exist for table cell row '{}', col '{}'",
             self.iid,
             col
         ))?;
-        let cb = props.checkbox.as_mut().ok_or(str_err!(
+        let cb = props.checkbox.as_mut().ok_or_else(|| str_err!(
             "No Checkbox exists on table cell row '{}', col '{}'",
             self.iid,
             col
@@ -242,12 +242,12 @@ impl IndexCell {
             .vals
             .entry(col)
             .or_insert_with(|| TableCell::new(default_val));
-        let props = table_cell.props.as_mut().ok_or(str_err!(
+        let props = table_cell.props.as_mut().ok_or_else(|| str_err!(
             "No CellProps exist for table cell row '{}', col '{}'",
             self.iid,
             col
         ))?;
-        let cb = props.checkbox.as_mut().ok_or(str_err!(
+        let cb = props.checkbox.as_mut().ok_or_else(|| str_err!(
             "No Checkbox exists on table cell row '{}', col '{}'",
             self.iid,
             col
@@ -268,12 +268,12 @@ impl IndexCell {
             .vals
             .entry(col)
             .or_insert_with(|| TableCell::new(default_val));
-        let props = table_cell.props.as_mut().ok_or(str_err!(
+        let props = table_cell.props.as_mut().ok_or_else(|| str_err!(
             "No CellProps exist for table cell row '{}', col '{}'",
             self.iid,
             col
         ))?;
-        let cb = props.checkbox.as_mut().ok_or(str_err!(
+        let cb = props.checkbox.as_mut().ok_or_else(|| str_err!(
             "No Checkbox exists on table cell row '{}', col '{}'",
             self.iid,
             col
@@ -294,12 +294,12 @@ impl IndexCell {
             .vals
             .entry(col)
             .or_insert_with(|| TableCell::new(default_val));
-        let props = table_cell.props.as_mut().ok_or(str_err!(
+        let props = table_cell.props.as_mut().ok_or_else(|| str_err!(
             "No CellProps exist for table cell row '{}', col '{}'",
             self.iid,
             col
         ))?;
-        let cb = props.checkbox.as_mut().ok_or(str_err!(
+        let cb = props.checkbox.as_mut().ok_or_else(|| str_err!(
             "No Checkbox exists on table cell row '{}', col '{}'",
             self.iid,
             col
@@ -360,12 +360,12 @@ impl IndexCell {
             .vals
             .entry(col)
             .or_insert_with(|| TableCell::new(default_val));
-        let props = table_cell.props.as_mut().ok_or(str_err!(
+        let props = table_cell.props.as_mut().ok_or_else(|| str_err!(
             "No CellProps exist for table cell row '{}', col '{}'",
             self.iid,
             col
         ))?;
-        let dd = props.dropdown.as_mut().ok_or(str_err!(
+        let dd = props.dropdown.as_mut().ok_or_else(|| str_err!(
             "No Dropdown exists on table cell row '{}', col '{}'",
             self.iid,
             col
@@ -386,12 +386,12 @@ impl IndexCell {
             .vals
             .entry(col)
             .or_insert_with(|| TableCell::new(default_val));
-        let props = table_cell.props.as_mut().ok_or(str_err!(
+        let props = table_cell.props.as_mut().ok_or_else(|| str_err!(
             "No CellProps exist for table cell row '{}', col '{}'",
             self.iid,
             col
         ))?;
-        let dd = props.dropdown.as_mut().ok_or(str_err!(
+        let dd = props.dropdown.as_mut().ok_or_else(|| str_err!(
             "No Dropdown exists on table cell row '{}', col '{}'",
             self.iid,
             col
@@ -412,12 +412,12 @@ impl IndexCell {
             .vals
             .entry(col)
             .or_insert_with(|| TableCell::new(default_val));
-        let props = table_cell.props.as_mut().ok_or(str_err!(
+        let props = table_cell.props.as_mut().ok_or_else(|| str_err!(
             "No CellProps exist for table cell row '{}', col '{}'",
             self.iid,
             col
         ))?;
-        let dd = props.dropdown.as_mut().ok_or(str_err!(
+        let dd = props.dropdown.as_mut().ok_or_else(|| str_err!(
             "No Dropdown exists on table cell row '{}', col '{}'",
             self.iid,
             col
@@ -438,12 +438,12 @@ impl IndexCell {
             .vals
             .entry(col)
             .or_insert_with(|| TableCell::new(default_val));
-        let props = table_cell.props.as_mut().ok_or(str_err!(
+        let props = table_cell.props.as_mut().ok_or_else(|| str_err!(
             "No CellProps exist for table cell row '{}', col '{}'",
             self.iid,
             col
         ))?;
-        let dd = props.dropdown.as_mut().ok_or(str_err!(
+        let dd = props.dropdown.as_mut().ok_or_else(|| str_err!(
             "No Dropdown exists on table cell row '{}', col '{}'",
             self.iid,
             col
@@ -464,12 +464,12 @@ impl IndexCell {
             .vals
             .entry(col)
             .or_insert_with(|| TableCell::new(default_val));
-        let props = table_cell.props.as_mut().ok_or(str_err!(
+        let props = table_cell.props.as_mut().ok_or_else(|| str_err!(
             "No CellProps exist for table cell row '{}', col '{}'",
             self.iid,
             col
         ))?;
-        let dd = props.dropdown.as_mut().ok_or(str_err!(
+        let dd = props.dropdown.as_mut().ok_or_else(|| str_err!(
             "No Dropdown exists on table cell row '{}', col '{}'",
             self.iid,
             col
@@ -530,12 +530,12 @@ impl IndexCell {
             .vals
             .entry(col)
             .or_insert_with(|| TableCell::new(default_val));
-        let props = table_cell.props.as_mut().ok_or(str_err!(
+        let props = table_cell.props.as_mut().ok_or_else(|| str_err!(
             "No CellProps exist for table cell row '{}', col '{}'",
             self.iid,
             col
         ))?;
-        let note = props.note.as_mut().ok_or(str_err!(
+        let note = props.note.as_mut().ok_or_else(|| str_err!(
             "No Note exists on table cell row '{}', col '{}'",
             self.iid,
             col
@@ -556,12 +556,12 @@ impl IndexCell {
             .vals
             .entry(col)
             .or_insert_with(|| TableCell::new(default_val));
-        let props = table_cell.props.as_mut().ok_or(str_err!(
+        let props = table_cell.props.as_mut().ok_or_else(|| str_err!(
             "No CellProps exist for table cell row '{}', col '{}'",
             self.iid,
             col
         ))?;
-        let note = props.note.as_mut().ok_or(str_err!(
+        let note = props.note.as_mut().ok_or_else(|| str_err!(
             "No Note exists on table cell row '{}', col '{}'",
             self.iid,
             col
@@ -582,12 +582,12 @@ impl IndexCell {
             .vals
             .entry(col)
             .or_insert_with(|| TableCell::new(default_val));
-        let props = table_cell.props.as_mut().ok_or(str_err!(
+        let props = table_cell.props.as_mut().ok_or_else(|| str_err!(
             "No CellProps exist for table cell row '{}', col '{}'",
             self.iid,
             col
         ))?;
-        let note = props.note.as_mut().ok_or(str_err!(
+        let note = props.note.as_mut().ok_or_else(|| str_err!(
             "No Note exists on table cell row '{}', col '{}'",
             self.iid,
             col
@@ -608,12 +608,12 @@ impl IndexCell {
             .vals
             .entry(col)
             .or_insert_with(|| TableCell::new(default_val));
-        let props = table_cell.props.as_mut().ok_or(str_err!(
+        let props = table_cell.props.as_mut().ok_or_else(|| str_err!(
             "No CellProps exist for table cell row '{}', col '{}'",
             self.iid,
             col
         ))?;
-        let note = props.note.as_mut().ok_or(str_err!(
+        let note = props.note.as_mut().ok_or_else(|| str_err!(
             "No Note exists on table cell row '{}', col '{}'",
             self.iid,
             col
@@ -654,12 +654,12 @@ impl IndexCell {
             .vals
             .entry(col)
             .or_insert_with(|| TableCell::new(default_val));
-        let props = table_cell.props.as_mut().ok_or(str_err!(
+        let props = table_cell.props.as_mut().ok_or_else(|| str_err!(
             "No CellProps exist for table cell row '{}', col '{}'",
             self.iid,
             col
         ))?;
-        let pb = props.progress_bar.as_mut().ok_or(str_err!(
+        let pb = props.progress_bar.as_mut().ok_or_else(|| str_err!(
             "No ProgressBar exists on table cell row '{}', col '{}'",
             self.iid,
             col
@@ -680,12 +680,12 @@ impl IndexCell {
             .vals
             .entry(col)
             .or_insert_with(|| TableCell::new(default_val));
-        let props = table_cell.props.as_mut().ok_or(str_err!(
+        let props = table_cell.props.as_mut().ok_or_else(|| str_err!(
             "No CellProps exist for table cell row '{}', col '{}'",
             self.iid,
             col
         ))?;
-        let pb = props.progress_bar.as_mut().ok_or(str_err!(
+        let pb = props.progress_bar.as_mut().ok_or_else(|| str_err!(
             "No ProgressBar exists on table cell row '{}', col '{}'",
             self.iid,
             col
@@ -706,12 +706,12 @@ impl IndexCell {
             .vals
             .entry(col)
             .or_insert_with(|| TableCell::new(default_val));
-        let props = table_cell.props.as_mut().ok_or(str_err!(
+        let props = table_cell.props.as_mut().ok_or_else(|| str_err!(
             "No CellProps exist for table cell row '{}', col '{}'",
             self.iid,
             col
         ))?;
-        let pb = props.progress_bar.as_mut().ok_or(str_err!(
+        let pb = props.progress_bar.as_mut().ok_or_else(|| str_err!(
             "No ProgressBar exists on table cell row '{}', col '{}'",
             self.iid,
             col
@@ -732,12 +732,12 @@ impl IndexCell {
             .vals
             .entry(col)
             .or_insert_with(|| TableCell::new(default_val));
-        let props = table_cell.props.as_mut().ok_or(str_err!(
+        let props = table_cell.props.as_mut().ok_or_else(|| str_err!(
             "No CellProps exist for table cell row '{}', col '{}'",
             self.iid,
             col
         ))?;
-        let pb = props.progress_bar.as_mut().ok_or(str_err!(
+        let pb = props.progress_bar.as_mut().ok_or_else(|| str_err!(
             "No ProgressBar exists on table cell row '{}', col '{}'",
             self.iid,
             col

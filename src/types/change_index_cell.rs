@@ -254,7 +254,7 @@ impl ChangeIndexCell {
                 let current_iid = std::mem::replace(&mut cell.iid, old_iid.clone());
                 let removed_pos = iid_to_row
                     .remove(&current_iid)
-                    .ok_or(str_err!("iid not found: {}", current_iid))?;
+                    .ok_or_else(|| str_err!("iid not found: {}", current_iid))?;
                 iid_to_row.insert(old_iid.clone(), removed_pos);
                 Ok(ChangeIndexCell::SetIid(current_iid))
             }
@@ -332,7 +332,7 @@ impl ChangeCellProps {
                 let borders = props
                     .borders
                     .as_mut()
-                    .ok_or(str_err!("CellBorders missing during inversion"))?;
+                    .ok_or_else(|| str_err!("CellBorders missing during inversion"))?;
                 let inverted = change.invert(borders);
                 Ok(ChangeCellProps::UpdateBorders(inverted))
             }
@@ -344,7 +344,7 @@ impl ChangeCellProps {
                 let checkbox = props
                     .checkbox
                     .as_mut()
-                    .ok_or(str_err!("Checkbox missing during inversion"))?;
+                    .ok_or_else(|| str_err!("Checkbox missing during inversion"))?;
                 let inverted = change.invert(checkbox);
                 Ok(ChangeCellProps::UpdateCheckbox(inverted))
             }
@@ -361,7 +361,7 @@ impl ChangeCellProps {
                 let dropdown = props
                     .dropdown
                     .as_mut()
-                    .ok_or(str_err!("Dropdown missing during inversion"))?;
+                    .ok_or_else(|| str_err!("Dropdown missing during inversion"))?;
                 let inverted = change.invert(dropdown);
                 Ok(ChangeCellProps::UpdateDropdown(inverted))
             }
@@ -378,7 +378,7 @@ impl ChangeCellProps {
                 let note = props
                     .note
                     .as_mut()
-                    .ok_or(str_err!("Note missing during inversion"))?;
+                    .ok_or_else(|| str_err!("Note missing during inversion"))?;
                 let inverted = change.invert(note);
                 Ok(ChangeCellProps::UpdateNote(inverted))
             }
@@ -391,7 +391,7 @@ impl ChangeCellProps {
                 let pb = props
                     .progress_bar
                     .as_mut()
-                    .ok_or(str_err!("ProgressBar missing during inversion"))?;
+                    .ok_or_else(|| str_err!("ProgressBar missing during inversion"))?;
                 let inverted = change.invert(pb);
                 Ok(ChangeCellProps::UpdateProgressBar(inverted))
             }
@@ -416,7 +416,7 @@ impl IndexCell {
         let current_iid = std::mem::replace(&mut self.iid, new_iid.clone());
         let removed_pos = iid_to_row
             .remove(&current_iid)
-            .ok_or(str_err!("iid not found: {}", current_iid))?;
+            .ok_or_else(|| str_err!("iid not found: {}", current_iid))?;
         iid_to_row.insert(new_iid, removed_pos);
         Ok(ChangeIndexCell::SetIid(current_iid))
     }
@@ -468,11 +468,11 @@ impl IndexCell {
         let props = self
             .props
             .as_mut()
-            .ok_or(str_err!("No CellProps exist for row '{}'", self.iid))?;
+            .ok_or_else(|| str_err!("No CellProps exist for row '{}'", self.iid))?;
         let borders = props
             .borders
             .as_mut()
-            .ok_or(str_err!("No CellBorders exists for row '{}'", self.iid))?;
+            .ok_or_else(|| str_err!("No CellBorders exists for row '{}'", self.iid))?;
         let old_top = std::mem::replace(&mut borders.top, new_top);
         Ok(ChangeIndexCell::SetProps(ChangeCellProps::UpdateBorders(
             ChangeBorders::SetTop(old_top),
@@ -485,11 +485,11 @@ impl IndexCell {
         let props = self
             .props
             .as_mut()
-            .ok_or(str_err!("No CellProps exist for row '{}'", self.iid))?;
+            .ok_or_else(|| str_err!("No CellProps exist for row '{}'", self.iid))?;
         let borders = props
             .borders
             .as_mut()
-            .ok_or(str_err!("No CellBorders exists for row '{}'", self.iid))?;
+            .ok_or_else(|| str_err!("No CellBorders exists for row '{}'", self.iid))?;
         let old_right = std::mem::replace(&mut borders.right, new_right);
         Ok(ChangeIndexCell::SetProps(ChangeCellProps::UpdateBorders(
             ChangeBorders::SetRight(old_right),
@@ -503,11 +503,11 @@ impl IndexCell {
         let props = self
             .props
             .as_mut()
-            .ok_or(str_err!("No CellProps exist for row '{}'", self.iid))?;
+            .ok_or_else(|| str_err!("No CellProps exist for row '{}'", self.iid))?;
         let borders = props
             .borders
             .as_mut()
-            .ok_or(str_err!("No CellBorders exists for row '{}'", self.iid))?;
+            .ok_or_else(|| str_err!("No CellBorders exists for row '{}'", self.iid))?;
         let old_bottom = std::mem::replace(&mut borders.bottom, new_bottom);
         Ok(ChangeIndexCell::SetProps(ChangeCellProps::UpdateBorders(
             ChangeBorders::SetBottom(old_bottom),
@@ -520,11 +520,11 @@ impl IndexCell {
         let props = self
             .props
             .as_mut()
-            .ok_or(str_err!("No CellProps exist for row '{}'", self.iid))?;
+            .ok_or_else(|| str_err!("No CellProps exist for row '{}'", self.iid))?;
         let borders = props
             .borders
             .as_mut()
-            .ok_or(str_err!("No CellBorders exists for row '{}'", self.iid))?;
+            .ok_or_else(|| str_err!("No CellBorders exists for row '{}'", self.iid))?;
         let old_left = std::mem::replace(&mut borders.left, new_left);
         Ok(ChangeIndexCell::SetProps(ChangeCellProps::UpdateBorders(
             ChangeBorders::SetLeft(old_left),
@@ -545,11 +545,11 @@ impl IndexCell {
         let props = self
             .props
             .as_mut()
-            .ok_or(str_err!("No CellProps exist for row '{}'", self.iid))?;
+            .ok_or_else(|| str_err!("No CellProps exist for row '{}'", self.iid))?;
         let cb = props
             .checkbox
             .as_mut()
-            .ok_or(str_err!("No Checkbox exists for row '{}'", self.iid))?;
+            .ok_or_else(|| str_err!("No Checkbox exists for row '{}'", self.iid))?;
         let old_true_val = std::mem::replace(&mut cb.true_val, new_true_val);
         Ok(ChangeIndexCell::SetProps(ChangeCellProps::UpdateCheckbox(
             ChangeCheckbox::SetTrueVal(old_true_val),
@@ -562,11 +562,11 @@ impl IndexCell {
         let props = self
             .props
             .as_mut()
-            .ok_or(str_err!("No CellProps exist for row '{}'", self.iid))?;
+            .ok_or_else(|| str_err!("No CellProps exist for row '{}'", self.iid))?;
         let cb = props
             .checkbox
             .as_mut()
-            .ok_or(str_err!("No Checkbox exists for row '{}'", self.iid))?;
+            .ok_or_else(|| str_err!("No Checkbox exists for row '{}'", self.iid))?;
         let old_false_val = std::mem::replace(&mut cb.false_val, new_false_val);
         Ok(ChangeIndexCell::SetProps(ChangeCellProps::UpdateCheckbox(
             ChangeCheckbox::SetFalseVal(old_false_val),
@@ -579,11 +579,11 @@ impl IndexCell {
         let props = self
             .props
             .as_mut()
-            .ok_or(str_err!("No CellProps exist for row '{}'", self.iid))?;
+            .ok_or_else(|| str_err!("No CellProps exist for row '{}'", self.iid))?;
         let cb = props
             .checkbox
             .as_mut()
-            .ok_or(str_err!("No Checkbox exists for row '{}'", self.iid))?;
+            .ok_or_else(|| str_err!("No Checkbox exists for row '{}'", self.iid))?;
         let old_text = std::mem::replace(&mut cb.text, new_text);
         Ok(ChangeIndexCell::SetProps(ChangeCellProps::UpdateCheckbox(
             ChangeCheckbox::SetText(old_text),
@@ -596,11 +596,11 @@ impl IndexCell {
         let props = self
             .props
             .as_mut()
-            .ok_or(str_err!("No CellProps exist for row '{}'", self.iid))?;
+            .ok_or_else(|| str_err!("No CellProps exist for row '{}'", self.iid))?;
         let cb = props
             .checkbox
             .as_mut()
-            .ok_or(str_err!("No Checkbox exists for row '{}'", self.iid))?;
+            .ok_or_else(|| str_err!("No Checkbox exists for row '{}'", self.iid))?;
         let old_state = std::mem::replace(&mut cb.state, new_state);
         Ok(ChangeIndexCell::SetProps(ChangeCellProps::UpdateCheckbox(
             ChangeCheckbox::SetState(old_state),
@@ -632,11 +632,11 @@ impl IndexCell {
         let props = self
             .props
             .as_mut()
-            .ok_or(str_err!("No CellProps exist for row '{}'", self.iid))?;
+            .ok_or_else(|| str_err!("No CellProps exist for row '{}'", self.iid))?;
         let dd = props
             .dropdown
             .as_mut()
-            .ok_or(str_err!("No Dropdown exists for row '{}'", self.iid))?;
+            .ok_or_else(|| str_err!("No Dropdown exists for row '{}'", self.iid))?;
         let old_vals = std::mem::replace(&mut dd.vals, new_vals);
         Ok(ChangeIndexCell::SetProps(ChangeCellProps::UpdateDropdown(
             ChangeDropdown::SetVals(old_vals),
@@ -649,11 +649,11 @@ impl IndexCell {
         let props = self
             .props
             .as_mut()
-            .ok_or(str_err!("No CellProps exist for row '{}'", self.iid))?;
+            .ok_or_else(|| str_err!("No CellProps exist for row '{}'", self.iid))?;
         let dd = props
             .dropdown
             .as_mut()
-            .ok_or(str_err!("No Dropdown exists for row '{}'", self.iid))?;
+            .ok_or_else(|| str_err!("No Dropdown exists for row '{}'", self.iid))?;
         let old_default_val = std::mem::replace(&mut dd.default_val, new_default_val);
         Ok(ChangeIndexCell::SetProps(ChangeCellProps::UpdateDropdown(
             ChangeDropdown::SetDefaultVal(old_default_val),
@@ -666,11 +666,11 @@ impl IndexCell {
         let props = self
             .props
             .as_mut()
-            .ok_or(str_err!("No CellProps exist for row '{}'", self.iid))?;
+            .ok_or_else(|| str_err!("No CellProps exist for row '{}'", self.iid))?;
         let dd = props
             .dropdown
             .as_mut()
-            .ok_or(str_err!("No Dropdown exists for row '{}'", self.iid))?;
+            .ok_or_else(|| str_err!("No Dropdown exists for row '{}'", self.iid))?;
         let old_validation = std::mem::replace(&mut dd.validation, new_validation);
         Ok(ChangeIndexCell::SetProps(ChangeCellProps::UpdateDropdown(
             ChangeDropdown::SetValidation(old_validation),
@@ -683,11 +683,11 @@ impl IndexCell {
         let props = self
             .props
             .as_mut()
-            .ok_or(str_err!("No CellProps exist for row '{}'", self.iid))?;
+            .ok_or_else(|| str_err!("No CellProps exist for row '{}'", self.iid))?;
         let dd = props
             .dropdown
             .as_mut()
-            .ok_or(str_err!("No Dropdown exists for row '{}'", self.iid))?;
+            .ok_or_else(|| str_err!("No Dropdown exists for row '{}'", self.iid))?;
         let old_text = std::mem::replace(&mut dd.text, new_text);
         Ok(ChangeIndexCell::SetProps(ChangeCellProps::UpdateDropdown(
             ChangeDropdown::SetText(old_text),
@@ -700,11 +700,11 @@ impl IndexCell {
         let props = self
             .props
             .as_mut()
-            .ok_or(str_err!("No CellProps exist for row '{}'", self.iid))?;
+            .ok_or_else(|| str_err!("No CellProps exist for row '{}'", self.iid))?;
         let dd = props
             .dropdown
             .as_mut()
-            .ok_or(str_err!("No Dropdown exists for row '{}'", self.iid))?;
+            .ok_or_else(|| str_err!("No Dropdown exists for row '{}'", self.iid))?;
         let old_state = std::mem::replace(&mut dd.state, new_state);
         Ok(ChangeIndexCell::SetProps(ChangeCellProps::UpdateDropdown(
             ChangeDropdown::SetState(old_state),
@@ -736,11 +736,11 @@ impl IndexCell {
         let props = self
             .props
             .as_mut()
-            .ok_or(str_err!("No CellProps exist for row '{}'", self.iid))?;
+            .ok_or_else(|| str_err!("No CellProps exist for row '{}'", self.iid))?;
         let note = props
             .note
             .as_mut()
-            .ok_or(str_err!("No Note exists for row '{}'", self.iid))?;
+            .ok_or_else(|| str_err!("No Note exists for row '{}'", self.iid))?;
         let old_text = std::mem::replace(&mut note.note, new_text);
         Ok(ChangeIndexCell::SetProps(ChangeCellProps::UpdateNote(
             ChangeNote::SetText(old_text),
@@ -753,11 +753,11 @@ impl IndexCell {
         let props = self
             .props
             .as_mut()
-            .ok_or(str_err!("No CellProps exist for row '{}'", self.iid))?;
+            .ok_or_else(|| str_err!("No CellProps exist for row '{}'", self.iid))?;
         let note = props
             .note
             .as_mut()
-            .ok_or(str_err!("No Note exists for row '{}'", self.iid))?;
+            .ok_or_else(|| str_err!("No Note exists for row '{}'", self.iid))?;
         let old_bg = std::mem::replace(&mut note.bg, new_bg);
         Ok(ChangeIndexCell::SetProps(ChangeCellProps::UpdateNote(
             ChangeNote::SetBg(old_bg),
@@ -770,11 +770,11 @@ impl IndexCell {
         let props = self
             .props
             .as_mut()
-            .ok_or(str_err!("No CellProps exist for row '{}'", self.iid))?;
+            .ok_or_else(|| str_err!("No CellProps exist for row '{}'", self.iid))?;
         let note = props
             .note
             .as_mut()
-            .ok_or(str_err!("No Note exists for row '{}'", self.iid))?;
+            .ok_or_else(|| str_err!("No Note exists for row '{}'", self.iid))?;
         let old_fg = std::mem::replace(&mut note.fg, new_fg);
         Ok(ChangeIndexCell::SetProps(ChangeCellProps::UpdateNote(
             ChangeNote::SetFg(old_fg),
@@ -787,11 +787,11 @@ impl IndexCell {
         let props = self
             .props
             .as_mut()
-            .ok_or(str_err!("No CellProps exist for row '{}'", self.iid))?;
+            .ok_or_else(|| str_err!("No CellProps exist for row '{}'", self.iid))?;
         let note = props
             .note
             .as_mut()
-            .ok_or(str_err!("No Note exists for row '{}'", self.iid))?;
+            .ok_or_else(|| str_err!("No Note exists for row '{}'", self.iid))?;
         let old_readonly = std::mem::replace(&mut note.readonly, new_readonly);
         Ok(ChangeIndexCell::SetProps(ChangeCellProps::UpdateNote(
             ChangeNote::SetReadonly(old_readonly),
@@ -815,11 +815,11 @@ impl IndexCell {
         let props = self
             .props
             .as_mut()
-            .ok_or(str_err!("No CellProps exist for row '{}'", self.iid))?;
+            .ok_or_else(|| str_err!("No CellProps exist for row '{}'", self.iid))?;
         let pb = props
             .progress_bar
             .as_mut()
-            .ok_or(str_err!("No ProgressBar exists for row '{}'", self.iid))?;
+            .ok_or_else(|| str_err!("No ProgressBar exists for row '{}'", self.iid))?;
         let old_bg = std::mem::replace(&mut pb.bg, new_bg);
         Ok(ChangeIndexCell::SetProps(
             ChangeCellProps::UpdateProgressBar(ChangeProgressBar::SetBg(old_bg)),
@@ -832,11 +832,11 @@ impl IndexCell {
         let props = self
             .props
             .as_mut()
-            .ok_or(str_err!("No CellProps exist for row '{}'", self.iid))?;
+            .ok_or_else(|| str_err!("No CellProps exist for row '{}'", self.iid))?;
         let pb = props
             .progress_bar
             .as_mut()
-            .ok_or(str_err!("No ProgressBar exists for row '{}'", self.iid))?;
+            .ok_or_else(|| str_err!("No ProgressBar exists for row '{}'", self.iid))?;
         let old_fg = std::mem::replace(&mut pb.fg, new_fg);
         Ok(ChangeIndexCell::SetProps(
             ChangeCellProps::UpdateProgressBar(ChangeProgressBar::SetFg(old_fg)),
@@ -849,11 +849,11 @@ impl IndexCell {
         let props = self
             .props
             .as_mut()
-            .ok_or(str_err!("No CellProps exist for row '{}'", self.iid))?;
+            .ok_or_else(|| str_err!("No CellProps exist for row '{}'", self.iid))?;
         let pb = props
             .progress_bar
             .as_mut()
-            .ok_or(str_err!("No ProgressBar exists for row '{}'", self.iid))?;
+            .ok_or_else(|| str_err!("No ProgressBar exists for row '{}'", self.iid))?;
         let old_pc = std::mem::replace(&mut pb.pc, new_pc);
         Ok(ChangeIndexCell::SetProps(
             ChangeCellProps::UpdateProgressBar(ChangeProgressBar::SetPc(old_pc)),
@@ -866,11 +866,11 @@ impl IndexCell {
         let props = self
             .props
             .as_mut()
-            .ok_or(str_err!("No CellProps exist for row '{}'", self.iid))?;
+            .ok_or_else(|| str_err!("No CellProps exist for row '{}'", self.iid))?;
         let pb = props
             .progress_bar
             .as_mut()
-            .ok_or(str_err!("No ProgressBar exists for row '{}'", self.iid))?;
+            .ok_or_else(|| str_err!("No ProgressBar exists for row '{}'", self.iid))?;
         let old_flag = std::mem::replace(&mut pb.remove_on_complete, new_flag);
         Ok(ChangeIndexCell::SetProps(
             ChangeCellProps::UpdateProgressBar(ChangeProgressBar::SetRemoveOnComplete(old_flag)),

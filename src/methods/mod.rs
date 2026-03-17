@@ -8,7 +8,6 @@ pub mod event_data_set_header;
 pub mod event_data_set_index;
 pub mod event_data_set_table;
 pub mod format_data;
-pub mod general_methods;
 pub mod get_cell_header;
 pub mod get_cell_index;
 pub mod get_cell_table;

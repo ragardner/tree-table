@@ -112,6 +112,12 @@ pub(crate) fn offset_move_indices(
     old_to_new
 }
 
+/// Creates two Vecs:
+/// (full_old_to_new, full_new_to_old)
+/// full_old_to_new
+///     - A Vec of new indices in their old Vec positions.
+/// full_new_to_old
+///     - A Vec of old indices in their new Vec positions.
 pub(crate) fn get_full_move_map(
     len: usize,
     old: &HashSet<usize>,

@@ -56,7 +56,9 @@ impl Header {
 
     /// Remove and return multiple items, delete cols
     pub fn del_cols(&mut self, sorted_seq: &[usize]) -> Result<Vec<(usize, HeaderCell)>, String> {
-        let largest_pos = *sorted_seq.last().ok_or(str_err!("To delete is empty."))?;
+        let largest_pos = *sorted_seq
+            .last()
+            .ok_or_else(|| str_err!("To delete is empty."))?;
         if largest_pos >= self.cells.len() {
             return Err(str_err!(
                 "Deletion pos: {} out of bounds of header len: {}",
@@ -101,22 +103,22 @@ impl Header {
             }
         }
 
-        let mut seq_opt = std::mem::take(&mut self.cells)
+        let mut old_cells = std::mem::take(&mut self.cells)
             .into_iter()
             .map(Some)
             .collect::<Vec<_>>();
 
         self.cells = Vec::with_capacity(n);
 
-        for i in 0..n {
-            let old_idx = full_new_to_old[i];
-            let cell = seq_opt[old_idx]
-                .take()
-                .ok_or(str_err!("Mapping error: {}", old_idx))?;
+        for (new_idx, &old_idx) in full_new_to_old.iter().enumerate() {
+            let cell = old_cells
+                .get_mut(old_idx)
+                .and_then(Option::take)
+                .ok_or_else(|| str_err!("Mapping error: invalid or duplicate index {}", old_idx))?;
 
             if let Some(col) = self.iid_to_col.get_mut(&cell.iid) {
-                *col = i;
-            };
+                *col = new_idx; // new column index
+            }
             self.cells.push(cell);
         }
 
@@ -128,7 +130,7 @@ impl Header {
         let mut iid = n_to_base62(
             self.iid_ctr
                 .next()
-                .ok_or("Cycling counter should never end")?,
+                .ok_or_else(|| str_err!("Cycling counter should never end"))?,
         );
         if self.iid_to_col.contains_key(iid.as_str()) {
             let mut cycles: usize = 0;
@@ -139,7 +141,7 @@ impl Header {
                 iid = n_to_base62(
                     self.iid_ctr
                         .next()
-                        .ok_or("Cycling counter should never end")?,
+                        .ok_or_else(|| str_err!("Cycling counter should never end"))?,
                 );
                 cycles = cycles.saturating_add(1);
             }

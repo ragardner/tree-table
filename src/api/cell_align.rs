@@ -19,25 +19,38 @@ impl Table {
         let align = kwargs.align; // None = clear alignment, Some = set it
         let (start_row, end_row) = span.rows_start_end(&self.grid);
         let (start_col, end_col) = span.cols_start_end(&self.grid);
+        let mut error: Option<String> = None;
+
         let empty_val = &self.opts.empty_val;
-        for row in start_row..end_row {
-            for col in start_col..end_col {
-                Self::acr_event_data_set_talign(
+        for row in start_row..=end_row {
+            for col in start_col..=end_col {
+                match Self::acr_event_data_set_talign(
                     &mut self.grid.index.cells,
                     row,
                     col,
                     align,
                     empty_val,
                     &mut event_data,
-                )?;
+                ) {
+                    Err(e) => {
+                        error = Some(e);
+                        break;
+                    }
+                    _ => {}
+                }
             }
         }
-        self.cr_finalize_event_if_any_non_selection_change(
-            event_data,
-            kwargs.undo,
-            kwargs.emit,
-            true,
-        )
+        if let Some(e) = error {
+            self.cr_roll_back(Rc::new(RefCell::new(event_data)));
+            return Err(e);
+        } else {
+            self.cr_finalize_event_if_any_non_selection_change(
+                event_data,
+                kwargs.undo,
+                kwargs.emit,
+                true,
+            )
+        }
     }
 
     pub fn align_i(
@@ -52,20 +65,33 @@ impl Table {
         }
         let align = kwargs.align;
         let (start_row, end_row) = span.rows_start_end(&self.grid);
-        for row in start_row..end_row {
-            Self::acr_event_data_set_ialign(
+        let mut error: Option<String> = None;
+
+        for row in start_row..=end_row {
+            match Self::acr_event_data_set_ialign(
                 &mut self.grid.index.cells,
                 row,
                 align,
                 &mut event_data,
-            )?;
+            ) {
+                Err(e) => {
+                    error = Some(e);
+                    break;
+                }
+                _ => {}
+            }
         }
-        self.cr_finalize_event_if_any_non_selection_change(
-            event_data,
-            kwargs.undo,
-            kwargs.emit,
-            true,
-        )
+        if let Some(e) = error {
+            self.cr_roll_back(Rc::new(RefCell::new(event_data)));
+            return Err(e);
+        } else {
+            self.cr_finalize_event_if_any_non_selection_change(
+                event_data,
+                kwargs.undo,
+                kwargs.emit,
+                true,
+            )
+        }
     }
 
     pub fn align_h(
@@ -80,19 +106,32 @@ impl Table {
         }
         let align = kwargs.align;
         let (start_col, end_col) = span.cols_start_end(&self.grid);
-        for col in start_col..end_col {
-            Self::acr_event_data_set_halign(
+        let mut error: Option<String> = None;
+
+        for col in start_col..=end_col {
+            match Self::acr_event_data_set_halign(
                 &mut self.grid.header.cells,
                 col,
                 align,
                 &mut event_data,
-            )?;
+            ) {
+                Err(e) => {
+                    error = Some(e);
+                    break;
+                }
+                _ => {}
+            }
         }
-        self.cr_finalize_event_if_any_non_selection_change(
-            event_data,
-            kwargs.undo,
-            kwargs.emit,
-            true,
-        )
+        if let Some(e) = error {
+            self.cr_roll_back(Rc::new(RefCell::new(event_data)));
+            return Err(e);
+        } else {
+            self.cr_finalize_event_if_any_non_selection_change(
+                event_data,
+                kwargs.undo,
+                kwargs.emit,
+                true,
+            )
+        }
     }
 }

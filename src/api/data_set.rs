@@ -72,7 +72,7 @@ impl Table {
         }
 
         if let Some(e) = error {
-            let _ = self.cr_undo_and_invert_event(Rc::new(RefCell::new(event_data)), vec![], false);
+            self.cr_roll_back(Rc::new(RefCell::new(event_data)));
             return Err(e);
         } else {
             self.cr_finalize_event_if_any_non_selection_change(
@@ -147,7 +147,7 @@ impl Table {
         }
 
         if let Some(e) = error {
-            let _ = self.cr_undo_and_invert_event(Rc::new(RefCell::new(event_data)), vec![], false);
+            self.cr_roll_back(Rc::new(RefCell::new(event_data)));
             return Err(e);
         } else {
             self.cr_finalize_event_if_any_non_selection_change(

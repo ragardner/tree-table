@@ -20,8 +20,8 @@ impl Table {
         let (start_row, end_row) = span.rows_start_end(&self.grid);
         let (start_col, end_col) = span.cols_start_end(&self.grid);
         let empty_val = &self.opts.empty_val;
-        for row in start_row..end_row {
-            for col in start_col..end_col {
+        for row in start_row..=end_row {
+            for col in start_col..=end_col {
                 Self::acr_event_data_set_treadonly(
                     &mut self.grid.index.cells,
                     row,
@@ -52,7 +52,7 @@ impl Table {
         }
         let readonly = kwargs.readonly;
         let (start_row, end_row) = span.rows_start_end(&self.grid);
-        for row in start_row..end_row {
+        for row in start_row..=end_row {
             Self::acr_event_data_set_ireadonly(
                 &mut self.grid.index.cells,
                 row,
@@ -80,7 +80,7 @@ impl Table {
         }
         let readonly = kwargs.readonly;
         let (start_col, end_col) = span.cols_start_end(&self.grid);
-        for col in start_col..end_col {
+        for col in start_col..=end_col {
             Self::acr_event_data_set_hreadonly(
                 &mut self.grid.header.cells,
                 col,

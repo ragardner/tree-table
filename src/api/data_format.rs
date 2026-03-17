@@ -33,8 +33,8 @@ impl Table {
         let set_vals = kwargs.set_vals;
         let mut error: Option<String> = None;
 
-        for row in start_row..end_row {
-            for col in start_col..end_col {
+        for row in start_row..=end_row {
+            for col in start_col..=end_col {
                 match Self::acr_event_data_set_tdata_format(
                     &mut self.grid.index.cells,
                     row,
@@ -76,7 +76,7 @@ impl Table {
         }
 
         if let Some(e) = error {
-            let _ = self.cr_undo_and_invert_event(Rc::new(RefCell::new(event_data)), vec![], false);
+            self.cr_roll_back(Rc::new(RefCell::new(event_data)));
             return Err(e);
         } else {
             self.cr_finalize_event_if_any_non_selection_change(
@@ -105,7 +105,7 @@ impl Table {
         let set_vals = kwargs.set_vals;
         let mut error: Option<String> = None;
 
-        for row in start_row..end_row {
+        for row in start_row..=end_row {
             match Self::acr_event_data_set_idata_format(
                 &mut self.grid.index.cells,
                 row,
@@ -142,7 +142,7 @@ impl Table {
         }
 
         if let Some(e) = error {
-            let _ = self.cr_undo_and_invert_event(Rc::new(RefCell::new(event_data)), vec![], false);
+            self.cr_roll_back(Rc::new(RefCell::new(event_data)));
             return Err(e);
         } else {
             self.cr_finalize_event_if_any_non_selection_change(
@@ -171,7 +171,7 @@ impl Table {
         let set_vals = kwargs.set_vals;
         let mut error: Option<String> = None;
 
-        for col in start_col..end_col {
+        for col in start_col..=end_col {
             match Self::acr_event_data_set_hdata_format(
                 &mut self.grid.header.cells,
                 col,
@@ -208,7 +208,7 @@ impl Table {
         }
 
         if let Some(e) = error {
-            let _ = self.cr_undo_and_invert_event(Rc::new(RefCell::new(event_data)), vec![], false);
+            self.cr_roll_back(Rc::new(RefCell::new(event_data)));
             return Err(e);
         } else {
             self.cr_finalize_event_if_any_non_selection_change(

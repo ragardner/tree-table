@@ -15,6 +15,9 @@ use std::collections::HashSet;
 use std::rc::Rc;
 
 impl Table {
+    /// Core move rows function
+    /// This is a special case:
+    ///     - It rolls back any tree changes should an error occur.
     pub(crate) fn cr_move_rows(
         &mut self,
         event_data: &mut EventData,
@@ -36,11 +39,7 @@ impl Table {
                 tree_move,
             ) {
                 Err(e) => {
-                    let _ = self.cr_undo_and_invert_event(
-                        Rc::new(RefCell::new(std::mem::take(event_data))),
-                        vec![],
-                        false,
-                    );
+                    self.cr_roll_back(Rc::new(RefCell::new(std::mem::take(event_data))));
                     return Err(e);
                 }
                 _ => {}
@@ -57,11 +56,7 @@ impl Table {
         // Grid move – if this fails, undo any tree changes we made
         if let Err(e) = self.grid.move_rows(&full_old_to_new, &full_new_to_old) {
             if mod_tree && self.opts.tree_mode {
-                let _ = self.cr_undo_and_invert_event(
-                    Rc::new(RefCell::new(std::mem::take(event_data))),
-                    vec![],
-                    false,
-                );
+                self.cr_roll_back(Rc::new(RefCell::new(std::mem::take(event_data))));
             }
             return Err(e);
         }
@@ -177,7 +172,7 @@ impl Table {
                 } else if move_to_pos >= new_par_chn_len {
                     let last_chld = new_par_chn
                         .last()
-                        .ok_or(str_err!("Could not get last child of: {}", new_par))?;
+                        .ok_or_else(|| str_err!("Could not get last child of: {}", new_par))?;
                     let last_chld_rn = Self::acr_pos(&self.grid.index.iid_to_row, last_chld)?;
                     let num_desc = Self::acr_tree_descendants_num(&self.grid, last_chld_rn, false)?;
                     insert_row = last_chld_rn + num_desc + 1;
@@ -185,11 +180,13 @@ impl Table {
                 // New parent has children, move_to_position is not end
                 } else {
                     // Set insert_row to the row of the child at move_to_pos
-                    let cx = new_par_chn.get(move_to_pos).ok_or(str_err!(
-                        "Vec index out of range: {} for vec: {:?}",
-                        move_to_pos,
-                        new_par_chn
-                    ))?;
+                    let cx = new_par_chn.get(move_to_pos).ok_or_else(|| {
+                        str_err!(
+                            "Vec index out of range: {} for vec: {:?}",
+                            move_to_pos,
+                            new_par_chn
+                        )
+                    })?;
                     insert_row = Self::acr_pos(&self.grid.index.iid_to_row, cx)?;
 
                     // If any iids are merely moving index
@@ -205,12 +202,14 @@ impl Table {
                             &new_par,
                         )? && move_to_pos > Self::acr_tree_pos(&self.grid.index, &iid)?
                         {
-                            let cx = new_par_chn.get(move_to_pos).ok_or(str_err!(
-                                "Vec index out of range: {} for iid: {} vec: {:?}",
-                                move_to_pos,
-                                iid,
-                                new_par_chn
-                            ))?;
+                            let cx = new_par_chn.get(move_to_pos).ok_or_else(|| {
+                                str_err!(
+                                    "Vec index out of range: {} for iid: {} vec: {:?}",
+                                    move_to_pos,
+                                    iid,
+                                    new_par_chn
+                                )
+                            })?;
                             let num_desc = Self::acr_tree_descendants_num(
                                 &self.grid,
                                 Self::acr_pos(&self.grid.index.iid_to_row, cx)?,
@@ -254,19 +253,19 @@ impl Table {
                 .iter()
                 .map(|&(from, _)| from)
                 .min()
-                .ok_or(str_err!("old_to_new unexpectedly empty"))?;
+                .ok_or_else(|| str_err!("old_to_new unexpectedly empty"))?;
 
             let min_to = old_to_new
                 .iter()
                 .map(|&(_, to)| to)
                 .min()
-                .ok_or(str_err!("old_to_new unexpectedly empty"))?;
+                .ok_or_else(|| str_err!("old_to_new unexpectedly empty"))?;
 
             let max_to = old_to_new
                 .iter()
                 .map(|&(_, to)| to)
                 .max()
-                .ok_or(str_err!("old_to_new unexpectedly empty"))?;
+                .ok_or_else(|| str_err!("old_to_new unexpectedly empty"))?;
             insert_row = if min_from <= min_to { max_to } else { min_to };
             move_to_iid = Self::acr_borrow_riid(&self.grid.index.cells, insert_row)?.clone();
 
@@ -343,66 +342,68 @@ impl Table {
             // inverse of the updatedold_to_new
         ));
 
-        if !old_to_new.is_empty() {
-            // Determine if new location for all iids is visible
-            let new_loc_displayed = if new_par.is_empty() {
-                true
-            } else {
-                Self::acr_tree_iid_is_open(
-                    &self.grid.index.cells,
-                    &self.grid.index.iid_to_row,
-                    &new_par,
-                )? && Self::acr_row_iid_is_vis(
-                    &self.grid.index.cells,
-                    &self.grid.index.iid_to_row,
-                    &new_par,
-                )?
-            };
-            if !new_loc_displayed {
-                // New location is hidden, hide all moved rows
-                Self::acr_set_row_vis(
-                    &mut self.grid.index.cells,
-                    old_to_new.iter().map(|&(from, _)| from),
-                    false,
-                    Some(event_data),
-                )?;
-            } else {
-                // New location is not hidden, some rows may have been previously hidden
-                // We have to check each one
-                let mut rows_to_show = Vec::new();
-                for k in old_to_new.iter().map(|&(from, _)| from) {
-                    let row = k;
-                    let iid = Self::acr_borrow_riid(&self.grid.index.cells, row)?;
+        if old_to_new.is_empty() {
+            return Ok(());
+        }
 
-                    // we're iterating over all moved rows, including ones not in iids
-                    // so checking if ancestors are open is necessary
-                    //
-                    // we haven't moved the rows yet, but we have modified their ancestors/chn
-                    // vis was originally set before rows were moved
-                    // set vis -> move rows
-                    // stored the row numbers prior to row move
-                    //
-                    // undo sets vis after moving rows
-                    // set vis is inverted in undo... so vis IS recorded in undo
-                    // undo -> rev() -> (restore cells) move rows -> set vis
-                    // set vis is now recorded in undo after moving rows
-                    //
-                    // so it has the new row numbers so we have to set vis before moving
-                    // which redo does do
-                    // redo -> rev() -> set vis -> move rows
-
-                    if self.cr_tree_ancestors_all_open(&iid, "")? {
-                        rows_to_show.push(row);
-                    }
-                }
-                Self::acr_set_row_vis(
-                    &mut self.grid.index.cells,
-                    rows_to_show.into_iter(),
-                    true,
-                    Some(event_data),
-                )?;
-            }
+        // Determine if new location for all iids is visible
+        let new_loc_displayed = if new_par.is_empty() {
+            true
+        } else {
+            Self::acr_tree_iid_is_open(
+                &self.grid.index.cells,
+                &self.grid.index.iid_to_row,
+                &new_par,
+            )? && Self::acr_row_iid_is_vis(
+                &self.grid.index.cells,
+                &self.grid.index.iid_to_row,
+                &new_par,
+            )?
         };
+        if !new_loc_displayed {
+            // New location is hidden, hide all moved rows
+            Self::acr_set_row_vis(
+                &mut self.grid.index.cells,
+                old_to_new.iter().map(|&(from, _)| from),
+                false,
+                Some(event_data),
+            )?;
+        } else {
+            // New location is not hidden, some rows may have been previously hidden
+            // We have to check each one
+            let mut rows_to_show = Vec::new();
+            for k in old_to_new.iter().map(|&(from, _)| from) {
+                let row = k;
+                let iid = Self::acr_borrow_riid(&self.grid.index.cells, row)?;
+
+                // we're iterating over all moved rows, including ones not in iids
+                // so checking if ancestors are open is necessary
+                //
+                // we haven't moved the rows yet, but we have modified their ancestors/chn
+                // vis was originally set before rows were moved
+                // set vis -> move rows
+                // stored the row numbers prior to row move
+                //
+                // undo sets vis after moving rows
+                // set vis is inverted in undo... so vis IS recorded in undo
+                // undo -> rev() -> (restore cells) move rows -> set vis
+                // set vis is now recorded in undo after moving rows
+                //
+                // so it has the new row numbers so we have to set vis before moving
+                // which redo does do
+                // redo -> rev() -> set vis -> move rows
+
+                if self.cr_tree_ancestors_all_open(&iid, "")? {
+                    rows_to_show.push(row);
+                }
+            }
+            Self::acr_set_row_vis(
+                &mut self.grid.index.cells,
+                rows_to_show.into_iter(),
+                true,
+                Some(event_data),
+            )?;
+        }
 
         Ok(())
     }

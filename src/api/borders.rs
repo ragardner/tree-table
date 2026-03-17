@@ -36,24 +36,38 @@ impl Table {
         let (start_row, end_row) = span.rows_start_end(&self.grid);
         let (start_col, end_col) = span.cols_start_end(&self.grid);
         let empty_val = &self.opts.empty_val;
-        for row in start_row..end_row {
-            for col in start_col..end_col {
-                Self::acr_event_data_set_tborders(
+        let mut error: Option<String> = None;
+
+        for row in start_row..=end_row {
+            for col in start_col..=end_col {
+                match Self::acr_event_data_set_tborders(
                     &mut self.grid.index.cells,
                     row,
                     col,
                     borders.clone(),
                     empty_val,
                     &mut event_data,
-                )?;
+                ) {
+                    Err(e) => {
+                        error = Some(e);
+                        break;
+                    }
+                    _ => {}
+                }
             }
         }
-        self.cr_finalize_event_if_any_non_selection_change(
-            event_data,
-            kwargs.undo,
-            kwargs.emit,
-            true,
-        )
+
+        if let Some(e) = error {
+            self.cr_roll_back(Rc::new(RefCell::new(event_data)));
+            return Err(e);
+        } else {
+            self.cr_finalize_event_if_any_non_selection_change(
+                event_data,
+                kwargs.undo,
+                kwargs.emit,
+                true,
+            )
+        }
     }
 
     pub fn borders_i(
@@ -81,20 +95,34 @@ impl Table {
             None
         };
         let (start_row, end_row) = span.rows_start_end(&self.grid);
-        for row in start_row..end_row {
-            Self::acr_event_data_set_iborders(
+        let mut error: Option<String> = None;
+
+        for row in start_row..=end_row {
+            match Self::acr_event_data_set_iborders(
                 &mut self.grid.index.cells,
                 row,
                 borders.clone(),
                 &mut event_data,
-            )?;
+            ) {
+                Err(e) => {
+                    error = Some(e);
+                    break;
+                }
+                _ => {}
+            }
         }
-        self.cr_finalize_event_if_any_non_selection_change(
-            event_data,
-            kwargs.undo,
-            kwargs.emit,
-            true,
-        )
+
+        if let Some(e) = error {
+            self.cr_roll_back(Rc::new(RefCell::new(event_data)));
+            return Err(e);
+        } else {
+            self.cr_finalize_event_if_any_non_selection_change(
+                event_data,
+                kwargs.undo,
+                kwargs.emit,
+                true,
+            )
+        }
     }
 
     pub fn borders_h(
@@ -121,21 +149,36 @@ impl Table {
         } else {
             None
         };
+
         let (start_col, end_col) = span.cols_start_end(&self.grid);
-        for col in start_col..end_col {
-            Self::acr_event_data_set_hborders(
+        let mut error: Option<String> = None;
+
+        for col in start_col..=end_col {
+            match Self::acr_event_data_set_hborders(
                 &mut self.grid.header.cells,
                 col,
                 borders.clone(),
                 &mut event_data,
-            )?;
+            ) {
+                Err(e) => {
+                    error = Some(e);
+                    break;
+                }
+                _ => {}
+            }
         }
-        self.cr_finalize_event_if_any_non_selection_change(
-            event_data,
-            kwargs.undo,
-            kwargs.emit,
-            true,
-        )
+
+        if let Some(e) = error {
+            self.cr_roll_back(Rc::new(RefCell::new(event_data)));
+            return Err(e);
+        } else {
+            self.cr_finalize_event_if_any_non_selection_change(
+                event_data,
+                kwargs.undo,
+                kwargs.emit,
+                true,
+            )
+        }
     }
 
     pub fn set_borders(
@@ -146,75 +189,66 @@ impl Table {
         let span = self.cr_key_to_span(kwargs.key)?;
         let mut event_data = self.cr_new_event(kwargs.save_selection);
 
-        let top = if let Some(opt) = kwargs.top {
-            Some(Border::try_from_opt(opt)?)
-        } else {
-            None
-        };
-        let right = if let Some(opt) = kwargs.right {
-            Some(Border::try_from_opt(opt)?)
-        } else {
-            None
-        };
-        let bottom = if let Some(opt) = kwargs.bottom {
-            Some(Border::try_from_opt(opt)?)
-        } else {
-            None
-        };
-        let left = if let Some(opt) = kwargs.left {
-            Some(Border::try_from_opt(opt)?)
-        } else {
-            None
-        };
+        let top = kwargs.top.map(Border::try_from_opt).transpose()?;
+        let right = kwargs.right.map(Border::try_from_opt).transpose()?;
+        let bottom = kwargs.bottom.map(Border::try_from_opt).transpose()?;
+        let left = kwargs.left.map(Border::try_from_opt).transpose()?;
 
         let (start_row, end_row) = span.rows_start_end(&self.grid);
         let (start_col, end_col) = span.cols_start_end(&self.grid);
         let empty_val = &self.opts.empty_val;
 
-        for row in start_row..end_row {
-            for col in start_col..end_col {
-                if let Some(b) = &top {
-                    Self::acr_event_data_set_tborders_top(
-                        &mut self.grid.index.cells,
-                        row,
-                        col,
-                        b.clone(),
-                        empty_val,
-                        &mut event_data,
-                    )?;
-                }
-                if let Some(b) = &right {
-                    Self::acr_event_data_set_tborders_right(
-                        &mut self.grid.index.cells,
-                        row,
-                        col,
-                        b.clone(),
-                        empty_val,
-                        &mut event_data,
-                    )?;
-                }
-                if let Some(b) = &bottom {
-                    Self::acr_event_data_set_tborders_bottom(
-                        &mut self.grid.index.cells,
-                        row,
-                        col,
-                        b.clone(),
-                        empty_val,
-                        &mut event_data,
-                    )?;
-                }
-                if let Some(b) = &left {
-                    Self::acr_event_data_set_tborders_left(
-                        &mut self.grid.index.cells,
-                        row,
-                        col,
-                        b.clone(),
-                        empty_val,
-                        &mut event_data,
-                    )?;
+        if let Err(e) = (|| -> Result<(), String> {
+            for row in start_row..=end_row {
+                for col in start_col..=end_col {
+                    if let Some(b) = &top {
+                        Self::acr_event_data_set_tborders_top(
+                            &mut self.grid.index.cells,
+                            row,
+                            col,
+                            b.clone(),
+                            empty_val,
+                            &mut event_data,
+                        )?;
+                    }
+                    if let Some(b) = &right {
+                        Self::acr_event_data_set_tborders_right(
+                            &mut self.grid.index.cells,
+                            row,
+                            col,
+                            b.clone(),
+                            empty_val,
+                            &mut event_data,
+                        )?;
+                    }
+                    if let Some(b) = &bottom {
+                        Self::acr_event_data_set_tborders_bottom(
+                            &mut self.grid.index.cells,
+                            row,
+                            col,
+                            b.clone(),
+                            empty_val,
+                            &mut event_data,
+                        )?;
+                    }
+                    if let Some(b) = &left {
+                        Self::acr_event_data_set_tborders_left(
+                            &mut self.grid.index.cells,
+                            row,
+                            col,
+                            b.clone(),
+                            empty_val,
+                            &mut event_data,
+                        )?;
+                    }
                 }
             }
+            Ok(())
+        })() {
+            self.cr_roll_back(Rc::new(RefCell::new(event_data)));
+            return Err(e);
         }
+
         self.cr_finalize_event_if_any_non_selection_change(
             event_data,
             kwargs.undo,
@@ -231,62 +265,52 @@ impl Table {
         let span = self.cr_key_to_span(kwargs.key)?;
         let mut event_data = self.cr_new_event(kwargs.save_selection);
 
-        let top = if let Some(opt) = kwargs.top {
-            Some(Border::try_from_opt(opt)?)
-        } else {
-            None
-        };
-        let right = if let Some(opt) = kwargs.right {
-            Some(Border::try_from_opt(opt)?)
-        } else {
-            None
-        };
-        let bottom = if let Some(opt) = kwargs.bottom {
-            Some(Border::try_from_opt(opt)?)
-        } else {
-            None
-        };
-        let left = if let Some(opt) = kwargs.left {
-            Some(Border::try_from_opt(opt)?)
-        } else {
-            None
-        };
+        let top = kwargs.top.map(Border::try_from_opt).transpose()?;
+        let right = kwargs.right.map(Border::try_from_opt).transpose()?;
+        let bottom = kwargs.bottom.map(Border::try_from_opt).transpose()?;
+        let left = kwargs.left.map(Border::try_from_opt).transpose()?;
 
         let (start_row, end_row) = span.rows_start_end(&self.grid);
 
-        for row in start_row..end_row {
-            if let Some(b) = &top {
-                Self::acr_event_data_set_iborders_top(
-                    &mut self.grid.index.cells,
-                    row,
-                    b.clone(),
-                    &mut event_data,
-                )?;
+        if let Err(e) = (|| -> Result<(), String> {
+            for row in start_row..=end_row {
+                if let Some(b) = &top {
+                    Self::acr_event_data_set_iborders_top(
+                        &mut self.grid.index.cells,
+                        row,
+                        b.clone(),
+                        &mut event_data,
+                    )?;
+                }
+                if let Some(b) = &right {
+                    Self::acr_event_data_set_iborders_right(
+                        &mut self.grid.index.cells,
+                        row,
+                        b.clone(),
+                        &mut event_data,
+                    )?;
+                }
+                if let Some(b) = &bottom {
+                    Self::acr_event_data_set_iborders_bottom(
+                        &mut self.grid.index.cells,
+                        row,
+                        b.clone(),
+                        &mut event_data,
+                    )?;
+                }
+                if let Some(b) = &left {
+                    Self::acr_event_data_set_iborders_left(
+                        &mut self.grid.index.cells,
+                        row,
+                        b.clone(),
+                        &mut event_data,
+                    )?;
+                }
             }
-            if let Some(b) = &right {
-                Self::acr_event_data_set_iborders_right(
-                    &mut self.grid.index.cells,
-                    row,
-                    b.clone(),
-                    &mut event_data,
-                )?;
-            }
-            if let Some(b) = &bottom {
-                Self::acr_event_data_set_iborders_bottom(
-                    &mut self.grid.index.cells,
-                    row,
-                    b.clone(),
-                    &mut event_data,
-                )?;
-            }
-            if let Some(b) = &left {
-                Self::acr_event_data_set_iborders_left(
-                    &mut self.grid.index.cells,
-                    row,
-                    b.clone(),
-                    &mut event_data,
-                )?;
-            }
+            Ok(())
+        })() {
+            self.cr_roll_back(Rc::new(RefCell::new(event_data)));
+            return Err(e);
         }
         self.cr_finalize_event_if_any_non_selection_change(
             event_data,
@@ -304,62 +328,52 @@ impl Table {
         let span = self.cr_key_to_span(kwargs.key)?;
         let mut event_data = self.cr_new_event(kwargs.save_selection);
 
-        let top = if let Some(opt) = kwargs.top {
-            Some(Border::try_from_opt(opt)?)
-        } else {
-            None
-        };
-        let right = if let Some(opt) = kwargs.right {
-            Some(Border::try_from_opt(opt)?)
-        } else {
-            None
-        };
-        let bottom = if let Some(opt) = kwargs.bottom {
-            Some(Border::try_from_opt(opt)?)
-        } else {
-            None
-        };
-        let left = if let Some(opt) = kwargs.left {
-            Some(Border::try_from_opt(opt)?)
-        } else {
-            None
-        };
+        let top = kwargs.top.map(Border::try_from_opt).transpose()?;
+        let right = kwargs.right.map(Border::try_from_opt).transpose()?;
+        let bottom = kwargs.bottom.map(Border::try_from_opt).transpose()?;
+        let left = kwargs.left.map(Border::try_from_opt).transpose()?;
 
         let (start_col, end_col) = span.cols_start_end(&self.grid);
 
-        for col in start_col..end_col {
-            if let Some(b) = &top {
-                Self::acr_event_data_set_hborders_top(
-                    &mut self.grid.header.cells,
-                    col,
-                    b.clone(),
-                    &mut event_data,
-                )?;
+        if let Err(e) = (|| -> Result<(), String> {
+            for col in start_col..=end_col {
+                if let Some(b) = &top {
+                    Self::acr_event_data_set_hborders_top(
+                        &mut self.grid.header.cells,
+                        col,
+                        b.clone(),
+                        &mut event_data,
+                    )?;
+                }
+                if let Some(b) = &right {
+                    Self::acr_event_data_set_hborders_right(
+                        &mut self.grid.header.cells,
+                        col,
+                        b.clone(),
+                        &mut event_data,
+                    )?;
+                }
+                if let Some(b) = &bottom {
+                    Self::acr_event_data_set_hborders_bottom(
+                        &mut self.grid.header.cells,
+                        col,
+                        b.clone(),
+                        &mut event_data,
+                    )?;
+                }
+                if let Some(b) = &left {
+                    Self::acr_event_data_set_hborders_left(
+                        &mut self.grid.header.cells,
+                        col,
+                        b.clone(),
+                        &mut event_data,
+                    )?;
+                }
             }
-            if let Some(b) = &right {
-                Self::acr_event_data_set_hborders_right(
-                    &mut self.grid.header.cells,
-                    col,
-                    b.clone(),
-                    &mut event_data,
-                )?;
-            }
-            if let Some(b) = &bottom {
-                Self::acr_event_data_set_hborders_bottom(
-                    &mut self.grid.header.cells,
-                    col,
-                    b.clone(),
-                    &mut event_data,
-                )?;
-            }
-            if let Some(b) = &left {
-                Self::acr_event_data_set_hborders_left(
-                    &mut self.grid.header.cells,
-                    col,
-                    b.clone(),
-                    &mut event_data,
-                )?;
-            }
+            Ok(())
+        })() {
+            self.cr_roll_back(Rc::new(RefCell::new(event_data)));
+            return Err(e);
         }
         self.cr_finalize_event_if_any_non_selection_change(
             event_data,

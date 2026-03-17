@@ -33,7 +33,7 @@ impl Table {
     ) -> Result<&'v Rc<str>, String> {
         v.get(pos)
             .map(|cell| &cell.iid)
-            .ok_or(str_err!("pos out of bounds: {}", pos))
+            .ok_or_else(|| str_err!("pos out of bounds: {}", pos))
     }
 
     /// Get Result<iid, String> using col
@@ -41,7 +41,7 @@ impl Table {
     pub(crate) fn acr_copy_ciid<'v>(v: &'v [HeaderCell], pos: usize) -> Result<Rc<str>, String> {
         v.get(pos)
             .map(|cell| cell.iid.clone())
-            .ok_or(str_err!("pos out of bounds: {}", pos))
+            .ok_or_else(|| str_err!("pos out of bounds: {}", pos))
     }
 
     /// Get Result<borrowed HeaderCell, String> using col
@@ -50,7 +50,7 @@ impl Table {
         cells: &'v [HeaderCell],
         cn: usize,
     ) -> Result<&'v HeaderCell, String> {
-        cells.get(cn).ok_or(str_err!("Col not found: {}", cn))
+        cells.get(cn).ok_or_else(|| str_err!("Col not found: {}", cn))
     }
 
     #[inline]
@@ -58,13 +58,13 @@ impl Table {
         cells: &'v mut [HeaderCell],
         cn: usize,
     ) -> Result<&'v mut HeaderCell, String> {
-        cells.get_mut(cn).ok_or(str_err!("Col not found: {}", cn))
+        cells.get_mut(cn).ok_or_else(|| str_err!("Col not found: {}", cn))
     }
 
     /// Get borrowed val from HeaderCell.
     #[inline]
     pub(crate) fn acr_hcell_val<'v>(cells: &'v [HeaderCell], cn: usize) -> Result<&'v Val, String> {
-        let cell = cells.get(cn).ok_or(str_err!("Col not found: {}", cn))?;
+        let cell = cells.get(cn).ok_or_else(|| str_err!("Col not found: {}", cn))?;
         Ok(&cell.val)
     }
 
@@ -74,7 +74,7 @@ impl Table {
         cells: &'v [HeaderCell],
         cn: usize,
     ) -> Result<Option<&'v CellAlign>, String> {
-        let cell = cells.get(cn).ok_or(str_err!("Col not found: {}", cn))?;
+        let cell = cells.get(cn).ok_or_else(|| str_err!("Col not found: {}", cn))?;
         Ok(cell.props.as_ref().and_then(|props| props.align.as_ref()))
     }
 
@@ -84,7 +84,7 @@ impl Table {
         cells: &'v [HeaderCell],
         cn: usize,
     ) -> Result<Option<&'v CellBorders>, String> {
-        let cell = cells.get(cn).ok_or(str_err!("Col not found: {}", cn))?;
+        let cell = cells.get(cn).ok_or_else(|| str_err!("Col not found: {}", cn))?;
         Ok(cell.props.as_ref().and_then(|props| props.borders.as_ref()))
     }
 
@@ -94,7 +94,7 @@ impl Table {
         cells: &'v [HeaderCell],
         cn: usize,
     ) -> Result<Option<&'v Checkbox>, String> {
-        let cell = cells.get(cn).ok_or(str_err!("Col not found: {}", cn))?;
+        let cell = cells.get(cn).ok_or_else(|| str_err!("Col not found: {}", cn))?;
         Ok(cell
             .props
             .as_ref()
@@ -107,7 +107,7 @@ impl Table {
         cells: &'v [HeaderCell],
         cn: usize,
     ) -> Result<Option<&'v DataFormat>, String> {
-        let cell = cells.get(cn).ok_or(str_err!("Col not found: {}", cn))?;
+        let cell = cells.get(cn).ok_or_else(|| str_err!("Col not found: {}", cn))?;
         Ok(cell
             .props
             .as_ref()
@@ -120,7 +120,7 @@ impl Table {
         cells: &'v [HeaderCell],
         cn: usize,
     ) -> Result<Option<&'v Dropdown>, String> {
-        let cell = cells.get(cn).ok_or(str_err!("Col not found: {}", cn))?;
+        let cell = cells.get(cn).ok_or_else(|| str_err!("Col not found: {}", cn))?;
         Ok(cell
             .props
             .as_ref()
@@ -133,7 +133,7 @@ impl Table {
         cells: &'v [HeaderCell],
         cn: usize,
     ) -> Result<Option<&'v Highlight>, String> {
-        let cell = cells.get(cn).ok_or(str_err!("Col not found: {}", cn))?;
+        let cell = cells.get(cn).ok_or_else(|| str_err!("Col not found: {}", cn))?;
         Ok(cell
             .props
             .as_ref()
@@ -146,7 +146,7 @@ impl Table {
         cells: &'v [HeaderCell],
         cn: usize,
     ) -> Result<Option<&'v Note>, String> {
-        let cell = cells.get(cn).ok_or(str_err!("Col not found: {}", cn))?;
+        let cell = cells.get(cn).ok_or_else(|| str_err!("Col not found: {}", cn))?;
         Ok(cell.props.as_ref().and_then(|props| props.note.as_ref()))
     }
 
@@ -156,7 +156,7 @@ impl Table {
         cells: &'v [HeaderCell],
         cn: usize,
     ) -> Result<Option<&'v ProgressBar>, String> {
-        let cell = cells.get(cn).ok_or(str_err!("Col not found: {}", cn))?;
+        let cell = cells.get(cn).ok_or_else(|| str_err!("Col not found: {}", cn))?;
         Ok(cell
             .props
             .as_ref()
@@ -169,7 +169,7 @@ impl Table {
         cells: &'v [HeaderCell],
         cn: usize,
     ) -> Result<bool, String> {
-        let cell = cells.get(cn).ok_or(str_err!("Col not found: {}", cn))?;
+        let cell = cells.get(cn).ok_or_else(|| str_err!("Col not found: {}", cn))?;
         Ok(cell.props.as_ref().map_or(false, |props| props.readonly))
     }
 }

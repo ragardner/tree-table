@@ -33,8 +33,8 @@ impl Table {
         let (start_row, end_row) = span.rows_start_end(&self.grid);
         let (start_col, end_col) = span.cols_start_end(&self.grid);
         let empty_val = &self.opts.empty_val;
-        for row in start_row..end_row {
-            for col in start_col..end_col {
+        for row in start_row..=end_row {
+            for col in start_col..=end_col {
                 Self::acr_event_data_set_tnote(
                     &mut self.grid.index.cells,
                     row,
@@ -74,7 +74,7 @@ impl Table {
             None
         };
         let (start_row, end_row) = span.rows_start_end(&self.grid);
-        for row in start_row..end_row {
+        for row in start_row..=end_row {
             Self::acr_event_data_set_inote(
                 &mut self.grid.index.cells,
                 row,
@@ -111,7 +111,7 @@ impl Table {
             None
         };
         let (start_col, end_col) = span.cols_start_end(&self.grid);
-        for col in start_col..end_col {
+        for col in start_col..=end_col {
             Self::acr_event_data_set_hnote(
                 &mut self.grid.header.cells,
                 col,
@@ -147,8 +147,8 @@ impl Table {
         let (start_row, end_row) = span.rows_start_end(&self.grid);
         let (start_col, end_col) = span.cols_start_end(&self.grid);
         let empty_val = &self.opts.empty_val;
-        for row in start_row..end_row {
-            for col in start_col..end_col {
+        for row in start_row..=end_row {
+            for col in start_col..=end_col {
                 if let Some(text) = &kwargs.note {
                     Self::acr_event_data_set_tnote_text(
                         &mut self.grid.index.cells,
@@ -217,7 +217,7 @@ impl Table {
             None
         };
         let (start_row, end_row) = span.rows_start_end(&self.grid);
-        for row in start_row..end_row {
+        for row in start_row..=end_row {
             if let Some(text) = &kwargs.note {
                 Self::acr_event_data_set_inote_text(
                     &mut self.grid.index.cells,
@@ -277,7 +277,7 @@ impl Table {
             None
         };
         let (start_col, end_col) = span.cols_start_end(&self.grid);
-        for col in start_col..end_col {
+        for col in start_col..=end_col {
             if let Some(text) = &kwargs.note {
                 Self::acr_event_data_set_hnote_text(
                     &mut self.grid.header.cells,

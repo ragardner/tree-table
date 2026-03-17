@@ -123,11 +123,9 @@ impl Table {
                     let parent_rn = Self::acr_pos(&self.grid.index.iid_to_row, par)?;
                     return Ok(parent_rn + 1);
                 } else {
-                    let prev_chld = chn.get(idx - 1).ok_or(str_err!(
-                        "Could not get child at pos: {} of parent: {}",
-                        idx - 1,
-                        par
-                    ))?;
+                    let prev_chld = chn.get(idx - 1).ok_or_else(|| {
+                        str_err!("Could not get child at pos: {} of parent: {}", idx - 1, par)
+                    })?;
                     let prev_chld_rn = Self::acr_pos(&self.grid.index.iid_to_row, prev_chld)?;
                     let num_desc = Self::acr_tree_descendants_num(&self.grid, prev_chld_rn, false)?;
                     return Ok(prev_chld_rn + num_desc + 1);
@@ -136,7 +134,7 @@ impl Table {
                 if !chn.is_empty() {
                     let last_chld = chn
                         .last()
-                        .ok_or(str_err!("Could not get last child of: {}", par))?;
+                        .ok_or_else(|| str_err!("Could not get last child of: {}", par))?;
                     let last_chld_rn = Self::acr_pos(&self.grid.index.iid_to_row, last_chld)?;
                     let num_desc = Self::acr_tree_descendants_num(&self.grid, last_chld_rn, false)?;
                     return Ok(last_chld_rn + num_desc + 1);
@@ -265,7 +263,7 @@ impl Table {
         let target_row = index
             .iid_to_row
             .get(iid)
-            .ok_or(format!("Missing row mapping for IID: {}", &*iid))?
+            .ok_or_else(|| str_err!("Missing row mapping for IID: {}", &*iid))?
             .to_owned();
 
         // Get the parent item ID; returns Result<Rc<str>, String>

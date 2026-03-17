@@ -26,6 +26,7 @@ pub struct EventData {
     pub widget_id: u32,
     pub changes: Vec<Change>,
     // FOR UNDO, cells that were modified by a change
+    #[cfg_attr(feature = "serde", serde(skip_serializing, default))]
     pub tree_changes: HashMap<Rc<str>, TreeChange>,
 }
 

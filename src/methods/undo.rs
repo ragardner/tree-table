@@ -17,7 +17,7 @@ impl Table {
             .grid
             .undo_stack
             .last()
-            .ok_or(str_err!("Undo stack unexpectedly empty"))?
+            .ok_or_else(|| str_err!("Undo stack unexpectedly empty"))?
             .clone();
         Ok(Some(change))
     }
@@ -30,7 +30,7 @@ impl Table {
             .grid
             .redo_stack
             .last()
-            .ok_or(str_err!("Redo stack unexpectedly empty"))?
+            .ok_or_else(|| str_err!("Redo stack unexpectedly empty"))?
             .clone();
         Ok(Some(change))
     }
@@ -47,7 +47,7 @@ impl Table {
             .grid
             .undo_stack
             .pop_back()
-            .ok_or(str_err!("Undo stack unexpectedly empty"))?;
+            .ok_or_else(|| str_err!("Undo stack unexpectedly empty"))?;
         let event_data = self.cr_undo_and_invert_event(change, kwargs.invalid_indices, true)?;
         self.cr_event_modified(false)?;
         let shared = Rc::new(RefCell::new(event_data));
@@ -69,7 +69,7 @@ impl Table {
             .grid
             .redo_stack
             .pop_back()
-            .ok_or(str_err!("Redo stack unexpectedly empty"))?;
+            .ok_or_else(|| str_err!("Redo stack unexpectedly empty"))?;
         let event_data = self.cr_undo_and_invert_event(change, kwargs.invalid_indices, true)?;
         self.cr_event_modified(false)?;
         let shared = Rc::new(RefCell::new(event_data));
@@ -101,20 +101,13 @@ impl Table {
             (old, old_to_new, new_to_old)
         }
 
-        // paste -> add rows -> set data
-        // undo -> rev -> set data -> del rows
-        // redo -> rev -> add rows -> set data
-        // undoing selection box changes are fine because they are saved and not mutated based on cmds...
-        // but perhaps we should mutate the selection boxes in the cmds, put it all in there
-        // we would still have selection box changes in event data but effectively they'd be limited to
-        // only when directly changing selection boxes
-        // how possible is this
-        // TODO
-
         let mut event_data = self.cr_new_event(false);
         let mut to_undo_mut = to_undo.borrow_mut();
+
+        // All changes are consumed
         let changes = std::mem::take(&mut to_undo_mut.changes);
         let mut tree_changes = std::mem::take(&mut to_undo_mut.tree_changes);
+
         let invalid_indices_set: HashSet<usize> =
             invalid_indices.drain(..).map(|x| x as usize).collect();
         let mut error: Option<String> = None;
@@ -232,12 +225,15 @@ impl Table {
 
         if let Some(e) = error {
             if repeat_on_err {
-                let roll_back = Rc::new(RefCell::new(event_data));
-                let _ = self.cr_undo_and_invert_event(roll_back, vec![], false);
+                self.cr_roll_back(Rc::new(RefCell::new(event_data)));
             }
             return Err(e);
         }
 
         Ok(event_data)
+    }
+
+    pub(crate) fn cr_roll_back(&mut self, event_data: Rc<RefCell<EventData>>) {
+        let _ = self.cr_undo_and_invert_event(event_data, vec![], false);
     }
 }
