@@ -17,95 +17,61 @@ impl Table {
         restore_from: &mut HashMap<Rc<str>, TreeChange>,
         record_to: Option<&mut EventData>,
     ) -> Result<(), String> {
-        let mut error: Option<String> = None;
-        if let Some(record_to) = record_to {
-            for (iid, tree_change) in restore_from.drain() {
-                let rn = match Self::acr_pos(&index.iid_to_row, &iid) {
-                    Ok(rn) => rn,
-                    Err(e) => {
-                        error = Some(e);
-                        break;
-                    }
-                };
-                if let Some(change) = tree_change.par {
-                    let inv = match change.invert(&mut index.cells, &mut index.iid_to_row, rn) {
-                        Ok(inv) => inv,
-                        Err(e) => {
-                            error = Some(e);
-                            break;
-                        }
-                    };
-                    record_to.add_tree_change(&iid, inv);
-                }
-                if let Some(change) = tree_change.chn {
-                    let inv = match change.invert(&mut index.cells, &mut index.iid_to_row, rn) {
-                        Ok(inv) => inv,
-                        Err(e) => {
-                            error = Some(e);
-                            break;
-                        }
-                    };
-                    record_to.add_tree_change(&iid, inv);
-                }
-            }
-            if let Some(error) = error {
-                for (iid, tree_change) in record_to.tree_changes.drain() {
-                    if let Ok(rn) = Self::acr_pos(&index.iid_to_row, &iid) {
-                        if let Some(change) = tree_change.par {
-                            let _ = change.invert(&mut index.cells, &mut index.iid_to_row, rn);
-                        }
-                        if let Some(change) = tree_change.chn {
-                            let _ = change.invert(&mut index.cells, &mut index.iid_to_row, rn);
-                        }
-                    }
-                }
-                return Err(error);
-            }
+        let mut temp = if record_to.is_none() {
+            Some(EventData::default())
         } else {
-            let mut temp: EventData = EventData::default();
-            for (iid, tree_change) in restore_from.drain() {
-                let rn = match Self::acr_pos(&index.iid_to_row, &iid) {
-                    Ok(rn) => rn,
+            None
+        };
+        let target: &mut EventData = match record_to {
+            Some(rec) => rec,
+            None => temp.as_mut().unwrap(),
+        };
+        let mut error: Option<String> = None;
+
+        for (iid, tree_change) in restore_from.drain() {
+            let rn = match Self::acr_pos(&index.iid_to_row, &iid) {
+                Ok(rn) => rn,
+                Err(e) => {
+                    error = Some(e);
+                    break;
+                }
+            };
+            if let Some(change) = tree_change.par {
+                let inv = match change.invert(&mut index.cells, &mut index.iid_to_row, rn) {
+                    Ok(inv) => inv,
                     Err(e) => {
                         error = Some(e);
                         break;
                     }
                 };
-                if let Some(change) = tree_change.par {
-                    let inv = match change.invert(&mut index.cells, &mut index.iid_to_row, rn) {
-                        Ok(inv) => inv,
-                        Err(e) => {
-                            error = Some(e);
-                            break;
-                        }
-                    };
-                    temp.add_tree_change(&iid, inv);
-                }
-                if let Some(change) = tree_change.chn {
-                    let inv = match change.invert(&mut index.cells, &mut index.iid_to_row, rn) {
-                        Ok(inv) => inv,
-                        Err(e) => {
-                            error = Some(e);
-                            break;
-                        }
-                    };
-                    temp.add_tree_change(&iid, inv);
-                }
+                target.add_tree_change(&iid, inv);
             }
-            if let Some(error) = error {
-                for (iid, tree_change) in temp.tree_changes.drain() {
-                    if let Ok(rn) = Self::acr_pos(&index.iid_to_row, &iid) {
-                        if let Some(change) = tree_change.par {
-                            let _ = change.invert(&mut index.cells, &mut index.iid_to_row, rn);
-                        }
-                        if let Some(change) = tree_change.chn {
-                            let _ = change.invert(&mut index.cells, &mut index.iid_to_row, rn);
-                        }
+            if let Some(change) = tree_change.chn {
+                let inv = match change.invert(&mut index.cells, &mut index.iid_to_row, rn) {
+                    Ok(inv) => inv,
+                    Err(e) => {
+                        error = Some(e);
+                        break;
                     }
-                }
-                return Err(error);
+                };
+                target.add_tree_change(&iid, inv);
             }
         }
+
+        if let Some(error) = error {
+            for (iid, tree_change) in target.tree_changes.drain() {
+                if let Ok(rn) = Self::acr_pos(&index.iid_to_row, &iid) {
+                    if let Some(change) = tree_change.par {
+                        let _ = change.invert(&mut index.cells, &mut index.iid_to_row, rn);
+                    }
+                    if let Some(change) = tree_change.chn {
+                        let _ = change.invert(&mut index.cells, &mut index.iid_to_row, rn);
+                    }
+                }
+            }
+            return Err(error);
+        }
+
         Ok(())
     }
 
