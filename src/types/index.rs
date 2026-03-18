@@ -51,12 +51,21 @@ impl Index {
         })
     }
 
-    /// Use a Vec of tuples of usize, Indexcell to push the existing
-    /// indices of the Index forward.
+    /// Use a Vec of tuples of usize, Indexcell.
+    /// Pushes the existing indices of the Index forward.
     pub(crate) fn add_rows_just_push_hm(&mut self, sorted_seq: &[usize]) {
         // Adjust existing HashMap indices
         for (_, row) in self.iid_to_row.iter_mut() {
             *row = push_n(*row, &sorted_seq);
+        }
+    }
+
+    /// Use a Vec of usize.
+    /// Pulls the existing indices of the Index backwards.
+    pub(crate) fn del_rows_just_pull_hm(&mut self, sorted_seq: &[usize]) {
+        // Adjust existing HashMap indices
+        for (_, row) in self.iid_to_row.iter_mut() {
+            *row = pull_n(*row, sorted_seq);
         }
     }
 

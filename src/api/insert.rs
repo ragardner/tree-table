@@ -69,7 +69,7 @@ impl Table {
             None
         };
         // variable set up
-        let splice_chn: bool = chn_splice_pos.is_some();
+        // let splice_chn: bool = chn_splice_pos.is_some();
         let mut chn_to_splice: Vec<Rc<str>> = Vec::with_capacity(rows.len());
         let sorted_seq: Vec<usize> = (start_rn..start_rn + rows.len()).collect();
 
@@ -78,93 +78,132 @@ impl Table {
         self.grid.index.add_rows_just_push_hm(&sorted_seq);
 
         // get parent and determine new rows visibility
-        let (vis, par_rc) = if tree_mode {
-            if par.is_empty() {
-                (true, self.grid.index.empty_par.clone())
+        let (vis, par_rc) = match (|| -> Result<(bool, Rc<str>), String> {
+            if tree_mode {
+                if par.is_empty() {
+                    Ok((true, self.grid.index.empty_par.clone()))
+                } else {
+                    let par_row = Self::acr_pos(&self.grid.index.iid_to_row, par.as_str())?;
+                    let par_cell = Self::acr_icell(&self.grid.index.cells, par_row)?;
+                    Ok((par_cell.vis && par_cell.open, par_cell.iid.clone()))
+                }
             } else {
-                let par_row = Self::acr_pos(&self.grid.index.iid_to_row, par.as_str())?;
-                let par_cell = Self::acr_icell(&self.grid.index.cells, par_row)?;
-                (par_cell.vis && par_cell.open, par_cell.iid.clone())
+                Ok((true, self.grid.index.empty_par.clone()))
             }
-        } else {
-            (true, self.grid.index.empty_par.clone())
+        })() {
+            Ok(tup) => tup,
+            Err(e) => {
+                // ← rollback the forward adjustments we just made
+                self.grid.pull_rows(&sorted_seq);
+                self.grid.index.del_rows_just_pull_hm(&sorted_seq);
+                return Err(e);
+            }
         };
 
-        let num_visible_added = if vis { sorted_seq.len() } else { 0 };
-        let disp_insert_pos = Self::acr_compute_disp_insert_pos(&self.grid.disp_rows, start_rn);
+        let mut rn = start_rn;
 
         // Assess and create rows, index
-        for (i, row_spec) in rows.into_iter().enumerate() {
-            // Row number for new row
-            let rn = start_rn + i;
+        let build_result = (|| -> Result<(), String> {
+            for (i, row_spec) in rows.into_iter().enumerate() {
+                // Row number for new row
+                rn = start_rn + i;
 
-            // If iid is None generate a new one
-            let iid: Rc<str> = if let Some(iid) = row_spec.iid {
-                // Check if the provided iid already exists
-                if self.grid.index.iid_to_row.contains_key(iid.as_str()) {
-                    return Err(str_err!("iid already exists: {}", iid));
-                }
-                Rc::from(iid)
-            } else {
-                Rc::from(self.grid.index.new_iid()?)
-            };
-            // Check for repetitions of iids
-            if !new_iids.insert(iid.clone()) {
-                return Err(str_err!("Repeated iid in rows: {}", iid));
-            };
+                // If iid is None generate a new one
+                let iid: Rc<str> = if let Some(iid) = row_spec.iid {
+                    // Check if the provided iid already exists
+                    if self.grid.index.iid_to_row.contains_key(iid.as_str()) {
+                        return Err(str_err!("iid already exists: {}", iid));
+                    }
+                    Rc::from(iid)
+                } else {
+                    Rc::from(self.grid.index.new_iid()?)
+                };
+                // Check for repetitions of iids
+                if !new_iids.insert(iid.clone()) {
+                    return Err(str_err!("Repeated iid in rows: {}", iid));
+                };
 
-            // Index
-            // If val is None use the iid
-            let val = if let Some(val) = row_spec.val {
-                val
-            } else if tree_mode {
-                Val::Str(iid.to_string())
-            } else {
-                empty_index_val.clone()
-            };
-            let index_props: Option<CellProps> = if do_inherit {
-                self.grid.index.clone_props(&inherit_row)
-            } else {
-                None
-            };
+                // Index
+                // If val is None use the iid
+                let val = if let Some(val) = row_spec.val {
+                    val
+                } else if tree_mode {
+                    Val::Str(iid.to_string())
+                } else {
+                    empty_index_val.clone()
+                };
+                let index_props: Option<CellProps> = if do_inherit {
+                    self.grid.index.clone_props(&inherit_row)
+                } else {
+                    None
+                };
 
-            // Table
-            let new_icell = IndexCell {
-                iid: iid.clone(),
-                val,
-                vals: Self::build_row_cells(
-                    &self.grid.index.cells,
-                    &self.grid.header,
-                    row_spec.vals,
-                    inherit_row,
-                    do_inherit,
-                    &empty_val,
-                    ncols,
-                )?,
-                dim: row_spec.dim.unwrap_or(dim),
-                vis,
-                par: par_rc.clone(),
-                chn: Vec::new(),
-                open: row_spec.open,
-                props: index_props,
-            };
+                // Table
+                let new_icell = IndexCell {
+                    iid: iid.clone(),
+                    val,
+                    vals: Self::build_row_cells(
+                        &self.grid.index.cells,
+                        &self.grid.header,
+                        row_spec.vals,
+                        inherit_row,
+                        do_inherit,
+                        &empty_val,
+                        ncols,
+                    )?,
+                    dim: row_spec.dim.unwrap_or(dim),
+                    vis,
+                    par: par_rc.clone(),
+                    chn: Vec::new(),
+                    open: row_spec.open,
+                    props: index_props,
+                };
 
-            if splice_chn {
+                // Not optional - also used if roll back occurs
                 chn_to_splice.push(iid.clone());
+
+                // Inserts to cells, inserts to iid_to_row hashmap
+                self.grid.index.add_row(rn, iid, new_icell);
             }
 
-            self.grid.index.add_row(rn, iid, new_icell);
-        }
+            // We don't need to record a tree change because undo -> del_rows() removes the spliced chn
+            if let Some(chn_splice_pos) = chn_splice_pos {
+                let chn = Self::acr_tree_iid_chn_mut(
+                    &mut self.grid.index.cells,
+                    &self.grid.index.iid_to_row,
+                    &par,
+                )?;
+                chn.splice(
+                    chn_splice_pos..chn_splice_pos,
+                    std::mem::take(&mut chn_to_splice),
+                );
+            }
+            Ok(())
+        })();
 
-        // We don't need to record a tree change because undo -> del_rows() removes the spliced chn
-        if let Some(chn_splice_pos) = chn_splice_pos {
-            let chn = Self::acr_tree_iid_chn_mut(
-                &mut self.grid.index.cells,
-                &self.grid.index.iid_to_row,
-                &par,
-            )?;
-            chn.splice(chn_splice_pos..chn_splice_pos, chn_to_splice.into_iter());
-        }
+        match build_result {
+            Ok(_) => {}
+            Err(e) => {
+                // Roll back any changes made
+                for iid in chn_to_splice.iter() {
+                    self.grid.index.iid_to_row.remove(iid);
+                }
+                let added_count = chn_to_splice.len();
+                if added_count > 0 {
+                    self.grid
+                        .index
+                        .cells
+                        .drain(start_rn..start_rn + added_count);
+                }
+                self.grid.pull_rows(&sorted_seq);
+                self.grid.index.del_rows_just_pull_hm(&sorted_seq);
+                return Err(e);
+            }
+        };
+
+        // Done before remaking disp rows
+        let num_visible_added = if vis { sorted_seq.len() } else { 0 };
+        let disp_insert_pos = Self::acr_compute_disp_insert_pos(&self.grid.disp_rows, start_rn);
 
         // remake canvas relevant vars
         Self::acr_remake_rows(

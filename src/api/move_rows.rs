@@ -75,7 +75,7 @@ impl Table {
 
         let mut event_data = self.cr_new_event(kwargs.save_selection);
 
-        self.cr_move_rows(
+        match self.cr_move_rows(
             &mut event_data,
             seen_old,
             old_to_new,
@@ -83,7 +83,13 @@ impl Table {
             None,
             None,
             true,
-        )?;
+        ) {
+            Err(e) => {
+                self.cr_roll_back(Rc::new(RefCell::new(event_data)));
+                return Err(e);
+            }
+            _ => {}
+        };
 
         if kwargs.select {
             Self::acr_deselect_all(&mut self.sel, None);

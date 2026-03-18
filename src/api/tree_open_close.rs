@@ -77,7 +77,10 @@ impl Table {
         kwargs: TreeOpenArgs,
         open: bool,
     ) -> Result<Option<Rc<RefCell<EventData>>>, String> {
+        // Adds selection boxes to event data
         let mut event_data: EventData = self.cr_new_event(true);
+
+        // Adds rows arg to event data
         let to_show_or_hide = if kwargs.rows.is_empty() {
             let end_row = Self::acr_total_rows(&self.grid.index.cells);
             self.cr_tree_open_close((0..end_row).into_iter(), open, Some(&mut event_data))?
@@ -91,6 +94,7 @@ impl Table {
             self.cr_tree_open_close(rows.into_iter(), open, Some(&mut event_data))?
         };
 
+        // Adds any descendants rows to event data
         if !to_show_or_hide.is_empty() {
             self.acr_adjust_selections_after_row_visibility_change(&to_show_or_hide, open);
 

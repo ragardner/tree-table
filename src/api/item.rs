@@ -108,6 +108,8 @@ impl Table {
             kwargs.emit,
             true,
         )
+
+        // TODO: roll back in event of error
     }
 
     /// Get information about an item (row).
@@ -204,6 +206,8 @@ impl Table {
             kwargs.emit,
             true,
         )
+
+        // TODO: roll back in event of error
     }
 
     /// Get information about a column.

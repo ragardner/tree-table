@@ -9,15 +9,12 @@ use crate::types::event_data::TreeChange;
 use crate::utils::utils_fns::get_full_move_map;
 use crate::utils::utils_fns::offset_move_indices;
 use crate::utils::utils_fns::remove_duplicates_outside_section;
-use std::cell::RefCell;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::rc::Rc;
 
 impl Table {
     /// Core move rows function
-    /// This is a special case:
-    ///     - It rolls back any tree changes should an error occur.
     pub(crate) fn cr_move_rows(
         &mut self,
         event_data: &mut EventData,
@@ -31,19 +28,13 @@ impl Table {
         // Modify tree
         if mod_tree && self.opts.tree_mode {
             // potentially mutates old_to_new and new_to_old
-            match self.cr_tree_move_rows_mod_cells(
+            self.cr_tree_move_rows_mod_cells(
                 event_data,
                 &mut old_to_new,
                 &mut new_to_old,
                 tree_undo_data,
                 tree_move,
-            ) {
-                Err(e) => {
-                    self.cr_roll_back(Rc::new(RefCell::new(std::mem::take(event_data))));
-                    return Err(e);
-                }
-                _ => {}
-            }
+            )?;
         }
 
         // Create full Vec of new positions
@@ -53,13 +44,8 @@ impl Table {
             &new_to_old,
         );
 
-        // Grid move – if this fails, undo any tree changes we made
-        if let Err(e) = self.grid.move_rows(&full_old_to_new, &full_new_to_old) {
-            if mod_tree && self.opts.tree_mode {
-                self.cr_roll_back(Rc::new(RefCell::new(std::mem::take(event_data))));
-            }
-            return Err(e);
-        }
+        // Grid move
+        self.grid.move_rows(&full_old_to_new, &full_new_to_old)?;
 
         event_data.changes.push(Change::MoveRows(old_to_new));
 

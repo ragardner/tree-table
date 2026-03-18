@@ -65,7 +65,7 @@ impl Table {
             };
 
             // Perform move operation
-            self.cr_move_rows(
+            match self.cr_move_rows(
                 &mut event_data,
                 HashSet::new(),
                 Vec::new(),
@@ -73,7 +73,13 @@ impl Table {
                 None,
                 Some(move_op),
                 true,
-            )?;
+            ) {
+                Err(e) => {
+                    self.cr_roll_back(Rc::new(RefCell::new(event_data)));
+                    return Err(e);
+                }
+                _ => {}
+            };
 
             // Select moved rows if true
             if kwargs.select {

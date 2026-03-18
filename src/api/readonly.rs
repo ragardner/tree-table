@@ -20,24 +20,38 @@ impl Table {
         let (start_row, end_row) = span.rows_start_end(&self.grid);
         let (start_col, end_col) = span.cols_start_end(&self.grid);
         let empty_val = &self.opts.empty_val;
+        let mut error: Option<String> = None;
+
         for row in start_row..=end_row {
             for col in start_col..=end_col {
-                Self::acr_event_data_set_treadonly(
+                match Self::acr_event_data_set_treadonly(
                     &mut self.grid.index.cells,
                     row,
                     col,
                     readonly,
                     empty_val,
                     &mut event_data,
-                )?;
+                ) {
+                    Err(e) => {
+                        error = Some(e);
+                        break;
+                    }
+                    _ => {}
+                }
             }
         }
-        self.cr_finalize_event_if_any_non_selection_change(
-            event_data,
-            kwargs.undo,
-            kwargs.emit,
-            true,
-        )
+
+        if let Some(e) = error {
+            self.cr_roll_back(Rc::new(RefCell::new(event_data)));
+            return Err(e);
+        } else {
+            self.cr_finalize_event_if_any_non_selection_change(
+                event_data,
+                kwargs.undo,
+                kwargs.emit,
+                true,
+            )
+        }
     }
 
     pub fn readonly_i(
@@ -52,20 +66,34 @@ impl Table {
         }
         let readonly = kwargs.readonly;
         let (start_row, end_row) = span.rows_start_end(&self.grid);
+        let mut error: Option<String> = None;
+
         for row in start_row..=end_row {
-            Self::acr_event_data_set_ireadonly(
+            match Self::acr_event_data_set_ireadonly(
                 &mut self.grid.index.cells,
                 row,
                 readonly,
                 &mut event_data,
-            )?;
+            ) {
+                Err(e) => {
+                    error = Some(e);
+                    break;
+                }
+                _ => {}
+            }
         }
-        self.cr_finalize_event_if_any_non_selection_change(
-            event_data,
-            kwargs.undo,
-            kwargs.emit,
-            true,
-        )
+
+        if let Some(e) = error {
+            self.cr_roll_back(Rc::new(RefCell::new(event_data)));
+            return Err(e);
+        } else {
+            self.cr_finalize_event_if_any_non_selection_change(
+                event_data,
+                kwargs.undo,
+                kwargs.emit,
+                true,
+            )
+        }
     }
 
     pub fn readonly_h(
@@ -80,19 +108,33 @@ impl Table {
         }
         let readonly = kwargs.readonly;
         let (start_col, end_col) = span.cols_start_end(&self.grid);
+        let mut error: Option<String> = None;
+
         for col in start_col..=end_col {
-            Self::acr_event_data_set_hreadonly(
+            match Self::acr_event_data_set_hreadonly(
                 &mut self.grid.header.cells,
                 col,
                 readonly,
                 &mut event_data,
-            )?;
+            ) {
+                Err(e) => {
+                    error = Some(e);
+                    break;
+                }
+                _ => {}
+            }
         }
-        self.cr_finalize_event_if_any_non_selection_change(
-            event_data,
-            kwargs.undo,
-            kwargs.emit,
-            true,
-        )
+
+        if let Some(e) = error {
+            self.cr_roll_back(Rc::new(RefCell::new(event_data)));
+            return Err(e);
+        } else {
+            self.cr_finalize_event_if_any_non_selection_change(
+                event_data,
+                kwargs.undo,
+                kwargs.emit,
+                true,
+            )
+        }
     }
 }

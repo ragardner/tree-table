@@ -46,7 +46,13 @@ impl Table {
         positions.dedup();
 
         let deleted_disp = Self::acr_compute_deleted_disp_rows(&self.grid.disp_rows, &positions);
-        self.cr_del_rows(positions, &mut event_data, true)?;
+        match self.cr_del_rows(positions, &mut event_data, true) {
+            Err(e) => {
+                self.cr_roll_back(Rc::new(RefCell::new(event_data)));
+                return Err(e);
+            }
+            _ => {}
+        }
         self.cr_adjust_selections_after_row_delete(&deleted_disp);
         self.cr_finalize_event(event_data, kwargs.undo, kwargs.emit)
     }
@@ -82,7 +88,13 @@ impl Table {
 
         let mut event_data = self.cr_new_event(kwargs.save_selection);
         let deleted_disp = Self::acr_compute_deleted_disp_rows(&self.grid.disp_rows, &positions);
-        self.cr_del_rows(positions, &mut event_data, true)?;
+        match self.cr_del_rows(positions, &mut event_data, true) {
+            Err(e) => {
+                self.cr_roll_back(Rc::new(RefCell::new(event_data)));
+                return Err(e);
+            }
+            _ => {}
+        }
         self.cr_adjust_selections_after_row_delete(&deleted_disp);
         self.cr_finalize_event(event_data, kwargs.undo, kwargs.emit)
     }

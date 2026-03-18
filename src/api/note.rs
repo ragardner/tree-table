@@ -33,24 +33,38 @@ impl Table {
         let (start_row, end_row) = span.rows_start_end(&self.grid);
         let (start_col, end_col) = span.cols_start_end(&self.grid);
         let empty_val = &self.opts.empty_val;
+        let mut error: Option<String> = None;
+
         for row in start_row..=end_row {
             for col in start_col..=end_col {
-                Self::acr_event_data_set_tnote(
+                match Self::acr_event_data_set_tnote(
                     &mut self.grid.index.cells,
                     row,
                     col,
                     note.clone(),
                     empty_val,
                     &mut event_data,
-                )?;
+                ) {
+                    Err(e) => {
+                        error = Some(e);
+                        break;
+                    }
+                    _ => {}
+                }
             }
         }
-        self.cr_finalize_event_if_any_non_selection_change(
-            event_data,
-            kwargs.undo,
-            kwargs.emit,
-            true,
-        )
+
+        if let Some(e) = error {
+            self.cr_roll_back(Rc::new(RefCell::new(event_data)));
+            return Err(e);
+        } else {
+            self.cr_finalize_event_if_any_non_selection_change(
+                event_data,
+                kwargs.undo,
+                kwargs.emit,
+                true,
+            )
+        }
     }
 
     pub fn note_i(
@@ -74,20 +88,34 @@ impl Table {
             None
         };
         let (start_row, end_row) = span.rows_start_end(&self.grid);
+        let mut error: Option<String> = None;
+
         for row in start_row..=end_row {
-            Self::acr_event_data_set_inote(
+            match Self::acr_event_data_set_inote(
                 &mut self.grid.index.cells,
                 row,
                 note.clone(),
                 &mut event_data,
-            )?;
+            ) {
+                Err(e) => {
+                    error = Some(e);
+                    break;
+                }
+                _ => {}
+            }
         }
-        self.cr_finalize_event_if_any_non_selection_change(
-            event_data,
-            kwargs.undo,
-            kwargs.emit,
-            true,
-        )
+
+        if let Some(e) = error {
+            self.cr_roll_back(Rc::new(RefCell::new(event_data)));
+            return Err(e);
+        } else {
+            self.cr_finalize_event_if_any_non_selection_change(
+                event_data,
+                kwargs.undo,
+                kwargs.emit,
+                true,
+            )
+        }
     }
 
     pub fn note_h(
@@ -111,20 +139,34 @@ impl Table {
             None
         };
         let (start_col, end_col) = span.cols_start_end(&self.grid);
+        let mut error: Option<String> = None;
+
         for col in start_col..=end_col {
-            Self::acr_event_data_set_hnote(
+            match Self::acr_event_data_set_hnote(
                 &mut self.grid.header.cells,
                 col,
                 note.clone(),
                 &mut event_data,
-            )?;
+            ) {
+                Err(e) => {
+                    error = Some(e);
+                    break;
+                }
+                _ => {}
+            }
         }
-        self.cr_finalize_event_if_any_non_selection_change(
-            event_data,
-            kwargs.undo,
-            kwargs.emit,
-            true,
-        )
+
+        if let Some(e) = error {
+            self.cr_roll_back(Rc::new(RefCell::new(event_data)));
+            return Err(e);
+        } else {
+            self.cr_finalize_event_if_any_non_selection_change(
+                event_data,
+                kwargs.undo,
+                kwargs.emit,
+                true,
+            )
+        }
     }
 
     pub fn set_note(
@@ -147,50 +189,58 @@ impl Table {
         let (start_row, end_row) = span.rows_start_end(&self.grid);
         let (start_col, end_col) = span.cols_start_end(&self.grid);
         let empty_val = &self.opts.empty_val;
-        for row in start_row..=end_row {
-            for col in start_col..=end_col {
-                if let Some(text) = &kwargs.note {
-                    Self::acr_event_data_set_tnote_text(
-                        &mut self.grid.index.cells,
-                        row,
-                        col,
-                        text.clone(),
-                        empty_val,
-                        &mut event_data,
-                    )?;
-                }
-                if let Some(color) = &bg_color {
-                    Self::acr_event_data_set_tnote_bg(
-                        &mut self.grid.index.cells,
-                        row,
-                        col,
-                        color.clone(),
-                        empty_val,
-                        &mut event_data,
-                    )?;
-                }
-                if let Some(color) = &fg_color {
-                    Self::acr_event_data_set_tnote_fg(
-                        &mut self.grid.index.cells,
-                        row,
-                        col,
-                        color.clone(),
-                        empty_val,
-                        &mut event_data,
-                    )?;
-                }
-                if let Some(readonly) = kwargs.readonly {
-                    Self::acr_event_data_set_tnote_readonly(
-                        &mut self.grid.index.cells,
-                        row,
-                        col,
-                        readonly,
-                        empty_val,
-                        &mut event_data,
-                    )?;
+
+        if let Err(e) = (|| -> Result<(), String> {
+            for row in start_row..=end_row {
+                for col in start_col..=end_col {
+                    if let Some(text) = &kwargs.note {
+                        Self::acr_event_data_set_tnote_text(
+                            &mut self.grid.index.cells,
+                            row,
+                            col,
+                            text.clone(),
+                            empty_val,
+                            &mut event_data,
+                        )?;
+                    }
+                    if let Some(color) = &bg_color {
+                        Self::acr_event_data_set_tnote_bg(
+                            &mut self.grid.index.cells,
+                            row,
+                            col,
+                            color.clone(),
+                            empty_val,
+                            &mut event_data,
+                        )?;
+                    }
+                    if let Some(color) = &fg_color {
+                        Self::acr_event_data_set_tnote_fg(
+                            &mut self.grid.index.cells,
+                            row,
+                            col,
+                            color.clone(),
+                            empty_val,
+                            &mut event_data,
+                        )?;
+                    }
+                    if let Some(readonly) = kwargs.readonly {
+                        Self::acr_event_data_set_tnote_readonly(
+                            &mut self.grid.index.cells,
+                            row,
+                            col,
+                            readonly,
+                            empty_val,
+                            &mut event_data,
+                        )?;
+                    }
                 }
             }
+            Ok(())
+        })() {
+            self.cr_roll_back(Rc::new(RefCell::new(event_data)));
+            return Err(e);
         }
+
         self.cr_finalize_event_if_any_non_selection_change(
             event_data,
             kwargs.undo,
@@ -217,39 +267,46 @@ impl Table {
             None
         };
         let (start_row, end_row) = span.rows_start_end(&self.grid);
-        for row in start_row..=end_row {
-            if let Some(text) = &kwargs.note {
-                Self::acr_event_data_set_inote_text(
-                    &mut self.grid.index.cells,
-                    row,
-                    text.clone(),
-                    &mut event_data,
-                )?;
+
+        if let Err(e) = (|| -> Result<(), String> {
+            for row in start_row..=end_row {
+                if let Some(text) = &kwargs.note {
+                    Self::acr_event_data_set_inote_text(
+                        &mut self.grid.index.cells,
+                        row,
+                        text.clone(),
+                        &mut event_data,
+                    )?;
+                }
+                if let Some(color) = &bg_color {
+                    Self::acr_event_data_set_inote_bg(
+                        &mut self.grid.index.cells,
+                        row,
+                        color.clone(),
+                        &mut event_data,
+                    )?;
+                }
+                if let Some(color) = &fg_color {
+                    Self::acr_event_data_set_inote_fg(
+                        &mut self.grid.index.cells,
+                        row,
+                        color.clone(),
+                        &mut event_data,
+                    )?;
+                }
+                if let Some(readonly) = kwargs.readonly {
+                    Self::acr_event_data_set_inote_readonly(
+                        &mut self.grid.index.cells,
+                        row,
+                        readonly,
+                        &mut event_data,
+                    )?;
+                }
             }
-            if let Some(color) = &bg_color {
-                Self::acr_event_data_set_inote_bg(
-                    &mut self.grid.index.cells,
-                    row,
-                    color.clone(),
-                    &mut event_data,
-                )?;
-            }
-            if let Some(color) = &fg_color {
-                Self::acr_event_data_set_inote_fg(
-                    &mut self.grid.index.cells,
-                    row,
-                    color.clone(),
-                    &mut event_data,
-                )?;
-            }
-            if let Some(readonly) = kwargs.readonly {
-                Self::acr_event_data_set_inote_readonly(
-                    &mut self.grid.index.cells,
-                    row,
-                    readonly,
-                    &mut event_data,
-                )?;
-            }
+            Ok(())
+        })() {
+            self.cr_roll_back(Rc::new(RefCell::new(event_data)));
+            return Err(e);
         }
         self.cr_finalize_event_if_any_non_selection_change(
             event_data,
@@ -277,39 +334,46 @@ impl Table {
             None
         };
         let (start_col, end_col) = span.cols_start_end(&self.grid);
-        for col in start_col..=end_col {
-            if let Some(text) = &kwargs.note {
-                Self::acr_event_data_set_hnote_text(
-                    &mut self.grid.header.cells,
-                    col,
-                    text.clone(),
-                    &mut event_data,
-                )?;
+
+        if let Err(e) = (|| -> Result<(), String> {
+            for col in start_col..=end_col {
+                if let Some(text) = &kwargs.note {
+                    Self::acr_event_data_set_hnote_text(
+                        &mut self.grid.header.cells,
+                        col,
+                        text.clone(),
+                        &mut event_data,
+                    )?;
+                }
+                if let Some(color) = &bg_color {
+                    Self::acr_event_data_set_hnote_bg(
+                        &mut self.grid.header.cells,
+                        col,
+                        color.clone(),
+                        &mut event_data,
+                    )?;
+                }
+                if let Some(color) = &fg_color {
+                    Self::acr_event_data_set_hnote_fg(
+                        &mut self.grid.header.cells,
+                        col,
+                        color.clone(),
+                        &mut event_data,
+                    )?;
+                }
+                if let Some(readonly) = kwargs.readonly {
+                    Self::acr_event_data_set_hnote_readonly(
+                        &mut self.grid.header.cells,
+                        col,
+                        readonly,
+                        &mut event_data,
+                    )?;
+                }
             }
-            if let Some(color) = &bg_color {
-                Self::acr_event_data_set_hnote_bg(
-                    &mut self.grid.header.cells,
-                    col,
-                    color.clone(),
-                    &mut event_data,
-                )?;
-            }
-            if let Some(color) = &fg_color {
-                Self::acr_event_data_set_hnote_fg(
-                    &mut self.grid.header.cells,
-                    col,
-                    color.clone(),
-                    &mut event_data,
-                )?;
-            }
-            if let Some(readonly) = kwargs.readonly {
-                Self::acr_event_data_set_hnote_readonly(
-                    &mut self.grid.header.cells,
-                    col,
-                    readonly,
-                    &mut event_data,
-                )?;
-            }
+            Ok(())
+        })() {
+            self.cr_roll_back(Rc::new(RefCell::new(event_data)));
+            return Err(e);
         }
         self.cr_finalize_event_if_any_non_selection_change(
             event_data,

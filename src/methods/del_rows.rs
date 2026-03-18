@@ -3,15 +3,12 @@ use crate::EventData;
 use crate::IndexCell;
 use crate::NO_END;
 use crate::Table;
-use std::cell::RefCell;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::rc::Rc;
 
 impl Table {
     /// Core del rows function
-    /// This is a special case:
-    ///     - It rolls back any tree changes should an error occur.
     pub(crate) fn cr_del_rows(
         &mut self,
         mut positions: Vec<usize>,
@@ -33,30 +30,16 @@ impl Table {
                         .collect::<HashSet<Rc<str>>>(),
                 )?;
             }
-            match Self::acr_tree_del_rows(
+            Self::acr_tree_del_rows(
                 &mut self.grid.index.cells,
                 &self.grid.index.iid_to_row,
                 &positions,
                 event_data,
-            ) {
-                Err(e) => {
-                    self.cr_roll_back(Rc::new(RefCell::new(std::mem::take(event_data))));
-                    return Err(e);
-                }
-                _ => {}
-            }
+            )?;
         }
 
         // Retrieve data from index
-        let removed = match self.grid.index.del_rows(&positions) {
-            Ok(r) => r,
-            Err(e) => {
-                if self.opts.tree_mode {
-                    self.cr_roll_back(Rc::new(RefCell::new(std::mem::take(event_data))));
-                }
-                return Err(e);
-            }
-        };
+        let removed = self.grid.index.del_rows(&positions)?;
 
         event_data.changes.push(Change::RemoveRows(removed));
 

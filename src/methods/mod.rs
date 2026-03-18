@@ -25,5 +25,4 @@ pub mod tree_descendants;
 pub mod tree_fns;
 pub mod undo;
 pub mod val_valid;
-pub mod vis_col;
-pub mod vis_row;
+pub mod vis;
