@@ -41,8 +41,11 @@ impl Table {
         let iid_row = Self::acr_pos(&index.iid_to_row, &old_rc)?;
 
         // Update children's par fields to point to new iid
-        let chn = std::mem::take(&mut Self::acr_icell_mut(&mut index.cells, iid_row)?.chn);
-        for ciid in chn.iter() {
+        for ciid in Self::acr_icell(&mut index.cells, iid_row)?
+            .chn
+            .clone()
+            .into_iter()
+        {
             let c_row = Self::acr_pos(&index.iid_to_row, &ciid)?;
             let c_cell = Self::acr_icell_mut(&mut index.cells, c_row)?;
             let change = c_cell.record_set_par(new.clone())?;
@@ -50,7 +53,6 @@ impl Table {
                 .changes
                 .push(Change::IndexCell { row: c_row, change });
         }
-        Self::acr_icell_mut(&mut index.cells, iid_row)?.chn = chn;
 
         // Update parent's chn list if parent exists
         let pos = Self::acr_tree_pos(&index, &old_rc)?;
@@ -82,14 +84,16 @@ impl Table {
             });
         }
 
+        // Change the iid
         let cell = Self::acr_icell_mut(&mut index.cells, iid_row)?;
         let change = cell.record_set_iid(new.clone(), &mut index.iid_to_row)?;
         event_data.changes.push(Change::IndexCell {
-            row: Self::acr_pos(&index.iid_to_row, &old_rc)?,
+            row: iid_row,
             change,
         });
         index.iid_to_row.remove(&old_rc);
         index.iid_to_row.insert(new, iid_row);
+
         Ok(())
     }
 }

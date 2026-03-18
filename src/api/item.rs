@@ -15,91 +15,113 @@ impl Table {
         let mut event_data = self.cr_new_event(kwargs.save_selection);
         let normalize = kwargs.fmt_normalize;
         let ignore_fmt_errs = kwargs.ignore_fmt_errs;
+        let mut need_remake_rows = false;
 
-        // Deal with open parameter
-        if let Some(open) = kwargs.open {
-            Self::acr_tree_iid_set_open(
-                &mut self.grid.index.cells,
-                &self.grid.index.iid_to_row,
-                &iid,
-                open,
-                Some(&mut event_data),
-            )?;
-            if !Self::acr_tree_iid_chn(&self.grid.index.cells, &self.grid.index.iid_to_row, &iid)?
-                .is_empty()
-                && Self::acr_row_iid_is_vis(
-                    &self.grid.index.cells,
-                    &self.grid.index.iid_to_row,
-                    &iid,
-                )?
-            {
-                Self::acr_tree_descendants_set_vis(
+        let result = (|| -> Result<(), String> {
+            // Deal with open parameter
+            if let Some(open) = kwargs.open {
+                Self::acr_tree_iid_set_open(
                     &mut self.grid.index.cells,
                     &self.grid.index.iid_to_row,
                     &iid,
                     open,
                     Some(&mut event_data),
                 )?;
-                Self::acr_remake_rows(
-                    &mut self.grid.canvas_rows,
-                    &mut self.grid.disp_rows,
+                if !Self::acr_tree_iid_chn(
                     &self.grid.index.cells,
-                    self.opts.horizontal_grid_line_width.clone(),
-                );
-            }
-        }
-        // Deal with val parameter
-        if let Some(val) = kwargs.val {
-            Self::acr_event_data_fmt_set_ival(
-                &mut self.grid.index.cells,
-                row,
-                val,
-                normalize,
-                ignore_fmt_errs,
-                &mut event_data,
-            )?;
-        }
-
-        // Deal with row values parameter
-        if let Some(vals) = kwargs.vals {
-            let empty_val = &self.opts.empty_val;
-            let table_ncols = Self::acr_total_cols(&self.grid.header.cells);
-            for (key, val) in vals.into_iter() {
-                let col = Self::acr_pos(&self.grid.header.iid_to_col, &key)?;
-                if col >= table_ncols {
-                    return Err(str_err!(
-                        "Col does not exist. Col: {}, Table total: {}",
-                        col,
-                        table_ncols,
-                    ));
+                    &self.grid.index.iid_to_row,
+                    &iid,
+                )?
+                .is_empty()
+                    && Self::acr_row_iid_is_vis(
+                        &self.grid.index.cells,
+                        &self.grid.index.iid_to_row,
+                        &iid,
+                    )?
+                {
+                    Self::acr_tree_descendants_set_vis(
+                        &mut self.grid.index.cells,
+                        &self.grid.index.iid_to_row,
+                        &iid,
+                        open,
+                        Some(&mut event_data),
+                    )?;
+                    need_remake_rows = true;
                 }
-                Self::acr_event_data_fmt_set_tval(
+            }
+
+            // Deal with val parameter
+            if let Some(val) = kwargs.val {
+                Self::acr_event_data_fmt_set_ival(
                     &mut self.grid.index.cells,
                     row,
-                    col,
                     val,
                     normalize,
                     ignore_fmt_errs,
-                    empty_val,
                     &mut event_data,
                 )?;
             }
-        }
-        // Deal with iid parameter, id rename
-        if let Some(new_name) = kwargs.iid {
-            if self.grid.index.iid_to_row.get(new_name.as_str()).is_some() {
-                return Err(str_err!(
-                    "Cannot rename iid, new name already exists: {}",
-                    new_name
-                ));
+
+            // Deal with row values parameter
+            if let Some(vals) = kwargs.vals {
+                let empty_val = &self.opts.empty_val;
+                let table_ncols = Self::acr_total_cols(&self.grid.header.cells);
+                for (key, val) in vals.into_iter() {
+                    let col = Self::acr_pos(&self.grid.header.iid_to_col, &key)?;
+                    if col >= table_ncols {
+                        return Err(str_err!(
+                            "Col does not exist. Col: {}, Table total: {}",
+                            col,
+                            table_ncols,
+                        ));
+                    }
+                    Self::acr_event_data_fmt_set_tval(
+                        &mut self.grid.index.cells,
+                        row,
+                        col,
+                        val,
+                        normalize,
+                        ignore_fmt_errs,
+                        empty_val,
+                        &mut event_data,
+                    )?;
+                }
             }
-            iid = new_name.clone();
-            Self::acr_tree_rename_iid(
-                &mut self.grid.index,
-                &iid,
-                Rc::from(new_name),
-                &mut event_data,
-            )?;
+
+            // Deal with iid parameter, id rename
+            if let Some(new_name) = kwargs.iid {
+                if self.grid.index.iid_to_row.get(new_name.as_str()).is_some() {
+                    return Err(str_err!(
+                        "Cannot rename iid, new name already exists: {}",
+                        new_name
+                    ));
+                }
+                iid = new_name.clone();
+                Self::acr_tree_rename_iid(
+                    &mut self.grid.index,
+                    &iid,
+                    Rc::from(new_name),
+                    &mut event_data,
+                )?;
+            }
+            Ok(())
+        })();
+
+        match result {
+            Err(e) => {
+                self.cr_roll_back(Rc::new(RefCell::new(event_data)));
+                return Err(e);
+            }
+            _ => {}
+        }
+
+        if need_remake_rows {
+            Self::acr_remake_rows(
+                &mut self.grid.canvas_rows,
+                &mut self.grid.disp_rows,
+                &self.grid.index.cells,
+                self.opts.horizontal_grid_line_width.clone(),
+            );
         }
 
         self.cr_finalize_event_if_any_non_selection_change(
@@ -108,8 +130,6 @@ impl Table {
             kwargs.emit,
             true,
         )
-
-        // TODO: roll back in event of error
     }
 
     /// Get information about an item (row).
@@ -145,59 +165,70 @@ impl Table {
         let normalize = kwargs.fmt_normalize;
         let ignore_fmt_errs = kwargs.ignore_fmt_errs;
 
-        // Deal with val parameter (header cell value / column label)
-        if let Some(val) = kwargs.val {
-            Self::acr_event_data_fmt_set_hval(
-                &mut self.grid.header.cells,
-                col,
-                val,
-                normalize,
-                ignore_fmt_errs,
-                &mut event_data,
-            )?;
-        }
-
-        // Deal with vals parameter — set table values *down this column*
-        if let Some(vals) = kwargs.vals {
-            let empty_val = &self.opts.empty_val;
-            let table_nrows = Self::acr_total_rows(&self.grid.index.cells);
-            for (key, val) in vals.into_iter() {
-                let row = Self::acr_pos(&self.grid.index.iid_to_row, &key)?;
-                if row >= table_nrows {
-                    return Err(str_err!(
-                        "Row does not exist. Row: {}, Table total: {}",
-                        row,
-                        table_nrows,
-                    ));
-                }
-                Self::acr_event_data_fmt_set_tval(
-                    &mut self.grid.index.cells,
-                    row,
+        let result = (|| -> Result<(), String> {
+            // Deal with val parameter (header cell value / column label)
+            if let Some(val) = kwargs.val {
+                Self::acr_event_data_fmt_set_hval(
+                    &mut self.grid.header.cells,
                     col,
                     val,
                     normalize,
                     ignore_fmt_errs,
-                    empty_val,
                     &mut event_data,
                 )?;
             }
-        }
 
-        // Deal with iid parameter (rename)
-        if let Some(new_name) = kwargs.iid {
-            if self.grid.header.iid_to_col.get(new_name.as_str()).is_some() {
-                return Err(str_err!(
-                    "Cannot rename col, new name already exists: {}",
-                    new_name
-                ));
+            // Deal with vals parameter — set table values *down this column*
+            if let Some(vals) = kwargs.vals {
+                let empty_val = &self.opts.empty_val;
+                let table_nrows = Self::acr_total_rows(&self.grid.index.cells);
+                for (key, val) in vals.into_iter() {
+                    let row = Self::acr_pos(&self.grid.index.iid_to_row, &key)?;
+                    if row >= table_nrows {
+                        return Err(str_err!(
+                            "Row does not exist. Row: {}, Table total: {}",
+                            row,
+                            table_nrows,
+                        ));
+                    }
+                    Self::acr_event_data_fmt_set_tval(
+                        &mut self.grid.index.cells,
+                        row,
+                        col,
+                        val,
+                        normalize,
+                        ignore_fmt_errs,
+                        empty_val,
+                        &mut event_data,
+                    )?;
+                }
             }
-            Self::acr_header_rename_iid(
-                &mut self.grid.header,
-                col,
-                &iid,
-                Rc::from(new_name.clone()),
-                &mut event_data,
-            )?;
+
+            // Deal with iid parameter (rename)
+            if let Some(new_name) = kwargs.iid {
+                if self.grid.header.iid_to_col.get(new_name.as_str()).is_some() {
+                    return Err(str_err!(
+                        "Cannot rename col, new name already exists: {}",
+                        new_name
+                    ));
+                }
+                Self::acr_header_rename_iid(
+                    &mut self.grid.header,
+                    col,
+                    &iid,
+                    Rc::from(new_name.clone()),
+                    &mut event_data,
+                )?;
+            }
+            Ok(())
+        })();
+
+        match result {
+            Err(e) => {
+                self.cr_roll_back(Rc::new(RefCell::new(event_data)));
+                return Err(e);
+            }
+            _ => {}
         }
 
         self.cr_finalize_event_if_any_non_selection_change(

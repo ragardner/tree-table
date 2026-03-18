@@ -176,16 +176,10 @@ impl Table {
         let kwargs: SetNoteArgs = kwargs.unwrap_or_default();
         let span = self.cr_key_to_span(kwargs.key)?;
         let mut event_data: EventData = self.cr_new_event(kwargs.save_selection);
-        let bg_color: Option<Option<Color3>> = if let Some(maybe_hex) = &kwargs.bg {
-            Some(try_hex_to_color3(maybe_hex.clone())?)
-        } else {
-            None
-        };
-        let fg_color: Option<Option<Color3>> = if let Some(maybe_hex) = &kwargs.fg {
-            Some(try_hex_to_color3(maybe_hex.clone())?)
-        } else {
-            None
-        };
+
+        let bg_color: Option<Option<Color3>> = kwargs.bg.map(try_hex_to_color3).transpose()?;
+        let fg_color: Option<Option<Color3>> = kwargs.fg.map(try_hex_to_color3).transpose()?;
+
         let (start_row, end_row) = span.rows_start_end(&self.grid);
         let (start_col, end_col) = span.cols_start_end(&self.grid);
         let empty_val = &self.opts.empty_val;
@@ -256,16 +250,10 @@ impl Table {
         let kwargs: SetNoteArgs = kwargs.unwrap_or_default();
         let span = self.cr_key_to_span(kwargs.key)?;
         let mut event_data: EventData = self.cr_new_event(kwargs.save_selection);
-        let bg_color: Option<Option<Color3>> = if let Some(maybe_hex) = &kwargs.bg {
-            Some(try_hex_to_color3(maybe_hex.clone())?)
-        } else {
-            None
-        };
-        let fg_color: Option<Option<Color3>> = if let Some(maybe_hex) = &kwargs.fg {
-            Some(try_hex_to_color3(maybe_hex.clone())?)
-        } else {
-            None
-        };
+
+        let bg_color: Option<Option<Color3>> = kwargs.bg.map(try_hex_to_color3).transpose()?;
+        let fg_color: Option<Option<Color3>> = kwargs.fg.map(try_hex_to_color3).transpose()?;
+
         let (start_row, end_row) = span.rows_start_end(&self.grid);
 
         if let Err(e) = (|| -> Result<(), String> {
@@ -323,16 +311,10 @@ impl Table {
         let kwargs: SetNoteArgs = kwargs.unwrap_or_default();
         let span = self.cr_key_to_span(kwargs.key)?;
         let mut event_data: EventData = self.cr_new_event(kwargs.save_selection);
-        let bg_color: Option<Option<Color3>> = if let Some(maybe_hex) = &kwargs.bg {
-            Some(try_hex_to_color3(maybe_hex.clone())?)
-        } else {
-            None
-        };
-        let fg_color: Option<Option<Color3>> = if let Some(maybe_hex) = &kwargs.fg {
-            Some(try_hex_to_color3(maybe_hex.clone())?)
-        } else {
-            None
-        };
+
+        let bg_color: Option<Option<Color3>> = kwargs.bg.map(try_hex_to_color3).transpose()?;
+        let fg_color: Option<Option<Color3>> = kwargs.fg.map(try_hex_to_color3).transpose()?;
+
         let (start_col, end_col) = span.cols_start_end(&self.grid);
 
         if let Err(e) = (|| -> Result<(), String> {

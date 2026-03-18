@@ -25,13 +25,15 @@ impl Table {
 
         match event_data {
             Some(event_data_mut) => {
+                // literally rows passed to fn, deduped and sorted
                 for rn in rows {
                     let cell = Self::acr_icell_mut(&mut self.grid.index.cells, rn)?;
                     event_data_mut.changes.push(Change::IndexCell {
                         row: rn,
                         change: cell.record_set_open(open),
                     });
-                    if !cell.chn.is_empty() && cell.vis || vis_check.contains(&rn) {
+
+                    if !cell.chn.is_empty() && (cell.vis || vis_check.contains(&rn)) {
                         for res in Self::acr_tree_descendants_rows(
                             &self.grid.index.cells,
                             &self.grid.index.iid_to_row,
@@ -51,7 +53,7 @@ impl Table {
                 for rn in rows {
                     let cell = Self::acr_icell_mut(&mut self.grid.index.cells, rn)?;
                     cell.open = open;
-                    if !cell.chn.is_empty() && cell.vis || vis_check.contains(&rn) {
+                    if !cell.chn.is_empty() && (cell.vis || vis_check.contains(&rn)) {
                         for res in Self::acr_tree_descendants_rows(
                             &self.grid.index.cells,
                             &self.grid.index.iid_to_row,
@@ -69,6 +71,9 @@ impl Table {
             }
         }
 
+        to_show_or_hide.sort_unstable();
+        to_show_or_hide.dedup();
+
         Ok(to_show_or_hide)
     }
 
@@ -80,36 +85,47 @@ impl Table {
         // Adds selection boxes to event data
         let mut event_data: EventData = self.cr_new_event(true);
 
-        // Adds rows arg to event data
-        let to_show_or_hide = if kwargs.rows.is_empty() {
-            let end_row = Self::acr_total_rows(&self.grid.index.cells);
-            self.cr_tree_open_close((0..end_row).into_iter(), open, Some(&mut event_data))?
-        } else {
-            let mut rows = Vec::new();
-            for iid in kwargs.rows.into_iter() {
-                rows.push(Self::acr_pos(&self.grid.index.iid_to_row, &iid)?);
+        let result = (|| -> Result<(), String> {
+            // Adds rows arg to event data
+            let to_show_or_hide = if kwargs.rows.is_empty() {
+                let end_row = Self::acr_total_rows(&self.grid.index.cells);
+                self.cr_tree_open_close((0..end_row).into_iter(), open, Some(&mut event_data))?
+            } else {
+                let mut rows = Vec::new();
+                for iid in kwargs.rows.into_iter() {
+                    rows.push(Self::acr_pos(&self.grid.index.iid_to_row, &iid)?);
+                }
+                rows.sort_unstable();
+                rows.dedup();
+                self.cr_tree_open_close(rows.into_iter(), open, Some(&mut event_data))?
+            };
+
+            // Adds any descendants rows to event data
+            if !to_show_or_hide.is_empty() {
+                self.acr_adjust_selections_after_row_visibility_change(&to_show_or_hide, open);
+
+                Self::acr_set_row_vis(
+                    &mut self.grid.index.cells,
+                    to_show_or_hide.into_iter(),
+                    open,
+                    Some(&mut event_data),
+                )?;
+                Self::acr_remake_rows(
+                    &mut self.grid.canvas_rows,
+                    &mut self.grid.disp_rows,
+                    &self.grid.index.cells,
+                    self.opts.horizontal_grid_line_width.clone(),
+                );
             }
-            rows.sort_unstable();
-            rows.dedup();
-            self.cr_tree_open_close(rows.into_iter(), open, Some(&mut event_data))?
-        };
+            Ok(())
+        })();
 
-        // Adds any descendants rows to event data
-        if !to_show_or_hide.is_empty() {
-            self.acr_adjust_selections_after_row_visibility_change(&to_show_or_hide, open);
-
-            Self::acr_set_row_vis(
-                &mut self.grid.index.cells,
-                to_show_or_hide.into_iter(),
-                open,
-                Some(&mut event_data),
-            )?;
-            Self::acr_remake_rows(
-                &mut self.grid.canvas_rows,
-                &mut self.grid.disp_rows,
-                &self.grid.index.cells,
-                self.opts.horizontal_grid_line_width.clone(),
-            );
+        match result {
+            Err(e) => {
+                self.cr_roll_back(Rc::new(RefCell::new(event_data)));
+                return Err(e);
+            }
+            _ => {}
         }
 
         self.cr_finalize_event_if_any_non_selection_change(

@@ -170,55 +170,71 @@ impl Table {
                 &mut event_data,
             )?;
         } else {
-            // Normal granular updates (only the fields that were supplied)
-            if let Some(bg_opt) = kwargs.bg {
-                let bg = try_hex_to_color3(bg_opt)?;
-                Self::acr_event_data_set_tprogressbar_bg(
-                    &mut self.grid.index.cells,
-                    row,
-                    col,
-                    bg,
-                    &self.opts.empty_val,
-                    &mut event_data,
-                )?;
-            }
+            let result = (|| -> Result<(), String> {
+                // Normal granular updates (only the fields that were supplied)
+                if let Some(bg_opt) = kwargs.bg {
+                    let bg = try_hex_to_color3(bg_opt)?;
+                    Self::acr_event_data_set_tprogressbar_bg(
+                        &mut self.grid.index.cells,
+                        row,
+                        col,
+                        bg,
+                        &self.opts.empty_val,
+                        &mut event_data,
+                    )?;
+                }
 
-            if let Some(fg_opt) = kwargs.fg {
-                let fg = try_hex_to_color3(fg_opt)?;
-                Self::acr_event_data_set_tprogressbar_fg(
-                    &mut self.grid.index.cells,
-                    row,
-                    col,
-                    fg,
-                    &self.opts.empty_val,
-                    &mut event_data,
-                )?;
-            }
+                if let Some(fg_opt) = kwargs.fg {
+                    let fg = try_hex_to_color3(fg_opt)?;
+                    Self::acr_event_data_set_tprogressbar_fg(
+                        &mut self.grid.index.cells,
+                        row,
+                        col,
+                        fg,
+                        &self.opts.empty_val,
+                        &mut event_data,
+                    )?;
+                }
 
-            if let Some(percent) = kwargs.percent {
-                Self::acr_event_data_set_tprogressbar_pc(
-                    &mut self.grid.index.cells,
-                    row,
-                    col,
-                    percent,
-                    &self.opts.empty_val,
-                    &mut event_data,
-                )?;
-            }
+                if let Some(percent) = kwargs.percent {
+                    Self::acr_event_data_set_tprogressbar_pc(
+                        &mut self.grid.index.cells,
+                        row,
+                        col,
+                        percent,
+                        &self.opts.empty_val,
+                        &mut event_data,
+                    )?;
+                }
 
-            if let Some(remove_on_complete) = kwargs.remove_on_complete {
-                Self::acr_event_data_set_tprogressbar_remove_on_complete(
-                    &mut self.grid.index.cells,
-                    row,
-                    col,
-                    remove_on_complete,
-                    &self.opts.empty_val,
-                    &mut event_data,
-                )?;
+                if let Some(remove_on_complete) = kwargs.remove_on_complete {
+                    Self::acr_event_data_set_tprogressbar_remove_on_complete(
+                        &mut self.grid.index.cells,
+                        row,
+                        col,
+                        remove_on_complete,
+                        &self.opts.empty_val,
+                        &mut event_data,
+                    )?;
+                }
+                Ok(())
+            })();
+
+            match result {
+                Err(e) => {
+                    self.cr_roll_back(Rc::new(RefCell::new(event_data)));
+                    return Err(e);
+                }
+                _ => {}
             }
         }
 
-        self.cr_finalize_event(event_data, kwargs.undo, kwargs.emit)
+        self.cr_finalize_event_if_any_non_selection_change(
+            event_data,
+            kwargs.undo,
+            kwargs.emit,
+            true,
+        )
     }
 
     pub fn set_progress_bar_i(
@@ -271,47 +287,63 @@ impl Table {
                 &mut event_data,
             )?;
         } else {
-            // Normal granular updates (only the fields that were supplied)
-            if let Some(bg_opt) = kwargs.bg {
-                let bg = try_hex_to_color3(bg_opt)?;
-                Self::acr_event_data_set_iprogressbar_bg(
-                    &mut self.grid.index.cells,
-                    pos,
-                    bg,
-                    &mut event_data,
-                )?;
-            }
+            let result = (|| -> Result<(), String> {
+                // Normal granular updates (only the fields that were supplied)
+                if let Some(bg_opt) = kwargs.bg {
+                    let bg = try_hex_to_color3(bg_opt)?;
+                    Self::acr_event_data_set_iprogressbar_bg(
+                        &mut self.grid.index.cells,
+                        pos,
+                        bg,
+                        &mut event_data,
+                    )?;
+                }
 
-            if let Some(fg_opt) = kwargs.fg {
-                let fg = try_hex_to_color3(fg_opt)?;
-                Self::acr_event_data_set_iprogressbar_fg(
-                    &mut self.grid.index.cells,
-                    pos,
-                    fg,
-                    &mut event_data,
-                )?;
-            }
+                if let Some(fg_opt) = kwargs.fg {
+                    let fg = try_hex_to_color3(fg_opt)?;
+                    Self::acr_event_data_set_iprogressbar_fg(
+                        &mut self.grid.index.cells,
+                        pos,
+                        fg,
+                        &mut event_data,
+                    )?;
+                }
 
-            if let Some(percent) = kwargs.percent {
-                Self::acr_event_data_set_iprogressbar_pc(
-                    &mut self.grid.index.cells,
-                    pos,
-                    percent,
-                    &mut event_data,
-                )?;
-            }
+                if let Some(percent) = kwargs.percent {
+                    Self::acr_event_data_set_iprogressbar_pc(
+                        &mut self.grid.index.cells,
+                        pos,
+                        percent,
+                        &mut event_data,
+                    )?;
+                }
 
-            if let Some(remove_on_complete) = kwargs.remove_on_complete {
-                Self::acr_event_data_set_iprogressbar_remove_on_complete(
-                    &mut self.grid.index.cells,
-                    pos,
-                    remove_on_complete,
-                    &mut event_data,
-                )?;
+                if let Some(remove_on_complete) = kwargs.remove_on_complete {
+                    Self::acr_event_data_set_iprogressbar_remove_on_complete(
+                        &mut self.grid.index.cells,
+                        pos,
+                        remove_on_complete,
+                        &mut event_data,
+                    )?;
+                }
+                Ok(())
+            })();
+
+            match result {
+                Err(e) => {
+                    self.cr_roll_back(Rc::new(RefCell::new(event_data)));
+                    return Err(e);
+                }
+                _ => {}
             }
         }
 
-        self.cr_finalize_event(event_data, kwargs.undo, kwargs.emit)
+        self.cr_finalize_event_if_any_non_selection_change(
+            event_data,
+            kwargs.undo,
+            kwargs.emit,
+            true,
+        )
     }
 
     pub fn set_progress_bar_h(
@@ -364,46 +396,62 @@ impl Table {
                 &mut event_data,
             )?;
         } else {
-            // Normal granular updates (only the fields that were supplied)
-            if let Some(bg_opt) = kwargs.bg {
-                let bg = try_hex_to_color3(bg_opt)?;
-                Self::acr_event_data_set_hprogressbar_bg(
-                    &mut self.grid.header.cells,
-                    pos,
-                    bg,
-                    &mut event_data,
-                )?;
-            }
+            let result = (|| -> Result<(), String> {
+                // Normal granular updates (only the fields that were supplied)
+                if let Some(bg_opt) = kwargs.bg {
+                    let bg = try_hex_to_color3(bg_opt)?;
+                    Self::acr_event_data_set_hprogressbar_bg(
+                        &mut self.grid.header.cells,
+                        pos,
+                        bg,
+                        &mut event_data,
+                    )?;
+                }
 
-            if let Some(fg_opt) = kwargs.fg {
-                let fg = try_hex_to_color3(fg_opt)?;
-                Self::acr_event_data_set_hprogressbar_fg(
-                    &mut self.grid.header.cells,
-                    pos,
-                    fg,
-                    &mut event_data,
-                )?;
-            }
+                if let Some(fg_opt) = kwargs.fg {
+                    let fg = try_hex_to_color3(fg_opt)?;
+                    Self::acr_event_data_set_hprogressbar_fg(
+                        &mut self.grid.header.cells,
+                        pos,
+                        fg,
+                        &mut event_data,
+                    )?;
+                }
 
-            if let Some(percent) = kwargs.percent {
-                Self::acr_event_data_set_hprogressbar_pc(
-                    &mut self.grid.header.cells,
-                    pos,
-                    percent,
-                    &mut event_data,
-                )?;
-            }
+                if let Some(percent) = kwargs.percent {
+                    Self::acr_event_data_set_hprogressbar_pc(
+                        &mut self.grid.header.cells,
+                        pos,
+                        percent,
+                        &mut event_data,
+                    )?;
+                }
 
-            if let Some(remove_on_complete) = kwargs.remove_on_complete {
-                Self::acr_event_data_set_hprogressbar_remove_on_complete(
-                    &mut self.grid.header.cells,
-                    pos,
-                    remove_on_complete,
-                    &mut event_data,
-                )?;
+                if let Some(remove_on_complete) = kwargs.remove_on_complete {
+                    Self::acr_event_data_set_hprogressbar_remove_on_complete(
+                        &mut self.grid.header.cells,
+                        pos,
+                        remove_on_complete,
+                        &mut event_data,
+                    )?;
+                }
+                Ok(())
+            })();
+
+            match result {
+                Err(e) => {
+                    self.cr_roll_back(Rc::new(RefCell::new(event_data)));
+                    return Err(e);
+                }
+                _ => {}
             }
         }
 
-        self.cr_finalize_event(event_data, kwargs.undo, kwargs.emit)
+        self.cr_finalize_event_if_any_non_selection_change(
+            event_data,
+            kwargs.undo,
+            kwargs.emit,
+            true,
+        )
     }
 }
