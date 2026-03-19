@@ -15,10 +15,6 @@ impl Table {
         let kwargs: BordersArgs = kwargs.unwrap_or_default();
         let span = self.cr_key_to_span(kwargs.key)?;
         let mut event_data: EventData = self.cr_new_event(kwargs.save_selection);
-        if kwargs.expand {
-            self.cr_ensure_widget_nrows(span.max_row(&self.grid), &mut event_data, true)?;
-            self.cr_ensure_widget_ncols(span.max_col(&self.grid), &mut event_data, true)?;
-        }
         let borders = if kwargs.top.is_some()
             || kwargs.bottom.is_some()
             || kwargs.left.is_some()
@@ -35,39 +31,38 @@ impl Table {
         };
         let (start_row, end_row) = span.rows_start_end(&self.grid);
         let (start_col, end_col) = span.cols_start_end(&self.grid);
-        let empty_val = &self.opts.empty_val;
-        let mut error: Option<String> = None;
 
-        for row in start_row..=end_row {
-            for col in start_col..=end_col {
-                match Self::acr_event_data_set_tborders(
-                    &mut self.grid.index.cells,
-                    row,
-                    col,
-                    borders.clone(),
-                    empty_val,
-                    &mut event_data,
-                ) {
-                    Err(e) => {
-                        error = Some(e);
-                        break;
-                    }
-                    _ => {}
+        if let Err(e) = (|| -> Result<(), String> {
+            if kwargs.expand {
+                self.cr_ensure_widget_nrows(span.max_row(&self.grid), &mut event_data, true)?;
+                self.cr_ensure_widget_ncols(span.max_col(&self.grid), &mut event_data, true)?;
+            }
+            let empty_val = &self.opts.empty_val;
+
+            for row in start_row..=end_row {
+                for col in start_col..=end_col {
+                    Self::acr_event_data_set_tborders(
+                        &mut self.grid.index.cells,
+                        row,
+                        col,
+                        borders.clone(),
+                        empty_val,
+                        &mut event_data,
+                    )?;
                 }
             }
-        }
-
-        if let Some(e) = error {
+            Ok(())
+        })() {
             self.cr_roll_back(Rc::new(RefCell::new(event_data)));
             return Err(e);
-        } else {
-            self.cr_finalize_event_if_any_non_selection_change(
-                event_data,
-                kwargs.undo,
-                kwargs.emit,
-                true,
-            )
         }
+
+        self.cr_finalize_event_if_any_non_selection_change(
+            event_data,
+            kwargs.undo,
+            kwargs.emit,
+            true,
+        )
     }
 
     pub fn borders_i(
@@ -77,9 +72,6 @@ impl Table {
         let kwargs: BordersArgs = kwargs.unwrap_or_default();
         let span = self.cr_key_to_span(kwargs.key)?;
         let mut event_data: EventData = self.cr_new_event(kwargs.save_selection);
-        if kwargs.expand {
-            self.cr_ensure_widget_nrows(span.max_row(&self.grid), &mut event_data, true)?;
-        }
         let borders = if kwargs.top.is_some()
             || kwargs.bottom.is_some()
             || kwargs.left.is_some()
@@ -95,34 +87,32 @@ impl Table {
             None
         };
         let (start_row, end_row) = span.rows_start_end(&self.grid);
-        let mut error: Option<String> = None;
 
-        for row in start_row..=end_row {
-            match Self::acr_event_data_set_iborders(
-                &mut self.grid.index.cells,
-                row,
-                borders.clone(),
-                &mut event_data,
-            ) {
-                Err(e) => {
-                    error = Some(e);
-                    break;
-                }
-                _ => {}
+        if let Err(e) = (|| -> Result<(), String> {
+            if kwargs.expand {
+                self.cr_ensure_widget_nrows(span.max_row(&self.grid), &mut event_data, true)?;
             }
-        }
 
-        if let Some(e) = error {
+            for row in start_row..=end_row {
+                Self::acr_event_data_set_iborders(
+                    &mut self.grid.index.cells,
+                    row,
+                    borders.clone(),
+                    &mut event_data,
+                )?;
+            }
+            Ok(())
+        })() {
             self.cr_roll_back(Rc::new(RefCell::new(event_data)));
             return Err(e);
-        } else {
-            self.cr_finalize_event_if_any_non_selection_change(
-                event_data,
-                kwargs.undo,
-                kwargs.emit,
-                true,
-            )
         }
+
+        self.cr_finalize_event_if_any_non_selection_change(
+            event_data,
+            kwargs.undo,
+            kwargs.emit,
+            true,
+        )
     }
 
     pub fn borders_h(
@@ -132,9 +122,6 @@ impl Table {
         let kwargs: BordersArgs = kwargs.unwrap_or_default();
         let span = self.cr_key_to_span(kwargs.key)?;
         let mut event_data: EventData = self.cr_new_event(kwargs.save_selection);
-        if kwargs.expand {
-            self.cr_ensure_widget_ncols(span.max_col(&self.grid), &mut event_data, true)?;
-        }
         let borders = if kwargs.top.is_some()
             || kwargs.bottom.is_some()
             || kwargs.left.is_some()
@@ -149,36 +136,33 @@ impl Table {
         } else {
             None
         };
-
         let (start_col, end_col) = span.cols_start_end(&self.grid);
-        let mut error: Option<String> = None;
 
-        for col in start_col..=end_col {
-            match Self::acr_event_data_set_hborders(
-                &mut self.grid.header.cells,
-                col,
-                borders.clone(),
-                &mut event_data,
-            ) {
-                Err(e) => {
-                    error = Some(e);
-                    break;
-                }
-                _ => {}
+        if let Err(e) = (|| -> Result<(), String> {
+            if kwargs.expand {
+                self.cr_ensure_widget_ncols(span.max_col(&self.grid), &mut event_data, true)?;
             }
-        }
 
-        if let Some(e) = error {
+            for col in start_col..=end_col {
+                Self::acr_event_data_set_hborders(
+                    &mut self.grid.header.cells,
+                    col,
+                    borders.clone(),
+                    &mut event_data,
+                )?;
+            }
+            Ok(())
+        })() {
             self.cr_roll_back(Rc::new(RefCell::new(event_data)));
             return Err(e);
-        } else {
-            self.cr_finalize_event_if_any_non_selection_change(
-                event_data,
-                kwargs.undo,
-                kwargs.emit,
-                true,
-            )
         }
+
+        self.cr_finalize_event_if_any_non_selection_change(
+            event_data,
+            kwargs.undo,
+            kwargs.emit,
+            true,
+        )
     }
 
     pub fn set_borders(

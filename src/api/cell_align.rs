@@ -12,45 +12,41 @@ impl Table {
         let kwargs: CellAlignArgs = kwargs.unwrap_or_default();
         let span = self.cr_key_to_span(kwargs.key)?;
         let mut event_data: EventData = self.cr_new_event(kwargs.save_selection);
-        if kwargs.expand {
-            self.cr_ensure_widget_nrows(span.max_row(&self.grid), &mut event_data, true)?;
-            self.cr_ensure_widget_ncols(span.max_col(&self.grid), &mut event_data, true)?;
-        }
         let align = kwargs.align; // None = clear alignment, Some = set it
         let (start_row, end_row) = span.rows_start_end(&self.grid);
         let (start_col, end_col) = span.cols_start_end(&self.grid);
-        let mut error: Option<String> = None;
 
-        let empty_val = &self.opts.empty_val;
-        for row in start_row..=end_row {
-            for col in start_col..=end_col {
-                match Self::acr_event_data_set_talign(
-                    &mut self.grid.index.cells,
-                    row,
-                    col,
-                    align,
-                    empty_val,
-                    &mut event_data,
-                ) {
-                    Err(e) => {
-                        error = Some(e);
-                        break;
-                    }
-                    _ => {}
+        if let Err(e) = (|| -> Result<(), String> {
+            if kwargs.expand {
+                self.cr_ensure_widget_nrows(span.max_row(&self.grid), &mut event_data, true)?;
+                self.cr_ensure_widget_ncols(span.max_col(&self.grid), &mut event_data, true)?;
+            }
+            let empty_val = &self.opts.empty_val;
+
+            for row in start_row..=end_row {
+                for col in start_col..=end_col {
+                    Self::acr_event_data_set_talign(
+                        &mut self.grid.index.cells,
+                        row,
+                        col,
+                        align,
+                        empty_val,
+                        &mut event_data,
+                    )?;
                 }
             }
-        }
-        if let Some(e) = error {
+            Ok(())
+        })() {
             self.cr_roll_back(Rc::new(RefCell::new(event_data)));
             return Err(e);
-        } else {
-            self.cr_finalize_event_if_any_non_selection_change(
-                event_data,
-                kwargs.undo,
-                kwargs.emit,
-                true,
-            )
         }
+
+        self.cr_finalize_event_if_any_non_selection_change(
+            event_data,
+            kwargs.undo,
+            kwargs.emit,
+            true,
+        )
     }
 
     pub fn align_i(

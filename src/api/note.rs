@@ -16,10 +16,6 @@ impl Table {
         let kwargs: NoteArgs = kwargs.unwrap_or_default();
         let span = self.cr_key_to_span(kwargs.key)?;
         let mut event_data: EventData = self.cr_new_event(kwargs.save_selection);
-        if kwargs.expand {
-            self.cr_ensure_widget_nrows(span.max_row(&self.grid), &mut event_data, true)?;
-            self.cr_ensure_widget_ncols(span.max_col(&self.grid), &mut event_data, true)?;
-        }
         let note = if let Some(note_text) = kwargs.note {
             Some(Note {
                 note: note_text,
@@ -32,39 +28,38 @@ impl Table {
         };
         let (start_row, end_row) = span.rows_start_end(&self.grid);
         let (start_col, end_col) = span.cols_start_end(&self.grid);
-        let empty_val = &self.opts.empty_val;
-        let mut error: Option<String> = None;
 
-        for row in start_row..=end_row {
-            for col in start_col..=end_col {
-                match Self::acr_event_data_set_tnote(
-                    &mut self.grid.index.cells,
-                    row,
-                    col,
-                    note.clone(),
-                    empty_val,
-                    &mut event_data,
-                ) {
-                    Err(e) => {
-                        error = Some(e);
-                        break;
-                    }
-                    _ => {}
+        if let Err(e) = (|| -> Result<(), String> {
+            if kwargs.expand {
+                self.cr_ensure_widget_nrows(span.max_row(&self.grid), &mut event_data, true)?;
+                self.cr_ensure_widget_ncols(span.max_col(&self.grid), &mut event_data, true)?;
+            }
+            let empty_val = &self.opts.empty_val;
+
+            for row in start_row..=end_row {
+                for col in start_col..=end_col {
+                    Self::acr_event_data_set_tnote(
+                        &mut self.grid.index.cells,
+                        row,
+                        col,
+                        note.clone(),
+                        empty_val,
+                        &mut event_data,
+                    )?;
                 }
             }
-        }
-
-        if let Some(e) = error {
+            Ok(())
+        })() {
             self.cr_roll_back(Rc::new(RefCell::new(event_data)));
             return Err(e);
-        } else {
-            self.cr_finalize_event_if_any_non_selection_change(
-                event_data,
-                kwargs.undo,
-                kwargs.emit,
-                true,
-            )
         }
+
+        self.cr_finalize_event_if_any_non_selection_change(
+            event_data,
+            kwargs.undo,
+            kwargs.emit,
+            true,
+        )
     }
 
     pub fn note_i(
@@ -91,17 +86,14 @@ impl Table {
         let mut error: Option<String> = None;
 
         for row in start_row..=end_row {
-            match Self::acr_event_data_set_inote(
+            if let Err(e) = Self::acr_event_data_set_inote(
                 &mut self.grid.index.cells,
                 row,
                 note.clone(),
                 &mut event_data,
             ) {
-                Err(e) => {
-                    error = Some(e);
-                    break;
-                }
-                _ => {}
+                error = Some(e);
+                break;
             }
         }
 
@@ -142,17 +134,14 @@ impl Table {
         let mut error: Option<String> = None;
 
         for col in start_col..=end_col {
-            match Self::acr_event_data_set_hnote(
+            if let Err(e) = Self::acr_event_data_set_hnote(
                 &mut self.grid.header.cells,
                 col,
                 note.clone(),
                 &mut event_data,
             ) {
-                Err(e) => {
-                    error = Some(e);
-                    break;
-                }
-                _ => {}
+                error = Some(e);
+                break;
             }
         }
 
