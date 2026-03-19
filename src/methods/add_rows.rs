@@ -23,7 +23,7 @@ impl Table {
         remake_rows: bool,
     ) -> Result<(), String> {
         if mod_tree {
-            Self::acr_tree_add_rows(&mut self.grid, &index, event_data)?;
+            Self::acr_tree_add_rows(&mut self.grid, &index)?;
         }
 
         // push outstanding row numbers
@@ -159,7 +159,6 @@ impl Table {
     pub(crate) fn acr_tree_add_rows(
         grid: &mut TableGrid,
         index_cells: &[(usize, IndexCell)],
-        event_data: &mut EventData,
     ) -> Result<(), String> {
         if index_cells.is_empty() {
             return Ok(());

@@ -5,7 +5,6 @@ use crate::Index;
 use crate::Table;
 use crate::str_err;
 use crate::types::TreeMove;
-use crate::types::event_data::TreeChange;
 use crate::utils::utils_fns::get_full_move_map;
 use crate::utils::utils_fns::offset_move_indices;
 use crate::utils::utils_fns::remove_duplicates_outside_section;

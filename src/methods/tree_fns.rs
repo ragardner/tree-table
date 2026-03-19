@@ -5,51 +5,12 @@ use crate::Index;
 use crate::IndexCell;
 use crate::Table;
 use crate::str_err;
-use crate::types::event_data::TreeChange;
 use crate::types::event_data::TreeChangeKind;
 use crate::utils::utils_fns::binary_search_exact_pos;
 use std::collections::HashMap;
 use std::rc::Rc;
 
 impl Table {
-    pub(crate) fn acr_tree_restore_cells(
-        index: &mut Index,
-        restore_from: &mut HashMap<Rc<str>, TreeChange>,
-        record_to: Option<&mut EventData>,
-    ) -> Result<(), String> {
-        let mut temp = None;
-        let target: &mut EventData =
-            record_to.unwrap_or_else(|| temp.get_or_insert_with(EventData::default));
-        if let Err(e) = (|| -> Result<(), String> {
-            for (iid, tree_change) in restore_from.drain() {
-                let rn = Self::acr_pos(&index.iid_to_row, &iid)?;
-                if let Some(change) = tree_change.par {
-                    let inv = change.invert(&mut index.cells, &mut index.iid_to_row, rn)?;
-                    target.add_tree_change(&iid, inv);
-                }
-                if let Some(change) = tree_change.chn {
-                    let inv = change.invert(&mut index.cells, &mut index.iid_to_row, rn)?;
-                    target.add_tree_change(&iid, inv);
-                }
-            }
-            Ok(())
-        })() {
-            // Roll back in the event of an error
-            for (iid, tree_change) in target.tree_changes.drain() {
-                if let Ok(rn) = Self::acr_pos(&index.iid_to_row, &iid) {
-                    if let Some(change) = tree_change.par {
-                        let _ = change.invert(&mut index.cells, &mut index.iid_to_row, rn);
-                    }
-                    if let Some(change) = tree_change.chn {
-                        let _ = change.invert(&mut index.cells, &mut index.iid_to_row, rn);
-                    }
-                }
-            }
-            return Err(e);
-        }
-        Ok(())
-    }
-
     pub(crate) fn cr_tree_get_iid_insert_row(
         &self,
         pos: Option<usize>,

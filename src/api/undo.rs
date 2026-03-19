@@ -17,4 +17,12 @@ impl Table {
     ) -> Result<Option<Rc<RefCell<EventData>>>, String> {
         self.cr_redo(kwargs)
     }
+
+    pub fn get_next_redo(&self) -> Result<Option<Rc<RefCell<EventData>>>, String> {
+        self.cr_get_next_redo()
+    }
+
+    pub fn get_next_undo(&self) -> Result<Option<Rc<RefCell<EventData>>>, String> {
+        self.cr_get_next_undo()
+    }
 }

@@ -1,15 +1,17 @@
 use crate::Change;
 use crate::EventData;
+use crate::Index;
 use crate::Table;
 use crate::args::UndoRedoArgs;
 use crate::str_err;
+use crate::types::event_data::TreeChange;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::rc::Rc;
 
 impl Table {
-    pub(crate) fn cr_get_next_undo(&mut self) -> Result<Option<Rc<RefCell<EventData>>>, String> {
+    pub(crate) fn cr_get_next_undo(&self) -> Result<Option<Rc<RefCell<EventData>>>, String> {
         if self.grid.undo_stack.is_empty() {
             return Ok(None);
         }
@@ -22,7 +24,7 @@ impl Table {
         Ok(Some(change))
     }
 
-    pub(crate) fn cr_get_next_redo(&mut self) -> Result<Option<Rc<RefCell<EventData>>>, String> {
+    pub(crate) fn cr_get_next_redo(&self) -> Result<Option<Rc<RefCell<EventData>>>, String> {
         if self.grid.redo_stack.is_empty() {
             return Ok(None);
         }
@@ -123,14 +125,11 @@ impl Table {
                     self.cr_move_cols(&mut event_data, old, old_to_new, &new_to_old)
                 }
                 Change::MoveRows(new_to_old) => {
-                    // Restore tree state *before* the inverted grid move
-                    if !tree_changes.is_empty() {
-                        Self::acr_tree_restore_cells(
-                            &mut self.grid.index,
-                            &mut tree_changes,
-                            Some(&mut event_data),
-                        )?;
-                    }
+                    Self::acr_tree_restore_cells(
+                        &mut self.grid.index,
+                        &mut tree_changes,
+                        Some(&mut event_data),
+                    )?;
                     let (old, old_to_new, new_to_old) = prepare_move_mappings(new_to_old);
                     self.cr_move_rows(&mut event_data, old, old_to_new, new_to_old, None, false)
                 }
@@ -150,14 +149,8 @@ impl Table {
                 }
                 Change::RemoveRows(removed_rows) => {
                     let sorted_seq = removed_rows.iter().map(|t| t.0.clone()).collect();
-                    if !tree_changes.is_empty() {
-                        Self::acr_tree_restore_cells(
-                            &mut self.grid.index,
-                            &mut tree_changes,
-                            None,
-                        )?;
-                    }
-                    self.cr_add_rows(removed_rows, sorted_seq, &mut event_data, true, true)
+                    Self::acr_tree_restore_cells(&mut self.grid.index, &mut tree_changes, None)?;
+                    self.cr_add_rows(removed_rows, sorted_seq, &mut event_data, false, true)
                 }
                 Change::IndexCell { row, change } => match change.invert(
                     &mut self.grid.index.cells,
@@ -242,5 +235,43 @@ impl Table {
 
     pub(crate) fn cr_roll_back(&mut self, event_data: Rc<RefCell<EventData>>) {
         let _ = self.cr_undo_and_invert_event(event_data, vec![], false);
+    }
+
+    pub(crate) fn acr_tree_restore_cells(
+        index: &mut Index,
+        restore_from: &mut HashMap<Rc<str>, TreeChange>,
+        record_to: Option<&mut EventData>,
+    ) -> Result<(), String> {
+        let mut temp = None;
+        let target: &mut EventData =
+            record_to.unwrap_or_else(|| temp.get_or_insert_with(EventData::default));
+        if let Err(e) = (|| -> Result<(), String> {
+            for (iid, tree_change) in restore_from.drain() {
+                let rn = Self::acr_pos(&index.iid_to_row, &iid)?;
+                if let Some(change) = tree_change.par {
+                    let inv = change.invert(&mut index.cells, &mut index.iid_to_row, rn)?;
+                    target.add_tree_change(&iid, inv);
+                }
+                if let Some(change) = tree_change.chn {
+                    let inv = change.invert(&mut index.cells, &mut index.iid_to_row, rn)?;
+                    target.add_tree_change(&iid, inv);
+                }
+            }
+            Ok(())
+        })() {
+            // Roll back in the event of an error
+            for (iid, tree_change) in target.tree_changes.drain() {
+                if let Ok(rn) = Self::acr_pos(&index.iid_to_row, &iid) {
+                    if let Some(change) = tree_change.par {
+                        let _ = change.invert(&mut index.cells, &mut index.iid_to_row, rn);
+                    }
+                    if let Some(change) = tree_change.chn {
+                        let _ = change.invert(&mut index.cells, &mut index.iid_to_row, rn);
+                    }
+                }
+            }
+            return Err(e);
+        }
+        Ok(())
     }
 }
