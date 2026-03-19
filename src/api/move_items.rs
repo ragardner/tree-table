@@ -71,7 +71,6 @@ impl Table {
             HashSet::new(),
             Vec::new(),
             HashMap::new(),
-            None,
             Some(move_op),
             true,
         ) {

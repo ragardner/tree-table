@@ -21,7 +21,6 @@ impl Table {
         old: HashSet<usize>,
         mut old_to_new: Vec<(usize, usize)>,
         mut new_to_old: HashMap<usize, usize>,
-        tree_undo_data: Option<&mut HashMap<Rc<str>, TreeChange>>,
         tree_move: Option<TreeMove>,
         mod_tree: bool,
     ) -> Result<(), String> {
@@ -32,7 +31,6 @@ impl Table {
                 event_data,
                 &mut old_to_new,
                 &mut new_to_old,
-                tree_undo_data,
                 tree_move,
             )?;
         }
@@ -107,18 +105,11 @@ impl Table {
 
     pub(crate) fn cr_tree_move_rows_mod_cells(
         &mut self,
-        mut event_data: &mut EventData,
+        event_data: &mut EventData,
         mut old_to_new: &mut Vec<(usize, usize)>,
         mut new_to_old: &mut HashMap<usize, usize>,
-        tree_undo_data: Option<&mut HashMap<Rc<str>, TreeChange>>,
         tree_move: Option<TreeMove>,
     ) -> Result<(), String> {
-        // Caller was originally an undo
-        if let Some(undo_data) = tree_undo_data {
-            Self::acr_tree_restore_cells(&mut self.grid.index, undo_data, Some(&mut event_data))?;
-            return Ok(());
-        };
-
         // Nothing to move
         if old_to_new.is_empty() && tree_move.is_none() {
             return Ok(());

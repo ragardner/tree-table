@@ -81,7 +81,6 @@ impl Table {
             old_to_new,
             new_to_old,
             None,
-            None,
             true,
         ) {
             Err(e) => {

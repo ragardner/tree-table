@@ -123,16 +123,16 @@ impl Table {
                     self.cr_move_cols(&mut event_data, old, old_to_new, &new_to_old)
                 }
                 Change::MoveRows(new_to_old) => {
+                    // Restore tree state *before* the inverted grid move
+                    if !tree_changes.is_empty() {
+                        Self::acr_tree_restore_cells(
+                            &mut self.grid.index,
+                            &mut tree_changes,
+                            Some(&mut event_data),
+                        )?;
+                    }
                     let (old, old_to_new, new_to_old) = prepare_move_mappings(new_to_old);
-                    self.cr_move_rows(
-                        &mut event_data,
-                        old,
-                        old_to_new,
-                        new_to_old,
-                        Some(&mut tree_changes),
-                        None,
-                        true,
-                    )
+                    self.cr_move_rows(&mut event_data, old, old_to_new, new_to_old, None, false)
                 }
                 Change::RemoveCols {
                     removed_header,
@@ -150,6 +150,13 @@ impl Table {
                 }
                 Change::RemoveRows(removed_rows) => {
                     let sorted_seq = removed_rows.iter().map(|t| t.0.clone()).collect();
+                    if !tree_changes.is_empty() {
+                        Self::acr_tree_restore_cells(
+                            &mut self.grid.index,
+                            &mut tree_changes,
+                            None,
+                        )?;
+                    }
                     self.cr_add_rows(removed_rows, sorted_seq, &mut event_data, true, true)
                 }
                 Change::IndexCell { row, change } => match change.invert(

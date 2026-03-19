@@ -82,7 +82,9 @@ impl Table {
         if pos > Self::acr_total_rows(&self.grid.index.cells) {
             pos = Self::acr_total_rows(&self.grid.index.cells);
         }
-        let end = pos.checked_add(iids.len()).ok_or_else(|| str_err!("Max. rows"))?;
+        let end = pos
+            .checked_add(iids.len())
+            .ok_or_else(|| str_err!("Max. rows"))?;
         let mut index: Vec<(usize, IndexCell)> = Vec::new();
         let mut sorted_seq: Vec<usize> = Vec::new();
         let empty_val: &Val = &self.opts.empty_val;
@@ -159,12 +161,6 @@ impl Table {
         index_cells: &[(usize, IndexCell)],
         event_data: &mut EventData,
     ) -> Result<(), String> {
-        // e.g. when undoing a del_rows change
-        if !event_data.tree_changes.is_empty() {
-            Self::acr_tree_restore_cells(&mut grid.index, &mut event_data.tree_changes, None)?;
-            return Ok(());
-        }
-
         if index_cells.is_empty() {
             return Ok(());
         }
