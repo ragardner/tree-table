@@ -248,7 +248,7 @@ impl Table {
         Ok(&ic.val)
     }
 
-    /// Get borrowed val from IndexCell.
+    /// Get cloned val from IndexCell.
     #[inline]
     pub(crate) fn acr_icell_val_cloned<'v>(
         cells: &'v [IndexCell],

@@ -1,5 +1,4 @@
-use crate::{EventData, Options, PartialOptions, Selection, TableGrid};
-use std::{cell::RefCell, rc::Rc};
+use crate::{Options, PartialOptions, Selection, TableGrid};
 
 pub struct Table {
     pub(crate) grid: TableGrid,

@@ -30,6 +30,7 @@ pub mod table_cell;
 pub mod table_grid;
 pub mod tree_move;
 pub mod val;
+pub mod val_cmp;
 
 pub use bounded_deque::BoundedDeque;
 pub use cell_align::CellAlign;
