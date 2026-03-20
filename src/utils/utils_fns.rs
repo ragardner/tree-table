@@ -20,23 +20,27 @@ const ALPHABET: [char; 62] = [
 const MAX_DATE_STRING_LEN: usize = 60;
 const DATE_FORMATS: &[&str] = &[
     "%Y-%m-%d", // ISO (highest)
-    "%Y/%m/%d",
     "%Y-%m-%d %H:%M:%S",
     "%Y-%m-%dT%H:%M:%S",
+    "%Y/%m/%d",
+    "%Y%m%d",
+    "%Y%m%d%H%M%S",
+    "%Y%m%dT%H%M%S",
+    // Slash & dot dates
     "%d.%m.%Y",
-    // Slash dates — US first
     "%m/%d/%Y",
     "%m/%d/%y",
     "%d/%m/%Y",
     "%d/%m/%y",
-    // Other separators
     "%d-%m-%Y",
     "%m-%d-%Y",
-    // Compact
-    "%Y%m%d",
+    // Compact (8-digit → 6-digit → 5-digit → 7-digit)
     "%d%m%Y",
-    "%Y%m%d%H%M%S",
-    "%Y%m%dT%H%M%S",
+    "%y%m%d", // YYMMDD
+    "%m%d%y", // MMDDYY
+    "%d%m%y", // DDMMYY
+    "%y%j",   // YYDDD (5-digit legacy ordinal date)
+    "%Y%j",   // YYYYDDD ordinal date
     // English month names
     "%d %b %Y",
     "%b %d, %Y",
@@ -44,31 +48,124 @@ const DATE_FORMATS: &[&str] = &[
     "%B %d, %Y",
 ];
 
-#[inline(always)]
-fn looks_like_date(s: &str) -> bool {
-    // Length already checked by caller
-    s.bytes().any(|b| {
-        matches!(b, b'-' | b'/' | b'.' | b' ' | b':' | b'T' | b',') || b.is_ascii_alphabetic()
-    })
-}
-
-pub fn try_parse_date_millis(trimmed: &str) -> Option<i64> {
-    let s = trimmed;
-
-    if s.len() > MAX_DATE_STRING_LEN {
+/// Assumed s is already trimmed by caller.
+pub fn try_parse_date(s: &str) -> Option<i64> {
+    if s.is_empty() || s.len() > MAX_DATE_STRING_LEN {
         return None;
     }
 
-    // Allow pure-digit strings that could be compact dates/years (len >= 4)
-    // so they reach the format loop.
-    let is_pure_numeric = s.bytes().all(|b| b.is_ascii_digit() || b == b'-');
-    let could_be_date = looks_like_date(s) || (is_pure_numeric && s.len() >= 4);
+    let mut has_digit = false;
+    let mut has_indicator = false;
+    let mut is_pure_numeric = true;
 
+    for &b in s.as_bytes() {
+        if b.is_ascii_digit() {
+            has_digit = true;
+            if has_indicator {
+                break;
+            }
+        } else if matches!(b, b'/' | b'.' | b' ' | b':' | b'T' | b',') {
+            has_indicator = true;
+            if has_digit {
+                break;
+            }
+            is_pure_numeric = false;
+        } else if b.is_ascii_alphabetic() {
+            has_indicator = true;
+            if has_digit {
+                break;
+            }
+            is_pure_numeric = false;
+        } else if b == b'-' || b == b'+' {
+            has_indicator = true;
+            if has_digit {
+                break;
+            }
+        } else {
+            is_pure_numeric = false;
+        }
+    }
+
+    let could_be_date = has_digit && (has_indicator || (is_pure_numeric && s.len() >= 4));
     if !could_be_date {
         return None;
     }
 
-    // 1. Try explicit formats FIRST
+    if is_pure_numeric {
+        let sign_len = s.chars().take_while(|&c| c == '-' || c == '+').count();
+        let digit_count = s.len() - sign_len;
+
+        // Year-only: precisely 1–4 digits (including negative/BC years)
+        if (1..=4).contains(&digit_count) {
+            if let Ok(year) = s.parse::<i32>() {
+                if (-9999..=9999).contains(&year) {
+                    if let Some(ndt) =
+                        NaiveDate::from_ymd_opt(year, 1, 1).and_then(|d| d.and_hms_opt(0, 0, 0))
+                    {
+                        return Some(ndt.and_utc().timestamp_millis());
+                    }
+                }
+            }
+        }
+
+        // 5-digit special handling — legacy YYDDD + astronomy MJD
+        if digit_count == 5 {
+            // 1. Legacy YYDDD (most common in enterprise/legacy systems)
+            if let Ok(date) = NaiveDate::parse_from_str(s, "%y%j") {
+                if let Some(ndt) = date.and_hms_opt(0, 0, 0) {
+                    return Some(ndt.and_utc().timestamp_millis());
+                }
+            }
+
+            // 2. Modified Julian Date (MJD) — astronomy/scientific tables
+            if let Ok(n) = s.parse::<i64>() {
+                if n > 0 && (40_000..=85_000).contains(&n) {
+                    // ~1968 to ~2130
+                    let mjd = n as f64;
+                    let unix_seconds = (mjd - 40_587.0) * 86_400.0;
+                    let millis = (unix_seconds * 1_000.0).round() as i64;
+                    return Some(millis);
+                }
+            }
+        }
+
+        // 7-digit special handling — Julian Day + YYYYDDD
+        if digit_count == 7 {
+            if let Ok(n) = s.parse::<i64>() {
+                // 1. Julian Day (JD) — astronomy
+                if n > 0 && (2_000_000..=4_000_000).contains(&n) {
+                    // ~500 BC to ~10,000 AD
+                    let jd = n as f64;
+                    let unix_seconds = (jd - 2_440_587.5) * 86_400.0;
+                    let millis = (unix_seconds * 1_000.0).round() as i64;
+                    return Some(millis);
+                }
+                // 2. YYYYDDD ordinal fallback
+                if let Ok(date) = NaiveDate::parse_from_str(s, "%Y%j") {
+                    if let Some(ndt) = date.and_hms_opt(0, 0, 0) {
+                        return Some(ndt.and_utc().timestamp_millis());
+                    }
+                }
+            }
+        }
+
+        // Timestamp / large astronomical handling
+        if (9..=19).contains(&digit_count) {
+            if let Ok(ts) = s.parse::<i64>() {
+                if digit_count <= 11 {
+                    return Some(ts.saturating_mul(1_000));
+                } else {
+                    return Some(ts);
+                }
+            }
+        }
+
+        if digit_count > 19 {
+            return None;
+        }
+    }
+
+    // Try all formats
     for &fmt in DATE_FORMATS {
         if let Ok(ndt) = NaiveDateTime::parse_from_str(s, fmt) {
             return Some(ndt.and_utc().timestamp_millis());
@@ -80,34 +177,9 @@ pub fn try_parse_date_millis(trimmed: &str) -> Option<i64> {
         }
     }
 
-    // 2. RFC3339 fallback
+    // RFC3339 fallback
     if let Ok(dt) = chrono::DateTime::parse_from_rfc3339(s) {
         return Some(dt.with_timezone(&Utc).timestamp_millis());
-    }
-
-    // 3. Pure-numeric fallback (year + large timestamp)
-    if is_pure_numeric {
-        // Year-only (sensible range, after formats, len >= 4 already guaranteed)
-        if let Ok(year) = s.parse::<i32>() {
-            if (-9999..=9999).contains(&year) {
-                if let Some(ndt) =
-                    NaiveDate::from_ymd_opt(year, 1, 1).and_then(|d| d.and_hms_opt(0, 0, 0))
-                {
-                    return Some(ndt.and_utc().timestamp_millis());
-                }
-            }
-        }
-        // Integer timestamp fallback (only huge values)
-        if let Ok(ts) = s.parse::<i64>() {
-            let abs = ts.abs();
-            if abs > 1_000_000_000 {
-                return Some(if abs > 1_000_000_000_000 {
-                    ts
-                } else {
-                    ts * 1_000
-                });
-            }
-        }
     }
 
     None

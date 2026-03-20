@@ -1,5 +1,5 @@
 use crate::Val;
-use crate::utils::utils_fns::try_parse_date_millis;
+use crate::utils::utils_fns::try_parse_date;
 use bigdecimal::ToPrimitive;
 use num_bigint::Sign;
 
@@ -145,8 +145,6 @@ impl Val {
     {
         match self {
             Val::Nil(_) | Val::Undf(_) => NaturalKey::Blank,
-            Val::Str(s) if s.trim().is_empty() => NaturalKey::Empty,
-            Val::Chr(c) if c.is_whitespace() => NaturalKey::Empty,
             Val::Bl(b) => NaturalKey::Bool(*b),
             Val::Dt(dt) => NaturalKey::Date(dt.timestamp_millis()),
             Val::Dur(d) => NaturalKey::Number(d.num_milliseconds().into()),
@@ -155,12 +153,20 @@ impl Val {
             other => {
                 if let Some(n) = other.x_numeric_value() {
                     NaturalKey::Number(n.into())
-                } else if let Val::Str(s) = other {
-                    string_to_key(s.trim())
-                } else if let Val::Chr(c) = other {
-                    string_to_key(&c.to_string())
                 } else {
-                    NaturalKey::Unknown(format!("{:?}", other))
+                    match other {
+                        Val::Str(s) => {
+                            let trimmed = s.trim();
+                            if trimmed.is_empty() {
+                                NaturalKey::Empty
+                            } else {
+                                string_to_key(trimmed)
+                            }
+                        }
+                        Val::Chr(c) if c.is_whitespace() => NaturalKey::Empty,
+                        Val::Chr(c) => string_to_key(&c.to_string()),
+                        _ => NaturalKey::Unknown(format!("{:?}", other)),
+                    }
                 }
             }
         }
@@ -188,7 +194,7 @@ impl Val {
                 return NaturalKey::Number(f.into());
             }
         }
-        if let Some(ts) = try_parse_date_millis(trimmed) {
+        if let Some(ts) = try_parse_date(trimmed) {
             return NaturalKey::Date(ts);
         }
         NaturalKey::Text(natural_components(trimmed))
@@ -199,7 +205,7 @@ impl Val {
     }
 
     fn date_key_from_string(trimmed: &str) -> NaturalKey {
-        if let Some(ts) = try_parse_date_millis(trimmed) {
+        if let Some(ts) = try_parse_date(trimmed) {
             return NaturalKey::Date(ts);
         }
         if let Ok(f) = trimmed.parse::<f64>() {
@@ -282,22 +288,19 @@ fn natural_text_segments(s: &str) -> Vec<NaturalSegment> {
             let negative = c == '-' || c == '\u{2212}';
             let mut value: i64 = 0;
 
-            // Consume first digit (we already know it exists from the peek)
-            if let Some(digit_c) = chars.next() {
-                if let Some(d) = digit_c.to_digit(10) {
-                    value = d as i64;
-                }
+            // Consume first digit (guaranteed by the peek)
+            if let Some(d) = chars.next().and_then(|ch| ch.to_digit(10)) {
+                value = d as i64;
             }
-
+            // Remaining digits
             while let Some(&next) = chars.peek() {
-                if let Some(d) = next.to_digit(10) {
-                    value = value.saturating_mul(10).saturating_add(d as i64);
+                if let Some(nd) = next.to_digit(10) {
+                    value = value.saturating_mul(10).saturating_add(nd as i64);
                     chars.next();
                 } else {
                     break;
                 }
             }
-
             let num = if negative { -value } else { value };
             segments.push(NaturalSegment::Number(OrderedF64(num as f64)));
             continue;
@@ -310,7 +313,6 @@ fn natural_text_segments(s: &str) -> Vec<NaturalSegment> {
                 text_buf.clear();
             }
             let mut value = d as i64;
-
             while let Some(&next) = chars.peek() {
                 if let Some(nd) = next.to_digit(10) {
                     value = value.saturating_mul(10).saturating_add(nd as i64);
