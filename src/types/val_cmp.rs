@@ -24,7 +24,6 @@ impl From<i64> for OrderedF64 {
     }
 }
 
-// ─── Sort key types ───
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum NaturalKey {
     Blank,                                // 0
@@ -39,38 +38,21 @@ pub enum NaturalKey {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub enum XKey {
+    Numeric(OrderedF64), // 0 (numbers, dates, durations, huge values → ±inf)
+    Text(String),        // 1 (lowercased strings)
+    Bool(bool),          // 2
+    Nil,                 // 99 (null/undefined — always last)
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum NaturalSegment {
     Text(String),
     Number(OrderedF64),
 }
 
 impl Val {
-    /// Custom comparison for sorting mixed `Val` values (used in tables/columns).
-    pub fn cmp_x(&self, other: &Val) -> std::cmp::Ordering {
-        use std::cmp::Ordering;
-
-        let p1 = self.x_sort_priority();
-        let p2 = other.x_sort_priority();
-        if p1 != p2 {
-            return p1.cmp(&p2);
-        }
-        match p1 {
-            0 => match (self.x_numeric_value(), other.x_numeric_value()) {
-                (Some(a), Some(b)) => a.total_cmp(&b),
-                (Some(_), None) => Ordering::Less,
-                (None, Some(_)) => Ordering::Greater,
-                (None, None) => Ordering::Equal,
-            },
-            1 => self.x_text_value().cmp(&other.x_text_value()),
-            2 => match (self, other) {
-                (Val::Bl(a), Val::Bl(b)) => a.cmp(b),
-                _ => Ordering::Equal,
-            },
-            _ => Ordering::Equal,
-        }
-    }
-
-    fn x_sort_priority(&self) -> u8 {
+    pub fn x_key(&self) -> XKey {
         match self {
             Val::Un8(_)
             | Val::Un16(_)
@@ -87,12 +69,18 @@ impl Val {
             | Val::Bigdec(_)
             | Val::Bigint(_)
             | Val::Dt(_)
-            | Val::Dur(_) => 0,
-
-            Val::Str(_) | Val::Chr(_) => 1,
-            Val::Bl(_) => 2,
-            Val::Nil(_) | Val::Undf(_) => 99,
+            | Val::Dur(_) => XKey::Numeric(self.x_numeric_value().unwrap_or(0.0).into()),
+            // Group 1 – text (comes after all numerics)
+            Val::Str(_) | Val::Chr(_) => XKey::Text(self.x_text_value()),
+            // Group 2 – bool
+            Val::Bl(b) => XKey::Bool(*b),
+            // Group 99 – nil/undefined
+            Val::Nil(_) | Val::Undf(_) => XKey::Nil,
         }
+    }
+
+    pub fn cmp_x(&self, other: &Val) -> std::cmp::Ordering {
+        self.x_key().cmp(&other.x_key())
     }
 
     fn x_text_value(&self) -> String {

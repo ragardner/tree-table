@@ -63,3 +63,4 @@ pub use span::{NO_END, Span, SpanKey};
 pub use table_cell::TableCell;
 pub use tree_move::TreeMove;
 pub use val::{Val, ValType};
+pub use val_cmp::NaturalKey;

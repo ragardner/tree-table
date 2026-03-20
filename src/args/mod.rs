@@ -17,6 +17,7 @@ pub mod args_progress_bar;
 pub mod args_readonly;
 pub mod args_reset;
 pub mod args_select;
+pub mod args_sort;
 pub mod args_tree_extend;
 pub mod args_tree_open;
 pub mod args_undo;
@@ -43,6 +44,7 @@ pub use args_progress_bar::{
 pub use args_readonly::ReadonlyArgs;
 pub use args_reset::ResetArgs;
 pub use args_select::{AddSelectionArgs, SelectRowsColsArgs, SelectionClearArgs};
+pub use args_sort::{SortKey, SortRowsArgs};
 
 pub use args_tree_extend::{
     CycleHandling, DuplicateIdHandling, EmptyIdHandling, TreeExtendArgs, TreeExtendRow,

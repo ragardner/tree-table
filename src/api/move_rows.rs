@@ -92,17 +92,7 @@ impl Table {
 
         if kwargs.select {
             Self::acr_deselect_all(&mut self.sel, None);
-            let mut moved: Vec<usize> = event_data
-                .changes
-                .iter()
-                .filter_map(|change| match change {
-                    Change::MoveRows(moves) => Some(moves.iter().map(|&(_, to)| to)),
-                    _ => None,
-                })
-                .flatten()
-                .filter_map(|n| Self::acr_data_to_disp_row_opt(&self.grid.disp_rows, n))
-                .collect();
-
+            let mut moved: Vec<usize> = self.extract_disp_moved_rows(&event_data);
             if !moved.is_empty() {
                 moved.sort_unstable();
                 for (start, end) in consecutive_ranges_borrowed(moved.iter()) {
@@ -120,5 +110,19 @@ impl Table {
         }
 
         self.cr_finalize_event(event_data, kwargs.undo, kwargs.emit)
+    }
+
+    pub(crate) fn extract_disp_moved_rows(&self, event_data: &EventData) -> Vec<usize> {
+        let moved: Vec<usize> = event_data
+            .changes
+            .iter()
+            .filter_map(|change| match change {
+                Change::MoveRows(moves) => Some(moves.iter().map(|&(_, to)| to)),
+                _ => None,
+            })
+            .flatten()
+            .filter_map(|n| Self::acr_data_to_disp_row_opt(&self.grid.disp_rows, n))
+            .collect();
+        moved
     }
 }

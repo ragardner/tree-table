@@ -301,7 +301,7 @@ pub(crate) fn get_full_move_map(
         let old_i = if let Some(&oi) = new_to_old.get(&new_i) {
             oi
         } else {
-            remaining_old.next().unwrap_or(new_i) // fallback, should never hit
+            remaining_old.next().unwrap_or_else(|| new_i) // fallback, should never hit
         };
 
         full_new_to_old[new_i] = old_i;
