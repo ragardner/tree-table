@@ -1,5 +1,5 @@
 use crate::GetResultExt;
-use chrono::Duration;
+use chrono::{Duration, NaiveDate, NaiveDateTime, Utc};
 use core::sync::atomic::{AtomicU32, Ordering};
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
@@ -16,6 +16,102 @@ const ALPHABET: [char; 62] = [
     'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', '0', '1', '2', '3', '4',
     '5', '6', '7', '8', '9',
 ];
+
+const MAX_DATE_STRING_LEN: usize = 60;
+const DATE_FORMATS: &[&str] = &[
+    "%Y-%m-%d", // ISO (highest)
+    "%Y/%m/%d",
+    "%Y-%m-%d %H:%M:%S",
+    "%Y-%m-%dT%H:%M:%S",
+    "%d.%m.%Y",
+    // Slash dates — US first
+    "%m/%d/%Y",
+    "%m/%d/%y",
+    "%d/%m/%Y",
+    "%d/%m/%y",
+    // Other separators
+    "%d-%m-%Y",
+    "%m-%d-%Y",
+    // Compact
+    "%Y%m%d",
+    "%d%m%Y",
+    "%Y%m%d%H%M%S",
+    "%Y%m%dT%H%M%S",
+    // English month names
+    "%d %b %Y",
+    "%b %d, %Y",
+    "%d %B %Y",
+    "%B %d, %Y",
+];
+
+#[inline(always)]
+fn looks_like_date(s: &str) -> bool {
+    // Length already checked by caller
+    s.bytes().any(|b| {
+        matches!(b, b'-' | b'/' | b'.' | b' ' | b':' | b'T' | b',') || b.is_ascii_alphabetic()
+    })
+}
+
+pub fn try_parse_date_millis(trimmed: &str) -> Option<i64> {
+    let s = trimmed;
+
+    if s.len() > MAX_DATE_STRING_LEN {
+        return None;
+    }
+
+    // Allow pure-digit strings that could be compact dates/years (len >= 4)
+    // so they reach the format loop.
+    let is_pure_numeric = s.bytes().all(|b| b.is_ascii_digit() || b == b'-');
+    let could_be_date = looks_like_date(s) || (is_pure_numeric && s.len() >= 4);
+
+    if !could_be_date {
+        return None;
+    }
+
+    // 1. Try explicit formats FIRST
+    for &fmt in DATE_FORMATS {
+        if let Ok(ndt) = NaiveDateTime::parse_from_str(s, fmt) {
+            return Some(ndt.and_utc().timestamp_millis());
+        }
+        if let Ok(date) = NaiveDate::parse_from_str(s, fmt) {
+            if let Some(ndt) = date.and_hms_opt(0, 0, 0) {
+                return Some(ndt.and_utc().timestamp_millis());
+            }
+        }
+    }
+
+    // 2. RFC3339 fallback
+    if let Ok(dt) = chrono::DateTime::parse_from_rfc3339(s) {
+        return Some(dt.with_timezone(&Utc).timestamp_millis());
+    }
+
+    // 3. Pure-numeric fallback (year + large timestamp)
+    if is_pure_numeric {
+        // Year-only (sensible range, after formats, len >= 4 already guaranteed)
+        if let Ok(year) = s.parse::<i32>() {
+            if (-9999..=9999).contains(&year) {
+                if let Some(ndt) =
+                    NaiveDate::from_ymd_opt(year, 1, 1).and_then(|d| d.and_hms_opt(0, 0, 0))
+                {
+                    return Some(ndt.and_utc().timestamp_millis());
+                }
+            }
+        }
+        // Integer timestamp fallback (only huge values)
+        if let Ok(ts) = s.parse::<i64>() {
+            let abs = ts.abs();
+            if abs > 1_000_000_000 {
+                return Some(if abs > 1_000_000_000_000 {
+                    ts
+                } else {
+                    ts * 1_000
+                });
+            }
+        }
+    }
+
+    None
+}
 
 pub(crate) fn remove_duplicates_outside_section(
     items: Vec<Rc<str>>,
