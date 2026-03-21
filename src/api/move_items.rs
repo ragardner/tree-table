@@ -1,11 +1,8 @@
-use crate::Change;
 use crate::EventData;
-use crate::NO_END;
 use crate::Table;
 use crate::TreeMove;
 use crate::args::MoveItemsArgs;
 use crate::str_err;
-use crate::utils::consecutive_ranges::consecutive_ranges_borrowed;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::collections::HashSet;
@@ -84,29 +81,10 @@ impl Table {
         // Select moved rows if true
         if kwargs.select {
             Self::acr_deselect_all(&mut self.sel, None);
-            let mut moved: Vec<usize> = event_data
-                .changes
-                .iter()
-                .filter_map(|change| match change {
-                    Change::MoveRows(moves) => Some(moves.iter().map(|&(_, to)| to)),
-                    _ => None,
-                })
-                .flatten()
-                .filter_map(|n| Self::acr_data_to_disp_row_opt(&self.grid.disp_rows, n))
-                .collect();
+            let mut moved: Vec<usize> = self.extract_disp_moved_rows(&event_data);
             if !moved.is_empty() {
                 moved.sort_unstable();
-                for (start, end) in consecutive_ranges_borrowed(moved.iter()) {
-                    Self::acr_add_selection_box(
-                        &mut self.sel,
-                        &self.grid,
-                        start,
-                        end,
-                        0,
-                        NO_END,
-                        true,
-                    );
-                }
+                self.cr_select_rows_from(moved);
             }
         }
 

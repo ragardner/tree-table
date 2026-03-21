@@ -1,9 +1,7 @@
 use crate::EventData;
-use crate::NO_END;
 use crate::Table;
 use crate::Val;
 use crate::args::SortRowsArgs;
-use crate::utils::consecutive_ranges::consecutive_ranges_borrowed;
 use std::cell::RefCell;
 use std::cmp::Ordering;
 use std::collections::HashMap;
@@ -94,17 +92,7 @@ impl Table {
             let mut moved: Vec<usize> = self.extract_disp_moved_rows(&event_data);
             if !moved.is_empty() {
                 moved.sort_unstable();
-                for (start, end) in consecutive_ranges_borrowed(moved.iter()) {
-                    Self::acr_add_selection_box(
-                        &mut self.sel,
-                        &self.grid,
-                        start,
-                        end,
-                        0,
-                        NO_END,
-                        true,
-                    );
-                }
+                self.cr_select_rows_from(moved);
             }
         }
 

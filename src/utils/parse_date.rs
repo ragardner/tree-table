@@ -1,6 +1,80 @@
-use chrono::{DateTime, Duration, NaiveDate, NaiveDateTime, Utc};
-
 use crate::str_err;
+use chrono::{DateTime, Datelike, Duration, NaiveDate, NaiveDateTime, Utc};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Date parsing limits
+// ─────────────────────────────────────────────────────────────────────────────
+const MAX_DATE_STRING_LEN: usize = 60;
+
+// Supported year range (including negative/BC years)
+const MIN_YEAR: i32 = -9999;
+const MAX_YEAR: i32 = 9999;
+
+/// Year range considered plausible for legacy/business YYYYDDD ordinal dates.
+///
+/// Used as a heuristic to distinguish them from astronomy Julian Day numbers.
+///
+/// - Inside this range  → treated as business/legacy ordinal date
+/// - Outside this range → treated as Julian Day (covers ancient + modern astronomy dates)
+const LEGACY_ORDINAL_YEAR_RANGE: std::ops::RangeInclusive<i32> = 1900..=2200;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Astronomy date systems (pure-numeric special cases)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Modified Julian Date range for 5-digit pure-numeric input.
+/// Covers ~1968–2130. Chosen to avoid overlap with legacy YYDDD.
+const MJD_RANGE: std::ops::RangeInclusive<i64> = 40_000..=85_000;
+
+/// Julian Day (JD) range for 7-digit pure-numeric input.
+/// Covers ~5000 BC to ~10,700 AD
+const JD_RANGE: std::ops::RangeInclusive<i64> = 1_400_000..=4_000_000;
+
+/// When to treat a pure-numeric string as a Unix timestamp
+/// (seconds if ≤11 digits, milliseconds otherwise).
+const MIN_TIMESTAMP_DIGITS: usize = 9;
+const MAX_NUMERIC_DATE_DIGITS: usize = 19;
+const TIMESTAMP_SECONDS_MAX_DIGITS: usize = 11; // 9-11 digits = seconds
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Astronomical conversion constants (used in MJD/JD paths)
+// ─────────────────────────────────────────────────────────────────────────────
+const MJD_EPOCH_OFFSET: f64 = 40_587.0; // MJD 0 = 1858-11-17
+const JD_EPOCH_OFFSET: f64 = 2_440_587.5; // JD at 1970-01-01 00:00 UTC
+const SECONDS_PER_DAY: f64 = 86_400.0;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Date formats for attempted conversion
+// ─────────────────────────────────────────────────────────────────────────────
+const DATE_FORMATS: &[&str] = &[
+    "%Y-%m-%d", // ISO (highest)
+    "%Y-%m-%d %H:%M:%S",
+    "%Y-%m-%dT%H:%M:%S",
+    "%Y/%m/%d",
+    "%Y%m%d",
+    "%Y%m%d%H%M%S",
+    "%Y%m%dT%H%M%S",
+    // Slash & dot dates
+    "%d.%m.%Y",
+    "%m/%d/%Y",
+    "%m/%d/%y",
+    "%d/%m/%Y",
+    "%d/%m/%y",
+    "%d-%m-%Y",
+    "%m-%d-%Y",
+    // Compact (8-digit → 6-digit → 5-digit → 7-digit)
+    "%d%m%Y",
+    "%y%m%d", // YYMMDD
+    "%m%d%y", // MMDDYY
+    "%d%m%y", // DDMMYY
+    "%y%j",   // YYDDD (5-digit legacy ordinal date)
+    "%Y%j",   // YYYYDDD ordinal date
+    // English month names
+    "%d %b %Y",
+    "%b %d, %Y",
+    "%d %B %Y",
+    "%B %d, %Y",
+];
 
 /// Parses either:
 ///   - ISO 8601 duration (P1Y, P6M, P1Y3M2DT4H, P1DT2H30M45.5S, -P2W, PT1.5H, etc.)
@@ -183,37 +257,6 @@ fn parse_duration_part(
     Ok(())
 }
 
-const MAX_DATE_STRING_LEN: usize = 60;
-const DATE_FORMATS: &[&str] = &[
-    "%Y-%m-%d", // ISO (highest)
-    "%Y-%m-%d %H:%M:%S",
-    "%Y-%m-%dT%H:%M:%S",
-    "%Y/%m/%d",
-    "%Y%m%d",
-    "%Y%m%d%H%M%S",
-    "%Y%m%dT%H%M%S",
-    // Slash & dot dates
-    "%d.%m.%Y",
-    "%m/%d/%Y",
-    "%m/%d/%y",
-    "%d/%m/%Y",
-    "%d/%m/%y",
-    "%d-%m-%Y",
-    "%m-%d-%Y",
-    // Compact (8-digit → 6-digit → 5-digit → 7-digit)
-    "%d%m%Y",
-    "%y%m%d", // YYMMDD
-    "%m%d%y", // MMDDYY
-    "%d%m%y", // DDMMYY
-    "%y%j",   // YYDDD (5-digit legacy ordinal date)
-    "%Y%j",   // YYYYDDD ordinal date
-    // English month names
-    "%d %b %Y",
-    "%b %d, %Y",
-    "%d %B %Y",
-    "%B %d, %Y",
-];
-
 /// Assumed s is already trimmed by caller.
 pub fn try_parse_date_i64(s: &str) -> Option<i64> {
     if s.is_empty() || s.len() > MAX_DATE_STRING_LEN {
@@ -264,7 +307,7 @@ pub fn try_parse_date_i64(s: &str) -> Option<i64> {
         // Year-only: precisely 1–4 digits (including negative/BC years)
         if (1..=4).contains(&digit_count) {
             if let Ok(year) = s.parse::<i32>() {
-                if (-9999..=9999).contains(&year) {
+                if (MIN_YEAR..=MAX_YEAR).contains(&year) {
                     if let Some(ndt) =
                         NaiveDate::from_ymd_opt(year, 1, 1).and_then(|d| d.and_hms_opt(0, 0, 0))
                     {
@@ -285,49 +328,54 @@ pub fn try_parse_date_i64(s: &str) -> Option<i64> {
 
             // 2. Modified Julian Date (MJD) — astronomy/scientific tables
             if let Ok(n) = s.parse::<i64>() {
-                if n > 0 && (40_000..=85_000).contains(&n) {
-                    // ~1968 to ~2130
+                if MJD_RANGE.contains(&n) {
                     let mjd = n as f64;
-                    let unix_seconds = (mjd - 40_587.0) * 86_400.0;
+                    let unix_seconds = (mjd - MJD_EPOCH_OFFSET) * SECONDS_PER_DAY;
                     let millis = (unix_seconds * 1_000.0).round() as i64;
                     return Some(millis);
                 }
             }
         }
 
-        // 7-digit special handling — Julian Day + YYYYDDD
+        // 7-digit special handling — Business YYYYDDD first (only recent years),
+        // then Julian Day (astronomy) fallback.
+        //
+        // This heuristic is astronomer-friendly while protecting business use:
+        //   - "2025123"      → treated as 2025 day 123 (business/legacy)
+        //   - "1721058"      → treated as Julian Day (~year 1 AD)
+        //   - "2461120"      → treated as Julian Day (today's JD)
         if digit_count == 7 {
             if let Ok(n) = s.parse::<i64>() {
-                // 1. Julian Day (JD) — astronomy
-                if n > 0 && (2_000_000..=4_000_000).contains(&n) {
-                    // ~500 BC to ~10,000 AD
+                // 1. Business/legacy YYYYDDD ordinal date
+                if let Ok(date) = NaiveDate::parse_from_str(s, "%Y%j") {
+                    if LEGACY_ORDINAL_YEAR_RANGE.contains(&date.year()) {
+                        if let Some(ndt) = date.and_hms_opt(0, 0, 0) {
+                            return Some(ndt.and_utc().timestamp_millis());
+                        }
+                    }
+                    // Year outside plausible legacy range → fall through to Julian Day
+                }
+
+                // 2. Astronomy Julian Day fallback
+                if JD_RANGE.contains(&n) {
                     let jd = n as f64;
-                    let unix_seconds = (jd - 2_440_587.5) * 86_400.0;
+                    let unix_seconds = (jd - JD_EPOCH_OFFSET) * SECONDS_PER_DAY;
                     let millis = (unix_seconds * 1_000.0).round() as i64;
                     return Some(millis);
                 }
-                // 2. YYYYDDD ordinal fallback
-                if let Ok(date) = NaiveDate::parse_from_str(s, "%Y%j") {
-                    if let Some(ndt) = date.and_hms_opt(0, 0, 0) {
-                        return Some(ndt.and_utc().timestamp_millis());
-                    }
-                }
             }
         }
 
-        // Timestamp / large astronomical handling
-        if (9..=19).contains(&digit_count) {
+        // Timestamp / large numeric handling
+        if (MIN_TIMESTAMP_DIGITS..=MAX_NUMERIC_DATE_DIGITS).contains(&digit_count) {
             if let Ok(ts) = s.parse::<i64>() {
-                if digit_count <= 11 {
-                    return Some(ts.saturating_mul(1_000));
+                let millis = if digit_count <= TIMESTAMP_SECONDS_MAX_DIGITS {
+                    ts.saturating_mul(1_000)
                 } else {
-                    return Some(ts);
-                }
+                    ts
+                };
+                return Some(millis);
             }
-        }
-
-        if digit_count > 19 {
-            return None;
         }
     }
 
@@ -409,7 +457,7 @@ pub fn try_parse_date(s: &str) -> Result<DateTime<Utc>, String> {
         // Year-only: precisely 1–4 digits (including negative/BC years)
         if (1..=4).contains(&digit_count) {
             if let Ok(year) = s.parse::<i32>() {
-                if (-9999..=9999).contains(&year) {
+                if (MIN_YEAR..=MAX_YEAR).contains(&year) {
                     if let Some(ndt) =
                         NaiveDate::from_ymd_opt(year, 1, 1).and_then(|d| d.and_hms_opt(0, 0, 0))
                     {
@@ -435,9 +483,9 @@ pub fn try_parse_date(s: &str) -> Result<DateTime<Utc>, String> {
 
             // 2. Modified Julian Date (MJD) — astronomy/scientific tables
             if let Ok(n) = s.parse::<i64>() {
-                if n > 0 && (40_000..=85_000).contains(&n) {
+                if MJD_RANGE.contains(&n) {
                     let mjd = n as f64;
-                    let unix_seconds = (mjd - 40_587.0) * 86_400.0;
+                    let unix_seconds = (mjd - MJD_EPOCH_OFFSET) * SECONDS_PER_DAY;
                     let millis = (unix_seconds * 1_000.0).round() as i64;
                     if let Some(dt) = DateTime::<Utc>::from_timestamp_millis(millis) {
                         return Ok(dt);
@@ -450,13 +498,29 @@ pub fn try_parse_date(s: &str) -> Result<DateTime<Utc>, String> {
             }
         }
 
-        // 7-digit special handling — Julian Day + YYYYDDD
+        // 7-digit special handling — Business YYYYDDD first (only recent years),
+        // then Julian Day (astronomy) fallback.
+        //
+        // This heuristic is astronomer-friendly while protecting business use:
+        //   - "2025123"      → treated as 2025 day 123 (business/legacy)
+        //   - "1721058"      → treated as Julian Day (~year 1 AD)
+        //   - "2461120"      → treated as Julian Day (today's JD)
         if digit_count == 7 {
             if let Ok(n) = s.parse::<i64>() {
-                // 1. Julian Day (JD) — astronomy
-                if n > 0 && (2_000_000..=4_000_000).contains(&n) {
+                // 1. Business/legacy YYYYDDD ordinal date
+                if let Ok(date) = NaiveDate::parse_from_str(s, "%Y%j") {
+                    if LEGACY_ORDINAL_YEAR_RANGE.contains(&date.year()) {
+                        if let Some(ndt) = date.and_hms_opt(0, 0, 0) {
+                            return Ok(ndt.and_utc());
+                        }
+                    }
+                    // Year outside plausible legacy range → fall through to Julian Day
+                }
+
+                // 2. Astronomy Julian Day fallback
+                if JD_RANGE.contains(&n) {
                     let jd = n as f64;
-                    let unix_seconds = (jd - 2_440_587.5) * 86_400.0;
+                    let unix_seconds = (jd - JD_EPOCH_OFFSET) * SECONDS_PER_DAY;
                     let millis = (unix_seconds * 1_000.0).round() as i64;
                     if let Some(dt) = DateTime::<Utc>::from_timestamp_millis(millis) {
                         return Ok(dt);
@@ -466,19 +530,13 @@ pub fn try_parse_date(s: &str) -> Result<DateTime<Utc>, String> {
                         s
                     ));
                 }
-                // 2. YYYYDDD ordinal fallback
-                if let Ok(date) = NaiveDate::parse_from_str(s, "%Y%j") {
-                    if let Some(ndt) = date.and_hms_opt(0, 0, 0) {
-                        return Ok(ndt.and_utc());
-                    }
-                }
             }
         }
 
-        // Timestamp / large astronomical handling
-        if (9..=19).contains(&digit_count) {
+        // Timestamp / large numeric handling
+        if (MIN_TIMESTAMP_DIGITS..=MAX_NUMERIC_DATE_DIGITS).contains(&digit_count) {
             if let Ok(ts) = s.parse::<i64>() {
-                let millis = if digit_count <= 11 {
+                let millis = if digit_count <= TIMESTAMP_SECONDS_MAX_DIGITS {
                     ts.saturating_mul(1_000)
                 } else {
                     ts
@@ -493,10 +551,11 @@ pub fn try_parse_date(s: &str) -> Result<DateTime<Utc>, String> {
             }
         }
 
-        if digit_count > 19 {
+        if digit_count > MAX_NUMERIC_DATE_DIGITS {
             return Err(str_err!(
-                "pure numeric input has too many digits ({} > 19): '{}'",
+                "pure numeric input has too many digits ({} > {}): '{}'",
                 digit_count,
+                MAX_NUMERIC_DATE_DIGITS,
                 s
             ));
         }

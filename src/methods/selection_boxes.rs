@@ -1,10 +1,12 @@
 use crate::Change;
 use crate::EventData;
+use crate::NO_END;
 use crate::Selected;
 use crate::Selection;
 use crate::Span;
 use crate::Table;
 use crate::TableGrid;
+use crate::utils::consecutive_ranges::consecutive_ranges_owned;
 
 impl Table {
     pub(crate) fn acr_deselect_all(sel: &mut Selection, event_data: Option<&mut EventData>) {
@@ -52,5 +54,11 @@ impl Table {
     #[inline]
     pub(crate) fn acr_set_current_core(sel: &mut Selection, row: usize, col: usize, coords: Span) {
         sel.selected = Some(Selected { row, col, coords });
+    }
+
+    pub(crate) fn cr_select_rows_from(&mut self, rows: impl IntoIterator<Item = usize>) {
+        for (start, end) in consecutive_ranges_owned(rows.into_iter()) {
+            Self::acr_add_selection_box(&mut self.sel, &self.grid, start, end, 0, NO_END, true);
+        }
     }
 }

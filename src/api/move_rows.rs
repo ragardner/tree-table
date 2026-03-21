@@ -1,13 +1,11 @@
 use crate::Change;
 use crate::EventData;
-use crate::NO_END;
 use crate::Table;
 use crate::args::MoveArgs;
 use crate::statics::default_emit_event_for_api;
 use crate::statics::default_save_selection_for_api;
 use crate::statics::default_undo_for_api;
 use crate::str_err;
-use crate::utils::consecutive_ranges::consecutive_ranges_borrowed;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::collections::HashSet;
@@ -95,17 +93,7 @@ impl Table {
             let mut moved: Vec<usize> = self.extract_disp_moved_rows(&event_data);
             if !moved.is_empty() {
                 moved.sort_unstable();
-                for (start, end) in consecutive_ranges_borrowed(moved.iter()) {
-                    Self::acr_add_selection_box(
-                        &mut self.sel,
-                        &self.grid,
-                        start,
-                        end,
-                        0,
-                        NO_END,
-                        true,
-                    );
-                }
+                self.cr_select_rows_from(moved);
             }
         }
 
