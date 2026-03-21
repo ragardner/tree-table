@@ -1,5 +1,5 @@
-use crate::str_err;
-use chrono::{DateTime, Datelike, Duration, NaiveDate, NaiveDateTime, Utc};
+use crate::{DateParseOptions, str_err};
+use chrono::{DateTime, Datelike, NaiveDate, NaiveDateTime, Utc};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Date parsing limits
@@ -12,18 +12,16 @@ const MAX_YEAR: i32 = 9999;
 
 /// Year range considered plausible for legacy/business YYYYDDD ordinal dates.
 ///
-/// Used as a heuristic to distinguish them from astronomy Julian Day numbers.
-///
-/// - Inside this range  → treated as business/legacy ordinal date
-/// - Outside this range → treated as Julian Day (covers ancient + modern astronomy dates)
-const LEGACY_ORDINAL_YEAR_RANGE: std::ops::RangeInclusive<i32> = 1900..=2200;
+/// Used as a heuristic in "auto" mode and enforced strictly in "legacy" mode.
+/// In "scientific" mode this range is ignored (JD/MJD takes priority).
+const LEGACY_ORDINAL_YEAR_RANGE: std::ops::RangeInclusive<i32> = 1850..=2300;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Astronomy date systems (pure-numeric special cases)
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// Modified Julian Date range for 5-digit pure-numeric input.
-/// Covers ~1968–2130. Chosen to avoid overlap with legacy YYDDD.
+/// Covers ~1968–2130.
 const MJD_RANGE: std::ops::RangeInclusive<i64> = 40_000..=85_000;
 
 /// Julian Day (JD) range for 7-digit pure-numeric input.
@@ -46,363 +44,94 @@ const SECONDS_PER_DAY: f64 = 86_400.0;
 // ─────────────────────────────────────────────────────────────────────────────
 // Date formats for attempted conversion
 // ─────────────────────────────────────────────────────────────────────────────
-const DATE_FORMATS: &[&str] = &[
-    "%Y-%m-%d", // ISO (highest)
+const DATE_FORMATS_UNAMBIGUOUS: &[&str] = &[
+    // Datetime variants first (most specific)
     "%Y-%m-%d %H:%M:%S",
+    "%Y-%m-%d %H:%M",
     "%Y-%m-%dT%H:%M:%S",
+    "%Y-%m-%dT%H:%M",
+    "%Y-%m-%d", // ISO (still high priority)
+    "%Y/%m/%d %H:%M:%S",
+    "%Y/%m/%d %H:%M",
     "%Y/%m/%d",
-    "%Y%m%d",
     "%Y%m%d%H%M%S",
     "%Y%m%dT%H%M%S",
-    // Slash & dot dates
+    "%Y%m%d", // year-first compact
+    "%d.%m.%Y %H:%M:%S",
+    "%d.%m.%Y %H:%M",
     "%d.%m.%Y",
-    "%m/%d/%Y",
-    "%m/%d/%y",
-    "%d/%m/%Y",
-    "%d/%m/%y",
+    "%d.%m.%y",
+    "%d-%m-%Y %H:%M:%S",
+    "%d-%m-%Y %H:%M",
     "%d-%m-%Y",
-    "%m-%d-%Y",
-    // Compact (8-digit → 6-digit → 5-digit → 7-digit)
-    "%d%m%Y",
-    "%y%m%d", // YYMMDD
-    "%m%d%y", // MMDDYY
-    "%d%m%y", // DDMMYY
-    "%y%j",   // YYDDD (5-digit legacy ordinal date)
-    "%Y%j",   // YYYYDDD ordinal date
-    // English month names
+    "%d-%m-%y",
+    "%y%m%d", // YYMMDD - still useful for non-pure-numeric or 6-digit cases
+    // Note: "%Y%j" and "%y%j" are now handled exclusively in the
+    // pure-numeric special path for proper mode control (auto/legacy/scientific).
+    // Named months (completely unambiguous)
+    "%d %b %Y %H:%M:%S",
+    "%d %b %Y %H:%M",
     "%d %b %Y",
+    "%b %d, %Y %H:%M:%S",
+    "%b %d, %Y %H:%M",
     "%b %d, %Y",
+    "%d %B %Y %H:%M:%S",
+    "%d %B %Y %H:%M",
     "%d %B %Y",
+    "%B %d, %Y %H:%M:%S",
+    "%B %d, %Y %H:%M",
     "%B %d, %Y",
 ];
+const DATE_FORMATS_DAY_FIRST: &[&str] = &[
+    // Datetime first
+    "%d/%m/%Y %H:%M:%S",
+    "%d/%m/%Y %H:%M",
+    "%d/%m/%y %H:%M:%S",
+    "%d/%m/%y %H:%M",
+    "%d/%m/%Y",
+    "%d/%m/%y",
+    "%d%m%Y", // compact day-first (no separator)
+    "%d%m%y",
+];
+const DATE_FORMATS_MONTH_FIRST: &[&str] = &[
+    // Datetime first
+    "%m/%d/%Y %H:%M:%S",
+    "%m/%d/%Y %H:%M",
+    "%m/%d/%y %H:%M:%S",
+    "%m/%d/%y %H:%M",
+    "%m/%d/%Y",
+    "%m/%d/%y",
+    "%m%d%Y", // compact month-first (no separator)
+    "%m%d%y",
+    "%m-%d-%Y", // rare US hyphen style
+    "%m-%d-%y",
+];
 
-/// Parses either:
-///   - ISO 8601 duration (P1Y, P6M, P1Y3M2DT4H, P1DT2H30M45.5S, -P2W, PT1.5H, etc.)
-///     → Years/months use common averages: 1Y = 365.25 days, 1M ≈ 30.4375 days
-///   - or legacy plain integer milliseconds
-pub fn try_parse_duration(s: &str) -> Result<Duration, String> {
-    let trimmed = s.trim();
-    if trimmed.is_empty() {
-        return Err("empty duration".to_string());
-    }
+#[derive(Clone, Copy, PartialEq)]
+enum DateParseMode {
+    /// **Default mode** — Smart heuristic:
+    /// - 5/7-digit pure-numeric inside `LEGACY_ORDINAL_YEAR_RANGE` (1850–2300) → treated as business ordinal (YYYYDDD / YYDDD)
+    /// - Outside that range or invalid ordinal → treated as MJD or JD
+    Auto,
 
-    // Prefer ISO 8601 if it starts with P (case-insensitive)
-    let is_iso_candidate = trimmed
-        .chars()
-        .next()
-        .map_or(false, |c| c.to_ascii_lowercase() == 'p')
-        || (trimmed.starts_with('-')
-            && trimmed
-                .chars()
-                .nth(1)
-                .map_or(false, |c| c.to_ascii_lowercase() == 'p'));
+    /// Business/legacy-only mode:
+    /// Only accepts ordinal dates (YYYYDDD / YYDDD). No astronomy (JD/MJD) support.
+    /// Strict and predictable for ERP/mainframe data.
+    Legacy,
 
-    if is_iso_candidate {
-        match parse_iso_duration(trimmed) {
-            Ok(dur) => return Ok(dur),
-            Err(e) => return Err(format!("Invalid ISO 8601 duration: {}", e)),
-        }
-    } else {
-        // Legacy numeric path
-        let ms: i64 = trimmed
-            .parse()
-            .map_err(|e| format!("Cannot parse '{}' as milliseconds: {}", trimmed, e))?;
-        Ok(Duration::milliseconds(ms))
-    }
-}
-
-const NS_PER_YEAR: i128 = 31_557_600_000_000_000; // 365.25 days (common Julian/Gregorian-average approximation)
-const NS_PER_MONTH: i128 = 2_629_800_000_000_000; // 30.4375 days (exactly 365.25 / 12)
-const NS_PER_WEEK: i128 = 604_800_000_000_000; // 7 days
-const NS_PER_DAY: i128 = 86_400_000_000_000; // 24 hours
-const NS_PER_HOUR: i128 = 3_600_000_000_000; // 60 minutes
-const NS_PER_MINUTE: i128 = 60_000_000_000; // 60 seconds
-const NS_PER_SECOND: i128 = 1_000_000_000; // 10^9 ns
-
-fn parse_iso_duration(s: &str) -> Result<Duration, String> {
-    let mut sign: i64 = 1;
-    let mut input = s;
-    if input.starts_with('-') {
-        sign = -1;
-        input = &input[1..];
-    }
-
-    // Strip P (case-insensitive) and reject whitespace
-    let input = if let Some(rest) = input.strip_prefix(|c: char| c.to_ascii_lowercase() == 'p') {
-        if rest.contains(|c: char| c.is_ascii_whitespace()) {
-            return Err("ISO duration may not contain whitespace".to_string());
-        }
-        rest
-    } else {
-        return Err("ISO duration must start with P or -P".to_string());
-    };
-
-    // Split on T/t (case-insensitive)
-    let t_pos = input.find(|c: char| c.to_ascii_lowercase() == 't');
-    let (date_part, time_part) = match t_pos {
-        Some(pos) => {
-            if pos == input.len() - 1 {
-                return Err("T separator present but no time components follow".to_string());
-            }
-            if input[pos + 1..]
-                .find(|c: char| c.to_ascii_lowercase() == 't')
-                .is_some()
-            {
-                return Err("Multiple 'T' separators not allowed".to_string());
-            }
-            (&input[..pos], &input[pos + 1..])
-        }
-        None => (input, ""),
-    };
-
-    let mut total_ns: i128 = 0;
-    let mut has_fraction = false;
-
-    parse_duration_part(date_part.as_bytes(), &mut total_ns, true, &mut has_fraction)?;
-    parse_duration_part(
-        time_part.as_bytes(),
-        &mut total_ns,
-        false,
-        &mut has_fraction,
-    )?;
-
-    total_ns *= sign as i128;
-
-    if total_ns > i64::MAX as i128 || total_ns < i64::MIN as i128 {
-        return Err("Duration value out of range (max ~292 years)".to_string());
-    }
-
-    Ok(Duration::nanoseconds(total_ns as i64))
-}
-
-fn parse_duration_part(
-    chars: &[u8],
-    total_ns: &mut i128,
-    is_date: bool,
-    has_fraction: &mut bool,
-) -> Result<(), String> {
-    let mut i = 0;
-    while i < chars.len() {
-        if *has_fraction {
-            return Err("No components allowed after a fractional component".to_string());
-        }
-
-        // Parse integer
-        let start = i;
-        while i < chars.len() && chars[i].is_ascii_digit() {
-            i += 1;
-        }
-        if start == i {
-            return Err("Expected a number".to_string());
-        }
-        let int: i64 = std::str::from_utf8(&chars[start..i])
-            .unwrap()
-            .parse()
-            .map_err(|e: std::num::ParseIntError| e.to_string())?;
-
-        // Optional fraction (`.` or `,`)
-        let mut frac_num: i64 = 0;
-        let mut frac_digits: usize = 0;
-        if i < chars.len() && matches!(chars[i], b'.' | b',') {
-            i += 1;
-            let frac_start = i;
-            while i < chars.len() && chars[i].is_ascii_digit() {
-                i += 1;
-            }
-            frac_digits = i - frac_start;
-            if frac_digits == 0 {
-                return Err("Empty fraction after decimal/comma".to_string());
-            }
-            if frac_digits > 9 {
-                return Err("Too many decimal places (max 9 for nanosecond precision)".to_string());
-            }
-            frac_num = std::str::from_utf8(&chars[frac_start..i])
-                .unwrap()
-                .parse()
-                .map_err(|e: std::num::ParseIntError| e.to_string())?;
-        }
-
-        if i >= chars.len() {
-            return Err("Missing unit after number".to_string());
-        }
-
-        let unit = (chars[i] as char).to_ascii_uppercase();
-        i += 1;
-
-        let factor = match (is_date, unit) {
-            (true, 'Y') => NS_PER_YEAR,
-            (true, 'M') => NS_PER_MONTH,
-            (true, 'W') => NS_PER_WEEK,
-            (true, 'D') => NS_PER_DAY,
-            (false, 'H') => NS_PER_HOUR,
-            (false, 'M') => NS_PER_MINUTE,
-            (false, 'S') => NS_PER_SECOND,
-            _ => return Err(format!("Unknown duration unit: {}", unit)),
-        };
-
-        let int_i128 = int as i128;
-        let frac_contrib = if frac_digits > 0 {
-            let frac_div = 10i64.pow(frac_digits as u32) as i128;
-            (frac_num as i128 * factor) / frac_div
-        } else {
-            0
-        };
-
-        *total_ns += int_i128 * factor + frac_contrib;
-
-        if frac_digits > 0 {
-            *has_fraction = true;
-        }
-    }
-    Ok(())
-}
-
-/// Assumed s is already trimmed by caller.
-pub fn try_parse_date_i64(s: &str) -> Option<i64> {
-    if s.is_empty() || s.len() > MAX_DATE_STRING_LEN {
-        return None;
-    }
-
-    let mut has_digit = false;
-    let mut has_indicator = false;
-    let mut is_pure_numeric = true;
-
-    for &b in s.as_bytes() {
-        if b.is_ascii_digit() {
-            has_digit = true;
-            if has_indicator {
-                break;
-            }
-        } else if matches!(b, b'/' | b'.' | b' ' | b':' | b'T' | b',') {
-            has_indicator = true;
-            if has_digit {
-                break;
-            }
-            is_pure_numeric = false;
-        } else if b.is_ascii_alphabetic() {
-            has_indicator = true;
-            if has_digit {
-                break;
-            }
-            is_pure_numeric = false;
-        } else if b == b'-' || b == b'+' {
-            has_indicator = true;
-            if has_digit {
-                break;
-            }
-        } else {
-            is_pure_numeric = false;
-        }
-    }
-
-    let could_be_date = has_digit && (has_indicator || (is_pure_numeric && s.len() >= 4));
-    if !could_be_date {
-        return None;
-    }
-
-    if is_pure_numeric {
-        let sign_len = s.chars().take_while(|&c| c == '-' || c == '+').count();
-        let digit_count = s.len() - sign_len;
-
-        // Year-only: precisely 1–4 digits (including negative/BC years)
-        if (1..=4).contains(&digit_count) {
-            if let Ok(year) = s.parse::<i32>() {
-                if (MIN_YEAR..=MAX_YEAR).contains(&year) {
-                    if let Some(ndt) =
-                        NaiveDate::from_ymd_opt(year, 1, 1).and_then(|d| d.and_hms_opt(0, 0, 0))
-                    {
-                        return Some(ndt.and_utc().timestamp_millis());
-                    }
-                }
-            }
-        }
-
-        // 5-digit special handling — legacy YYDDD + astronomy MJD
-        if digit_count == 5 {
-            // 1. Legacy YYDDD (most common in enterprise/legacy systems)
-            if let Ok(date) = NaiveDate::parse_from_str(s, "%y%j") {
-                if let Some(ndt) = date.and_hms_opt(0, 0, 0) {
-                    return Some(ndt.and_utc().timestamp_millis());
-                }
-            }
-
-            // 2. Modified Julian Date (MJD) — astronomy/scientific tables
-            if let Ok(n) = s.parse::<i64>() {
-                if MJD_RANGE.contains(&n) {
-                    let mjd = n as f64;
-                    let unix_seconds = (mjd - MJD_EPOCH_OFFSET) * SECONDS_PER_DAY;
-                    let millis = (unix_seconds * 1_000.0).round() as i64;
-                    return Some(millis);
-                }
-            }
-        }
-
-        // 7-digit special handling — Business YYYYDDD first (only recent years),
-        // then Julian Day (astronomy) fallback.
-        //
-        // This heuristic is astronomer-friendly while protecting business use:
-        //   - "2025123"      → treated as 2025 day 123 (business/legacy)
-        //   - "1721058"      → treated as Julian Day (~year 1 AD)
-        //   - "2461120"      → treated as Julian Day (today's JD)
-        if digit_count == 7 {
-            if let Ok(n) = s.parse::<i64>() {
-                // 1. Business/legacy YYYYDDD ordinal date
-                if let Ok(date) = NaiveDate::parse_from_str(s, "%Y%j") {
-                    if LEGACY_ORDINAL_YEAR_RANGE.contains(&date.year()) {
-                        if let Some(ndt) = date.and_hms_opt(0, 0, 0) {
-                            return Some(ndt.and_utc().timestamp_millis());
-                        }
-                    }
-                    // Year outside plausible legacy range → fall through to Julian Day
-                }
-
-                // 2. Astronomy Julian Day fallback
-                if JD_RANGE.contains(&n) {
-                    let jd = n as f64;
-                    let unix_seconds = (jd - JD_EPOCH_OFFSET) * SECONDS_PER_DAY;
-                    let millis = (unix_seconds * 1_000.0).round() as i64;
-                    return Some(millis);
-                }
-            }
-        }
-
-        // Timestamp / large numeric handling
-        if (MIN_TIMESTAMP_DIGITS..=MAX_NUMERIC_DATE_DIGITS).contains(&digit_count) {
-            if let Ok(ts) = s.parse::<i64>() {
-                let millis = if digit_count <= TIMESTAMP_SECONDS_MAX_DIGITS {
-                    ts.saturating_mul(1_000)
-                } else {
-                    ts
-                };
-                return Some(millis);
-            }
-        }
-    }
-
-    // Try all formats
-    for &fmt in DATE_FORMATS {
-        if let Ok(ndt) = NaiveDateTime::parse_from_str(s, fmt) {
-            return Some(ndt.and_utc().timestamp_millis());
-        }
-        if let Ok(date) = NaiveDate::parse_from_str(s, fmt) {
-            if let Some(ndt) = date.and_hms_opt(0, 0, 0) {
-                return Some(ndt.and_utc().timestamp_millis());
-            }
-        }
-    }
-
-    // RFC3339 fallback
-    if let Ok(dt) = chrono::DateTime::parse_from_rfc3339(s) {
-        return Some(dt.with_timezone(&Utc).timestamp_millis());
-    }
-
-    None
+    /// Scientific / astronomy-first mode:
+    /// Prioritizes MJD (5-digit) and JD (7-digit). Ordinals are only fallback.
+    /// Use this when parsing data from astronomy tools or large numeric epochs.
+    Scientific,
 }
 
 /// Assumed s is already trimmed by caller.
 /// Returns the parsed `DateTime<Utc>` (midnight UTC if only a date was supplied)
 /// or a descriptive error string via the `str_err!` macro.
-pub fn try_parse_date(s: &str) -> Result<DateTime<Utc>, String> {
+pub fn try_parse_date(
+    s: &str,
+    opts_borrowed: &Option<DateParseOptions>,
+) -> Result<DateTime<Utc>, String> {
     if s.is_empty() || s.len() > MAX_DATE_STRING_LEN {
         return Err(str_err!(
             "input string is empty or exceeds maximum length of {} characters",
@@ -410,51 +139,56 @@ pub fn try_parse_date(s: &str) -> Result<DateTime<Utc>, String> {
         ));
     }
 
-    let mut has_digit = false;
-    let mut has_indicator = false;
-    let mut is_pure_numeric = true;
+    let mut mode_str = "auto";
+    let mut day_first_opt: Option<bool> = None;
 
-    for &b in s.as_bytes() {
-        if b.is_ascii_digit() {
-            has_digit = true;
-            if has_indicator {
-                break;
-            }
-        } else if matches!(b, b'/' | b'.' | b' ' | b':' | b'T' | b',') {
-            has_indicator = true;
-            if has_digit {
-                break;
-            }
-            is_pure_numeric = false;
-        } else if b.is_ascii_alphabetic() {
-            has_indicator = true;
-            if has_digit {
-                break;
-            }
-            is_pure_numeric = false;
-        } else if b == b'-' || b == b'+' {
-            has_indicator = true;
-            if has_digit {
-                break;
-            }
-        } else {
-            is_pure_numeric = false;
+    if let Some(opts) = opts_borrowed {
+        if let Some(m) = &opts.parse {
+            mode_str = m.as_str();
         }
+        day_first_opt = opts.day_first;
     }
 
-    let could_be_date = has_digit && (has_indicator || (is_pure_numeric && s.len() >= 4));
-    if !could_be_date {
+    // ────── Explicit format path (highest priority — completely unchanged) ──────
+    if mode_str.contains('%') {
+        if let Ok(ndt) = NaiveDateTime::parse_from_str(s, mode_str) {
+            return Ok(ndt.and_utc());
+        }
+        if let Ok(date) = NaiveDate::parse_from_str(s, mode_str) {
+            if let Some(ndt) = date.and_hms_opt(0, 0, 0) {
+                return Ok(ndt.and_utc());
+            }
+        }
         return Err(str_err!(
-            "string does not look like a date (no digits or invalid characters): '{}'",
-            s
+            "failed to parse '{}' using explicit format '{}'",
+            s,
+            mode_str
         ));
     }
 
+    // Resolve string → clean internal mode
+    let mode = match mode_str {
+        "legacy" => DateParseMode::Legacy,
+        "scientific" => DateParseMode::Scientific,
+        _ => DateParseMode::Auto, // "auto" or anything else = default
+    };
+
+    let is_pure_numeric = match classify_date_input(s) {
+        Some(pure) => pure,
+        None => {
+            return Err(str_err!(
+                "string does not look like a date (no digits or invalid characters): '{}'",
+                s
+            ));
+        }
+    };
+
+    // ────── Pure numeric special handling (now mode-aware) ──────
     if is_pure_numeric {
         let sign_len = s.chars().take_while(|&c| c == '-' || c == '+').count();
         let digit_count = s.len() - sign_len;
 
-        // Year-only: precisely 1–4 digits (including negative/BC years)
+        // Year-only (common to all modes)
         if (1..=4).contains(&digit_count) {
             if let Ok(year) = s.parse::<i32>() {
                 if (MIN_YEAR..=MAX_YEAR).contains(&year) {
@@ -465,75 +199,37 @@ pub fn try_parse_date(s: &str) -> Result<DateTime<Utc>, String> {
                     }
                 }
             }
-            // If we got here the year was out of range
             return Err(str_err!(
                 "year-only numeric value out of supported range: '{}'",
                 s
             ));
         }
 
-        // 5-digit special handling — legacy YYDDD + astronomy MJD
+        // 5-digit handling
         if digit_count == 5 {
-            // 1. Legacy YYDDD (most common in enterprise/legacy systems)
-            if let Ok(date) = NaiveDate::parse_from_str(s, "%y%j") {
-                if let Some(ndt) = date.and_hms_opt(0, 0, 0) {
-                    return Ok(ndt.and_utc());
-                }
-            }
-
-            // 2. Modified Julian Date (MJD) — astronomy/scientific tables
-            if let Ok(n) = s.parse::<i64>() {
-                if MJD_RANGE.contains(&n) {
-                    let mjd = n as f64;
-                    let unix_seconds = (mjd - MJD_EPOCH_OFFSET) * SECONDS_PER_DAY;
-                    let millis = (unix_seconds * 1_000.0).round() as i64;
-                    if let Some(dt) = DateTime::<Utc>::from_timestamp_millis(millis) {
-                        return Ok(dt);
-                    }
-                    return Err(str_err!(
-                        "MJD value '{}' produced a timestamp outside the supported range",
-                        s
-                    ));
-                }
+            let dt = match mode {
+                DateParseMode::Legacy => parse_yyddd(s),
+                DateParseMode::Scientific => parse_mjd(s).or_else(|| parse_yyddd(s)), // clean & matches 7-digit style
+                DateParseMode::Auto => parse_yyddd(s).or_else(|| parse_mjd(s)),
+            };
+            if let Some(dt) = dt {
+                return Ok(dt);
             }
         }
 
-        // 7-digit special handling — Business YYYYDDD first (only recent years),
-        // then Julian Day (astronomy) fallback.
-        //
-        // This heuristic is astronomer-friendly while protecting business use:
-        //   - "2025123"      → treated as 2025 day 123 (business/legacy)
-        //   - "1721058"      → treated as Julian Day (~year 1 AD)
-        //   - "2461120"      → treated as Julian Day (today's JD)
+        // 7-digit handling
         if digit_count == 7 {
-            if let Ok(n) = s.parse::<i64>() {
-                // 1. Business/legacy YYYYDDD ordinal date
-                if let Ok(date) = NaiveDate::parse_from_str(s, "%Y%j") {
-                    if LEGACY_ORDINAL_YEAR_RANGE.contains(&date.year()) {
-                        if let Some(ndt) = date.and_hms_opt(0, 0, 0) {
-                            return Ok(ndt.and_utc());
-                        }
-                    }
-                    // Year outside plausible legacy range → fall through to Julian Day
-                }
-
-                // 2. Astronomy Julian Day fallback
-                if JD_RANGE.contains(&n) {
-                    let jd = n as f64;
-                    let unix_seconds = (jd - JD_EPOCH_OFFSET) * SECONDS_PER_DAY;
-                    let millis = (unix_seconds * 1_000.0).round() as i64;
-                    if let Some(dt) = DateTime::<Utc>::from_timestamp_millis(millis) {
-                        return Ok(dt);
-                    }
-                    return Err(str_err!(
-                        "Julian Day value '{}' produced a timestamp outside the supported range",
-                        s
-                    ));
-                }
+            let dt = match mode {
+                DateParseMode::Legacy => parse_yyyyjjj(s),
+                DateParseMode::Scientific => parse_jd(s).or_else(|| parse_yyyyjjj(s)),
+                DateParseMode::Auto => parse_yyyyjjj(s).or_else(|| parse_jd(s)),
+            };
+            if let Some(dt) = dt {
+                return Ok(dt);
             }
         }
 
-        // Timestamp / large numeric handling
+        // Timestamp / large numeric fallback (common to all modes) ← this is perfect
         if (MIN_TIMESTAMP_DIGITS..=MAX_NUMERIC_DATE_DIGITS).contains(&digit_count) {
             if let Ok(ts) = s.parse::<i64>() {
                 let millis = if digit_count <= TIMESTAMP_SECONDS_MAX_DIGITS {
@@ -561,26 +257,139 @@ pub fn try_parse_date(s: &str) -> Result<DateTime<Utc>, String> {
         }
     }
 
-    // Try all formats
-    for &fmt in DATE_FORMATS {
+    // ────── Format parsing — unambiguous first, then slash formats controlled by day_first ──────
+    // helper
+    let try_parse_fmt = |fmt: &str| -> Option<DateTime<Utc>> {
         if let Ok(ndt) = NaiveDateTime::parse_from_str(s, fmt) {
-            return Ok(ndt.and_utc());
+            return Some(ndt.and_utc());
         }
         if let Ok(date) = NaiveDate::parse_from_str(s, fmt) {
-            if let Some(ndt) = date.and_hms_opt(0, 0, 0) {
-                return Ok(ndt.and_utc());
-            }
+            return date.and_hms_opt(0, 0, 0).map(|ndt| ndt.and_utc());
+        }
+        None
+    };
+    // 1. Unambiguous formats (always tried first — no day_first dependency)
+    for &fmt in DATE_FORMATS_UNAMBIGUOUS {
+        if let Some(dt) = try_parse_fmt(fmt) {
+            return Ok(dt);
         }
     }
 
-    // RFC3339 fallback
+    // 2. Region-dependent formats (the only ones that respect day_first_opt)
+    let region_formats = match day_first_opt {
+        Some(true) => DATE_FORMATS_DAY_FIRST,
+        _ => DATE_FORMATS_MONTH_FIRST, // None or false → American (month-first) default
+    };
+    for &fmt in region_formats {
+        if let Some(dt) = try_parse_fmt(fmt) {
+            return Ok(dt);
+        }
+    }
+
+    // RFC3339 last
     if let Ok(dt) = chrono::DateTime::parse_from_rfc3339(s) {
         return Ok(dt.with_timezone(&Utc));
     }
 
-    // If we reach here, nothing matched
     Err(str_err!(
         "failed to parse date string '{}' with any supported format (including RFC3339)",
         s
     ))
+}
+
+/// Same parsing logic as `try_parse_date`, but returns the Unix timestamp
+/// in **milliseconds** since the epoch (1970-01-01 00:00:00 UTC).
+///
+/// - Returns `Some(millis)` on successful parse (can be negative for pre-1970 dates).
+/// - Returns `None` for any parse failure (empty string, invalid format, out-of-range, etc.).
+///   No error string is returned — ideal for sorting, indexing, comparisons, etc.
+///
+/// This function reuses the exact same logic, modes, and options as `try_parse_date`.
+pub fn try_parse_date_millis(s: &str, opts_borrowed: &Option<DateParseOptions>) -> Option<i64> {
+    try_parse_date(s, opts_borrowed)
+        .ok()
+        .map(|dt| dt.timestamp_millis())
+}
+
+/// Returns:
+///     Some(is_pure_numeric)  → string looks like a valid date, proceed
+///     None                   → quick reject, not a date
+#[inline(always)]
+fn classify_date_input(s: &str) -> Option<bool> {
+    let mut has_digit = false;
+    let mut has_indicator = false;
+    let mut is_pure_numeric = true;
+    for &b in s.as_bytes() {
+        if b.is_ascii_digit() {
+            has_digit = true;
+            if has_indicator {
+                break;
+            }
+        } else if matches!(b, b'/' | b'.' | b' ' | b':' | b'T' | b',') {
+            has_indicator = true;
+            if has_digit {
+                break;
+            }
+            is_pure_numeric = false;
+        } else if b.is_ascii_alphabetic() {
+            has_indicator = true;
+            if has_digit {
+                break;
+            }
+            is_pure_numeric = false;
+        } else if b == b'-' || b == b'+' {
+            has_indicator = true;
+            if has_digit {
+                break;
+            }
+        } else {
+            is_pure_numeric = false;
+        }
+    }
+    let could_be_date = has_digit && (has_indicator || (is_pure_numeric && s.len() >= 4));
+    if could_be_date {
+        Some(is_pure_numeric)
+    } else {
+        None
+    }
+}
+
+/// 5-digit legacy ordinal: YYDDD (used by legacy + auto modes)
+fn parse_yyddd(s: &str) -> Option<DateTime<Utc>> {
+    NaiveDate::parse_from_str(s, "%y%j")
+        .ok()
+        .and_then(|d| d.and_hms_opt(0, 0, 0).map(|ndt| ndt.and_utc()))
+}
+
+/// 7-digit legacy ordinal: YYYYDDD (only accepted inside LEGACY_ORDINAL_YEAR_RANGE)
+fn parse_yyyyjjj(s: &str) -> Option<DateTime<Utc>> {
+    let date = NaiveDate::parse_from_str(s, "%Y%j").ok()?;
+    if !LEGACY_ORDINAL_YEAR_RANGE.contains(&date.year()) {
+        return None;
+    }
+    date.and_hms_opt(0, 0, 0).map(|ndt| ndt.and_utc())
+}
+
+/// 5-digit Modified Julian Date (MJD)
+fn parse_mjd(s: &str) -> Option<DateTime<Utc>> {
+    let n: i64 = s.parse().ok()?;
+    if !MJD_RANGE.contains(&n) {
+        return None;
+    }
+    let mjd = n as f64;
+    let unix_seconds = (mjd - MJD_EPOCH_OFFSET) * SECONDS_PER_DAY;
+    let millis = (unix_seconds * 1_000.0).round() as i64;
+    DateTime::<Utc>::from_timestamp_millis(millis)
+}
+
+/// 7-digit Julian Day (JD)
+fn parse_jd(s: &str) -> Option<DateTime<Utc>> {
+    let n: i64 = s.parse().ok()?;
+    if !JD_RANGE.contains(&n) {
+        return None;
+    }
+    let jd = n as f64;
+    let unix_seconds = (jd - JD_EPOCH_OFFSET) * SECONDS_PER_DAY;
+    let millis = (unix_seconds * 1_000.0).round() as i64;
+    DateTime::<Utc>::from_timestamp_millis(millis)
 }

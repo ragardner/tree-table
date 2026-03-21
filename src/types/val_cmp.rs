@@ -1,5 +1,6 @@
 use crate::Val;
-use crate::utils::parse_date::{try_parse_date_i64, try_parse_duration};
+use crate::utils::parse_date::try_parse_date_millis;
+use crate::utils::parse_dur::try_parse_duration;
 use crate::utils::utils_fns::{natural_text_segments, natural_text_segments_cs};
 use bigdecimal::ToPrimitive;
 use num_bigint::Sign;
@@ -224,7 +225,7 @@ impl Val {
         if let Ok(dur) = try_parse_duration(trimmed) {
             return NaturalKey::Number(dur.num_milliseconds().into());
         }
-        if let Some(ts) = try_parse_date_i64(trimmed) {
+        if let Some(ts) = try_parse_date_millis(trimmed, &None) {
             return NaturalKey::Date(ts);
         }
         NaturalKey::Text(natural_components(trimmed))
@@ -238,13 +239,13 @@ impl Val {
         if let Ok(dur) = try_parse_duration(trimmed) {
             return NaturalKey::Number(dur.num_milliseconds().into());
         }
-        if let Some(ts) = try_parse_date_i64(trimmed) {
+        if let Some(ts) = try_parse_date_millis(trimmed, &None) {
             return NaturalKey::Date(ts);
         }
         NaturalKey::Text(cs_natural_components(trimmed))
     }
     fn date_key_from_string(trimmed: &str) -> NaturalKey {
-        if let Some(ts) = try_parse_date_i64(trimmed) {
+        if let Some(ts) = try_parse_date_millis(trimmed, &None) {
             return NaturalKey::Date(ts);
         }
         if let Ok(f) = trimmed.parse::<f64>() {

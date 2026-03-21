@@ -1,8 +1,4 @@
-use crate::Change;
 use crate::DataFormat;
-use crate::EventData;
-use crate::HeaderCell;
-use crate::IndexCell;
 use crate::Table;
 use crate::Val;
 use std::borrow::Cow;

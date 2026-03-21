@@ -27,7 +27,7 @@ pub use args_align::CellAlignArgs;
 pub use args_borders::{BorderArgs, BordersArgs, SetBordersArgs};
 pub use args_checkbox::{CheckboxArgs, SetCheckboxArgs};
 pub use args_data::{FillDataArgs, GetDataIidsArgs, GetDataSpanArgs, GetDataYxArgs, SetDataArgs};
-pub use args_data_format::DataFormatArgs;
+pub use args_data_format::{DataFormatArgs, FormatSpec};
 pub use args_del::{DelArgs, DelPosArgs};
 pub use args_dropdown::{DropdownArgs, SetDropdownArgs};
 pub use args_highlight::HighlightArgs;

@@ -1,15 +1,19 @@
 use crate::DataFormat;
 use crate::EventData;
+use crate::FormatSpec;
 use crate::Table;
 use crate::args::DataFormatArgs;
 use crate::string_to_data_format;
 use std::cell::RefCell;
 use std::rc::Rc;
 
-fn parse_data_format(fmt: Option<String>) -> Result<Option<DataFormat>, String> {
-    fmt.filter(|s| !s.is_empty())
-        .map(|s| string_to_data_format(&s))
-        .transpose()
+fn parse_format_spec(spec: Option<FormatSpec>) -> Result<Option<DataFormat>, String> {
+    match spec {
+        None => Ok(None),
+        Some(FormatSpec::Simple(s)) if !s.is_empty() => string_to_data_format(&s).map(Some),
+        Some(FormatSpec::Simple(_)) => Ok(None),
+        Some(FormatSpec::Rich(df)) => Ok(Some(df)),
+    }
 }
 
 impl Table {
@@ -19,7 +23,7 @@ impl Table {
     ) -> Result<Option<Rc<RefCell<EventData>>>, String> {
         let kwargs = kwargs.unwrap_or_default();
         let span = self.cr_key_to_span(kwargs.key)?;
-        let fmt = parse_data_format(kwargs.fmt)?;
+        let fmt = parse_format_spec(kwargs.fmt)?;
         let mut event_data = self.cr_new_event(kwargs.save_selection);
         let normalize = kwargs.fmt_normalize;
         let ignore_fmt_errs = kwargs.ignore_fmt_errs;
@@ -78,7 +82,7 @@ impl Table {
     ) -> Result<Option<Rc<RefCell<EventData>>>, String> {
         let kwargs: DataFormatArgs = kwargs.unwrap_or_default();
         let span = self.cr_key_to_span(kwargs.key)?;
-        let fmt = parse_data_format(kwargs.fmt)?;
+        let fmt = parse_format_spec(kwargs.fmt)?;
         let mut event_data: EventData = self.cr_new_event(kwargs.save_selection);
         let normalize = kwargs.fmt_normalize;
         let ignore_fmt_errs = kwargs.ignore_fmt_errs;
@@ -126,7 +130,7 @@ impl Table {
     ) -> Result<Option<Rc<RefCell<EventData>>>, String> {
         let kwargs: DataFormatArgs = kwargs.unwrap_or_default();
         let span = self.cr_key_to_span(kwargs.key)?;
-        let fmt = parse_data_format(kwargs.fmt)?;
+        let fmt = parse_format_spec(kwargs.fmt)?;
         let mut event_data: EventData = self.cr_new_event(kwargs.save_selection);
         let normalize = kwargs.fmt_normalize;
         let ignore_fmt_errs = kwargs.ignore_fmt_errs;
