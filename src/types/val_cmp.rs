@@ -1,5 +1,5 @@
 use crate::Val;
-use crate::utils::utils_fns::try_parse_date;
+use crate::utils::utils_fns::{natural_text_segments, natural_text_segments_cs, try_parse_date};
 use bigdecimal::ToPrimitive;
 use num_bigint::Sign;
 
@@ -33,8 +33,9 @@ pub enum NaturalKey {
     Number(OrderedF64),                   // 4: everything that fits in f64 (including Val::Dec)
     HugePositive(bigdecimal::BigDecimal), // 5: all huge positives
     Date(i64),                            // 6
-    Text(Vec<Vec<NaturalSegment>>),       // 7
-    Unknown(String),                      // 8
+    Text(Vec<Vec<NaturalSegment>>), // 7: natural / version / fast / date text (with number extraction)
+    Lexical(String), // 8: Pure Lexical / Strict String Key (classic “dumb” computer sort)
+    Unknown(String), // 9
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
@@ -71,7 +72,7 @@ impl Val {
             | Val::Dt(_)
             | Val::Dur(_) => XKey::Numeric(self.x_numeric_value().unwrap_or(0.0).into()),
             // Group 1 – text (comes after all numerics)
-            Val::Str(_) | Val::Chr(_) => XKey::Text(self.x_text_value()),
+            Val::Str(_) | Val::Chr(_) | Val::Path(_) => XKey::Text(self.x_text_value()),
             // Group 2 – bool
             Val::Bl(b) => XKey::Bool(*b),
             // Group 99 – nil/undefined
@@ -87,6 +88,7 @@ impl Val {
         match self {
             Val::Str(s) => s.to_lowercase(),
             Val::Chr(c) => c.to_lowercase().collect(),
+            Val::Path(p) => p.display().to_string().to_lowercase(),
             _ => String::new(),
         }
     }
@@ -138,6 +140,15 @@ impl Val {
             Val::Dur(d) => NaturalKey::Number(d.num_milliseconds().into()),
             Val::Bigint(v) => bigint_key(v),
             Val::Bigdec(v) => bigdec_key(v),
+            Val::Path(p) => {
+                let s = p.display().to_string();
+                let trimmed = s.trim();
+                if trimmed.is_empty() {
+                    NaturalKey::Empty
+                } else {
+                    string_to_key(trimmed)
+                }
+            }
             other => {
                 if let Some(n) = other.x_numeric_value() {
                     NaturalKey::Number(n.into())
@@ -163,17 +174,44 @@ impl Val {
     pub fn natural_key(&self) -> NaturalKey {
         self.make_key(Self::natural_key_from_string)
     }
-
     pub fn date_key(&self) -> NaturalKey {
         self.make_key(Self::date_key_from_string)
     }
-
     pub fn version_key(&self) -> NaturalKey {
         self.make_key(Self::version_key_from_string)
     }
-
+    pub fn fast_key(&self) -> NaturalKey {
+        self.make_key(Self::fast_key_from_string)
+    }
+    pub fn natural_key_cs(&self) -> NaturalKey {
+        self.make_key(Self::natural_key_cs_from_string)
+    }
+    pub fn lexical_key(&self) -> NaturalKey {
+        NaturalKey::Lexical(self.to_string().to_lowercase())
+    }
+    pub fn lexical_cs_key(&self) -> NaturalKey {
+        NaturalKey::Lexical(self.to_string())
+    }
     pub fn natural_cmp(&self, other: &Val) -> std::cmp::Ordering {
         self.natural_key().cmp(&other.natural_key())
+    }
+    pub fn date_cmp(&self, other: &Val) -> std::cmp::Ordering {
+        self.date_key().cmp(&other.date_key())
+    }
+    pub fn version_cmp(&self, other: &Val) -> std::cmp::Ordering {
+        self.version_key().cmp(&other.version_key())
+    }
+    pub fn fast_cmp(&self, other: &Val) -> std::cmp::Ordering {
+        self.fast_key().cmp(&other.fast_key())
+    }
+    pub fn natural_cs_cmp(&self, other: &Val) -> std::cmp::Ordering {
+        self.natural_key_cs().cmp(&other.natural_key_cs())
+    }
+    pub fn lexical_cmp(&self, other: &Val) -> std::cmp::Ordering {
+        self.lexical_key().cmp(&other.lexical_key())
+    }
+    pub fn lexical_cs_cmp(&self, other: &Val) -> std::cmp::Ordering {
+        self.lexical_cs_key().cmp(&other.lexical_cs_key())
     }
 
     fn natural_key_from_string(trimmed: &str) -> NaturalKey {
@@ -187,11 +225,17 @@ impl Val {
         }
         NaturalKey::Text(natural_components(trimmed))
     }
-
-    pub fn date_cmp(&self, other: &Val) -> std::cmp::Ordering {
-        self.date_key().cmp(&other.date_key())
+    fn natural_key_cs_from_string(trimmed: &str) -> NaturalKey {
+        if let Ok(f) = trimmed.parse::<f64>() {
+            if f.is_finite() {
+                return NaturalKey::Number(f.into());
+            }
+        }
+        if let Some(ts) = try_parse_date(trimmed) {
+            return NaturalKey::Date(ts);
+        }
+        NaturalKey::Text(cs_natural_components(trimmed))
     }
-
     fn date_key_from_string(trimmed: &str) -> NaturalKey {
         if let Some(ts) = try_parse_date(trimmed) {
             return NaturalKey::Date(ts);
@@ -203,13 +247,16 @@ impl Val {
         }
         NaturalKey::Text(natural_components(trimmed))
     }
-
-    pub fn version_cmp(&self, other: &Val) -> std::cmp::Ordering {
-        self.version_key().cmp(&other.version_key())
-    }
-
     fn version_key_from_string(trimmed: &str) -> NaturalKey {
         NaturalKey::Text(version_components(trimmed))
+    }
+    fn fast_key_from_string(trimmed: &str) -> NaturalKey {
+        if let Ok(f) = trimmed.parse::<f64>() {
+            if f.is_finite() {
+                return NaturalKey::Number(f.into());
+            }
+        }
+        NaturalKey::Text(natural_components(trimmed))
     }
 }
 
@@ -219,10 +266,12 @@ fn bigint_key(v: &num_bigint::BigInt) -> NaturalKey {
             return NaturalKey::Number(f.into());
         }
     }
-    let bd = bigdecimal::BigDecimal::from(v.clone());
-    bigdec_key(&bd)
+    if v.sign() == Sign::Minus {
+        NaturalKey::HugeNegative(bigdecimal::BigDecimal::from(v.clone()))
+    } else {
+        NaturalKey::HugePositive(bigdecimal::BigDecimal::from(v.clone()))
+    }
 }
-
 fn bigdec_key(bd: &bigdecimal::BigDecimal) -> NaturalKey {
     if let Some(f) = bd.to_f64() {
         if f.is_finite() {
@@ -236,6 +285,7 @@ fn bigdec_key(bd: &bigdecimal::BigDecimal) -> NaturalKey {
     }
 }
 
+#[inline(always)]
 fn split_components(s: &str, separators: &[char]) -> Vec<Vec<NaturalSegment>> {
     s.split(|c| separators.contains(&c))
         .map(|comp| comp.trim())
@@ -243,83 +293,25 @@ fn split_components(s: &str, separators: &[char]) -> Vec<Vec<NaturalSegment>> {
         .map(natural_text_segments)
         .collect()
 }
-
+#[inline(always)]
+fn cs_split_components(s: &str, separators: &[char]) -> Vec<Vec<NaturalSegment>> {
+    s.split(|c| separators.contains(&c))
+        .map(|comp| comp.trim())
+        .filter(|comp| !comp.is_empty())
+        .map(natural_text_segments_cs)
+        .collect()
+}
 // Used by natural_key + date_key (conservative path splitting)
+#[inline(always)]
 fn natural_components(s: &str) -> Vec<Vec<NaturalSegment>> {
     split_components(s, &['/', '\\', '-'])
 }
-
+#[inline(always)]
+fn cs_natural_components(s: &str) -> Vec<Vec<NaturalSegment>> {
+    cs_split_components(s, &['/', '\\', '-'])
+}
 // Used by version_key (aggressive version splitting)
+#[inline(always)]
 fn version_components(s: &str) -> Vec<Vec<NaturalSegment>> {
     split_components(s, &['/', '\\', '.', '_', '-'])
-}
-
-#[inline(always)]
-fn is_decimal_digit(c: char) -> bool {
-    c.to_digit(10).is_some()
-}
-
-fn natural_text_segments(s: &str) -> Vec<NaturalSegment> {
-    let mut segments = Vec::with_capacity(8);
-    let mut chars = s.chars().peekable();
-    let mut text_buf = String::with_capacity(32);
-
-    while let Some(c) = chars.next() {
-        // 1. Signed number: "-42", "+7", "−3"
-        if matches!(c, '-' | '+' | '\u{2212}')
-            && chars.peek().map_or(false, |&n| is_decimal_digit(n))
-        {
-            if !text_buf.is_empty() {
-                segments.push(NaturalSegment::Text(text_buf.to_lowercase()));
-                text_buf.clear();
-            }
-            let negative = c == '-' || c == '\u{2212}';
-            let mut value: i64 = 0;
-
-            // Consume first digit (guaranteed by the peek)
-            if let Some(d) = chars.next().and_then(|ch| ch.to_digit(10)) {
-                value = d as i64;
-            }
-            // Remaining digits
-            while let Some(&next) = chars.peek() {
-                if let Some(nd) = next.to_digit(10) {
-                    value = value.saturating_mul(10).saturating_add(nd as i64);
-                    chars.next();
-                } else {
-                    break;
-                }
-            }
-            let num = if negative { -value } else { value };
-            segments.push(NaturalSegment::Number(OrderedF64(num as f64)));
-            continue;
-        }
-
-        // 2. Unsigned digit run
-        if let Some(d) = c.to_digit(10) {
-            if !text_buf.is_empty() {
-                segments.push(NaturalSegment::Text(text_buf.to_lowercase()));
-                text_buf.clear();
-            }
-            let mut value = d as i64;
-            while let Some(&next) = chars.peek() {
-                if let Some(nd) = next.to_digit(10) {
-                    value = value.saturating_mul(10).saturating_add(nd as i64);
-                    chars.next();
-                } else {
-                    break;
-                }
-            }
-            segments.push(NaturalSegment::Number(OrderedF64(value as f64)));
-            continue;
-        }
-
-        // 3. Regular text
-        text_buf.push(c);
-    }
-
-    if !text_buf.is_empty() {
-        segments.push(NaturalSegment::Text(text_buf.to_lowercase()));
-    }
-
-    segments
 }

@@ -14,6 +14,10 @@ pub enum SortKey {
     X,
     Date,
     Version,
+    Fast,
+    Lexical,
+    LexicalCS,
+    NaturalCS,
 }
 
 impl SortKey {
@@ -23,6 +27,23 @@ impl SortKey {
             SortKey::X => Val::cmp_x,
             SortKey::Date => Val::date_cmp,
             SortKey::Version => Val::version_cmp,
+            SortKey::Fast => Val::fast_cmp,
+            SortKey::Lexical => Val::lexical_cmp,
+            SortKey::LexicalCS => Val::lexical_cs_cmp,
+            SortKey::NaturalCS => Val::natural_cs_cmp,
+        }
+    }
+
+    pub fn cmp(&self, a: &Val, b: &Val) -> std::cmp::Ordering {
+        match self {
+            SortKey::Natural => a.natural_cmp(b),
+            SortKey::X => a.cmp_x(b),
+            SortKey::Date => a.date_cmp(b),
+            SortKey::Version => a.version_cmp(b),
+            SortKey::Fast => a.fast_cmp(b),
+            SortKey::Lexical => a.lexical_cmp(b),
+            SortKey::LexicalCS => a.lexical_cs_cmp(b),
+            SortKey::NaturalCS => a.natural_cs_cmp(b),
         }
     }
 }

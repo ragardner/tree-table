@@ -20,9 +20,9 @@ pub use types::{
     ChangeCellProps, ChangeCheckbox, ChangeDropdown, ChangeHeaderCell, ChangeIndexCell, ChangeNote,
     ChangeProgressBar, Checkbox, Color3, CyclingCounter, DataFormat, Dropdown, DropdownState,
     EventData, GetCellMutResultExt, GetCellResultExt, GetResultExt, HeaderCell, Highlight,
-    IndexCell, MaxMap, NO_END, NaturalKey, Note, Options, PartialOptions, ProgressBar, Selected,
-    SelectionKind, SelectionState, Span, SpanKey, TableCell, TreeMove, Val, ValType, statics,
-    string_to_data_format, try_hex_to_color3,
+    IndexCell, MaxMap, NO_END, NaturalKey, NaturalSegment, Note, Options, OrderedF64,
+    PartialOptions, ProgressBar, Selected, SelectionKind, SelectionState, Span, SpanKey, TableCell,
+    TreeMove, Val, statics, string_to_data_format, try_hex_to_color3,
 };
 
 pub(crate) use types::Header;

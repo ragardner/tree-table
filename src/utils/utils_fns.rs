@@ -1,4 +1,4 @@
-use crate::GetResultExt;
+use crate::{GetResultExt, NaturalSegment, OrderedF64};
 use chrono::{Duration, NaiveDate, NaiveDateTime, Utc};
 use core::sync::atomic::{AtomicU32, Ordering};
 use std::collections::{HashMap, HashSet};
@@ -475,4 +475,141 @@ pub fn binary_search_exact_pos(
         }
     }
     Ok(None)
+}
+
+#[inline(always)]
+fn is_decimal_digit(c: char) -> bool {
+    c.to_digit(10).is_some()
+}
+
+#[inline(always)]
+pub fn natural_text_segments(s: &str) -> Vec<NaturalSegment> {
+    let mut segments = Vec::with_capacity(8);
+    let mut chars = s.chars().peekable();
+    let mut text_buf = String::with_capacity(32);
+
+    while let Some(c) = chars.next() {
+        // 1. Signed number: "-42", "+7", "−3"
+        if matches!(c, '-' | '+' | '\u{2212}')
+            && chars.peek().map_or(false, |&n| is_decimal_digit(n))
+        {
+            if !text_buf.is_empty() {
+                segments.push(NaturalSegment::Text(text_buf.to_lowercase()));
+                text_buf.clear();
+            }
+            let negative = c == '-' || c == '\u{2212}';
+            let mut value: i64 = 0;
+
+            // Consume first digit (guaranteed by the peek)
+            if let Some(d) = chars.next().and_then(|ch| ch.to_digit(10)) {
+                value = d as i64;
+            }
+            // Remaining digits
+            while let Some(&next) = chars.peek() {
+                if let Some(nd) = next.to_digit(10) {
+                    value = value.saturating_mul(10).saturating_add(nd as i64);
+                    chars.next();
+                } else {
+                    break;
+                }
+            }
+            let num = if negative { -value } else { value };
+            segments.push(NaturalSegment::Number(OrderedF64(num as f64)));
+            continue;
+        }
+
+        // 2. Unsigned digit run
+        if let Some(d) = c.to_digit(10) {
+            if !text_buf.is_empty() {
+                segments.push(NaturalSegment::Text(text_buf.to_lowercase()));
+                text_buf.clear();
+            }
+            let mut value = d as i64;
+            while let Some(&next) = chars.peek() {
+                if let Some(nd) = next.to_digit(10) {
+                    value = value.saturating_mul(10).saturating_add(nd as i64);
+                    chars.next();
+                } else {
+                    break;
+                }
+            }
+            segments.push(NaturalSegment::Number(OrderedF64(value as f64)));
+            continue;
+        }
+
+        // 3. Regular text
+        text_buf.push(c);
+    }
+
+    if !text_buf.is_empty() {
+        segments.push(NaturalSegment::Text(text_buf.to_lowercase()));
+    }
+
+    segments
+}
+
+#[inline(always)]
+pub fn natural_text_segments_cs(s: &str) -> Vec<NaturalSegment> {
+    let mut segments = Vec::with_capacity(8);
+    let mut chars = s.chars().peekable();
+    let mut text_buf = String::with_capacity(32);
+
+    while let Some(c) = chars.next() {
+        // 1. Signed number: "-42", "+7", "−3"
+        if matches!(c, '-' | '+' | '\u{2212}')
+            && chars.peek().map_or(false, |&n| is_decimal_digit(n))
+        {
+            if !text_buf.is_empty() {
+                segments.push(NaturalSegment::Text(text_buf.clone()));
+                text_buf.clear();
+            }
+            let negative = c == '-' || c == '\u{2212}';
+            let mut value: i64 = 0;
+
+            // Consume first digit (guaranteed by the peek)
+            if let Some(d) = chars.next().and_then(|ch| ch.to_digit(10)) {
+                value = d as i64;
+            }
+            // Remaining digits
+            while let Some(&next) = chars.peek() {
+                if let Some(nd) = next.to_digit(10) {
+                    value = value.saturating_mul(10).saturating_add(nd as i64);
+                    chars.next();
+                } else {
+                    break;
+                }
+            }
+            let num = if negative { -value } else { value };
+            segments.push(NaturalSegment::Number(OrderedF64(num as f64)));
+            continue;
+        }
+
+        // 2. Unsigned digit run
+        if let Some(d) = c.to_digit(10) {
+            if !text_buf.is_empty() {
+                segments.push(NaturalSegment::Text(text_buf.clone()));
+                text_buf.clear();
+            }
+            let mut value = d as i64;
+            while let Some(&next) = chars.peek() {
+                if let Some(nd) = next.to_digit(10) {
+                    value = value.saturating_mul(10).saturating_add(nd as i64);
+                    chars.next();
+                } else {
+                    break;
+                }
+            }
+            segments.push(NaturalSegment::Number(OrderedF64(value as f64)));
+            continue;
+        }
+
+        // 3. Regular text
+        text_buf.push(c);
+    }
+
+    if !text_buf.is_empty() {
+        segments.push(NaturalSegment::Text(text_buf));
+    }
+
+    segments
 }

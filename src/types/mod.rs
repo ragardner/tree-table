@@ -62,5 +62,5 @@ pub use selection::{Selected, SelectionKind, SelectionState};
 pub use span::{NO_END, Span, SpanKey};
 pub use table_cell::TableCell;
 pub use tree_move::TreeMove;
-pub use val::{Val, ValType};
-pub use val_cmp::NaturalKey;
+pub use val::Val;
+pub use val_cmp::{NaturalKey, NaturalSegment, OrderedF64};
