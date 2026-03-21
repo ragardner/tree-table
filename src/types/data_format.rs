@@ -1,10 +1,11 @@
 use crate::Val;
 use crate::str_err;
-use crate::utils::parse_bool::parse_bool;
-use crate::utils::parse_dur::parse_duration;
+use crate::utils::parse_bool::try_parse_bool;
+use crate::utils::parse_date::try_parse_date;
+use crate::utils::parse_date::try_parse_duration;
 use bigdecimal::BigDecimal;
 use bigdecimal::FromPrimitive;
-use chrono::{DateTime, Duration, Utc};
+use chrono::Duration;
 use num_bigint::BigInt as NumBigInt;
 use rust_decimal::Decimal;
 use std::borrow::Cow;
@@ -343,10 +344,12 @@ impl DataFormat {
                 .map(Val::Bigint)
                 .map_err(|e| str_err!("Cannot parse '{}' as BigInt: {}", s, e))?,
 
-            DataFormat::Bl { .. } => Val::Bl(parse_bool(&s)?),
+            DataFormat::Bl { .. } => Val::Bl(try_parse_bool(&s)?),
 
-            DataFormat::Dt { .. } => Self::parse_datetime(&s)?,
-            DataFormat::Dur { .. } => parse_duration(&s)
+            DataFormat::Dt { .. } => try_parse_date(&s)
+                .map(Val::Dt)
+                .map_err(|e| str_err!("Cannot convert '{}' to Date: {}", s, e))?,
+            DataFormat::Dur { .. } => try_parse_duration(&s)
                 .map(Val::Dur)
                 .map_err(|e| str_err!("Cannot convert '{}' to Duration: {}", s, e))?,
 
@@ -424,24 +427,6 @@ impl DataFormat {
         } else {
             Ok(Val::Dec(d))
         }
-    }
-
-    fn parse_datetime(s: &str) -> Result<Val, String> {
-        if let Ok(dt) = DateTime::parse_from_rfc3339(s) {
-            return Ok(Val::Dt(dt.with_timezone(&Utc)));
-        }
-        if let Ok(ts) = s.parse::<i64>() {
-            if let Some(dt) = DateTime::from_timestamp_millis(ts) {
-                return Ok(Val::Dt(dt));
-            }
-            if let Some(dt) = DateTime::from_timestamp(ts, 0) {
-                return Ok(Val::Dt(dt));
-            }
-        }
-        Err(str_err!(
-            "Cannot convert '{}' to DateTime. Use RFC3339 or unix timestamp (ms).",
-            s
-        ))
     }
 
     #[inline(always)]

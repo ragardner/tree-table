@@ -7,7 +7,7 @@ const BOOL_FALSE_VALUES: &[&str] = &["false", "no", "n", "off", "f", "disabled",
 /// - Numbers are language-independent and extremely useful.
 /// - Common English/config words are accepted case-insensitively.
 /// - Everything else fails with a clear error (no silent `false`).
-pub fn parse_bool(s: &str) -> Result<bool, String> {
+pub fn try_parse_bool(s: &str) -> Result<bool, String> {
     let trimmed = s.trim();
 
     if trimmed.is_empty() {
