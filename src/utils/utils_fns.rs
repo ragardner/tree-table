@@ -1,5 +1,5 @@
 use crate::{GetResultExt, NaturalSegment, OrderedF64};
-use chrono::{Duration, NaiveDate, NaiveDateTime, Utc};
+use chrono::{NaiveDate, NaiveDateTime, Utc};
 use core::sync::atomic::{AtomicU32, Ordering};
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
@@ -326,109 +326,6 @@ pub fn n_to_base62(n: usize) -> String {
         m = (m - 1) / base;
     }
     s.chars().rev().collect::<String>()
-}
-
-fn parse_duration_part(chars: &[u8], total_ns: &mut i128, is_date: bool) -> Result<bool, ()> {
-    let mut i: usize = 0;
-    let mut had_frac = false;
-    while i < chars.len() {
-        let mut num_str = String::new();
-        while i < chars.len() && chars[i].is_ascii_digit() {
-            num_str.push(chars[i] as char);
-            i += 1;
-        }
-        if num_str.is_empty() {
-            return Err(());
-        }
-        let int: i64 = num_str.parse().unwrap_or(0);
-
-        let mut frac_num: i64 = 0;
-        let mut frac_div: i64 = 1;
-        let mut frac_len: usize = 0;
-        if i < chars.len() && chars[i] == b'.' {
-            i += 1;
-            let mut frac_str = String::new();
-            while i < chars.len() && chars[i].is_ascii_digit() {
-                frac_str.push(chars[i] as char);
-                i += 1;
-            }
-            frac_num = frac_str.parse().unwrap_or(0);
-            frac_len = frac_str.len();
-            frac_div = 10i64.pow(frac_len as u32);
-        }
-
-        if i >= chars.len() {
-            return Err(()); // Missing unit
-        }
-        let unit = chars[i] as char;
-        i += 1;
-
-        // Check if fraction is only on the last component
-        if frac_len > 0 && i < chars.len() {
-            return Err(());
-        }
-
-        if frac_len > 0 {
-            had_frac = true;
-        }
-
-        let factor: i128 = match (is_date, unit) {
-            (true, 'W') => 604_800_000_000_000i128, // 7 * 86_400_000_000_000
-            (true, 'D') => 86_400_000_000_000i128,
-            (false, 'H') => 3_600_000_000_000i128,
-            (false, 'M') => 60_000_000_000i128,
-            (false, 'S') => 1_000_000_000i128,
-            _ => continue, // Ignore unknown units
-        };
-
-        let int_i128 = int as i128;
-        let frac_num_i128 = frac_num as i128;
-        let frac_div_i128 = frac_div as i128;
-
-        *total_ns += int_i128 * factor + (frac_num_i128 * factor / frac_div_i128);
-    }
-    Ok(had_frac)
-}
-
-pub fn parse_duration(s: &str) -> Duration {
-    let mut sign: i64 = 1;
-    let mut input = s.trim();
-    if input.starts_with('-') {
-        sign = -1;
-        input = &input[1..];
-    }
-    if !input.starts_with('P') {
-        return Duration::zero();
-    }
-    input = &input[1..];
-
-    let parts: Vec<&str> = input.split('T').collect();
-    let date_part = parts[0];
-    let time_part = if parts.len() > 1 { parts[1] } else { "" };
-
-    let mut total_ns: i128 = 0;
-
-    let had_date_frac = match parse_duration_part(date_part.as_bytes(), &mut total_ns, true) {
-        Ok(had_frac) => had_frac,
-        Err(_) => return Duration::zero(),
-    };
-
-    let _had_time_frac = match parse_duration_part(time_part.as_bytes(), &mut total_ns, false) {
-        Ok(had_frac) => had_frac,
-        Err(_) => return Duration::zero(),
-    };
-
-    if had_date_frac && !time_part.is_empty() {
-        return Duration::zero();
-    }
-
-    total_ns *= sign as i128;
-
-    if total_ns > i64::MAX as i128 || total_ns < i64::MIN as i128 {
-        return Duration::zero(); // Overflow protection
-    }
-
-    Duration::nanoseconds(total_ns as i64)
 }
 
 /// Performs a binary search on a sorted vec of IIDs to find the leftmost insertion point

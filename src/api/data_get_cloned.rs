@@ -30,7 +30,7 @@ impl Table {
                             row_result.push((
                                 col_iid,
                                 Self::acr_tcell_val_cloned(&self.grid.index.cells, rn, cn)
-                                    .unwrap_or(empty_val.clone()),
+                                    .unwrap_or_else(|| empty_val.clone()),
                             ));
                         }
                         result.push((row_iid, row_result));
@@ -44,7 +44,7 @@ impl Table {
                             row_result.push((
                                 col_iid,
                                 Self::acr_tcell_val_cloned(&self.grid.index.cells, rn, cn)
-                                    .unwrap_or(empty_val.clone()),
+                                    .unwrap_or_else(|| empty_val.clone()),
                             ));
                         }
                         result.push((row_iid, row_result));
@@ -59,7 +59,7 @@ impl Table {
                         row_result.push((
                             Self::acr_borrow_ciid(&self.grid.header.cells, cn)?.to_string(),
                             Self::acr_tcell_val_cloned(&self.grid.index.cells, rn, cn)
-                                .unwrap_or(empty_val.clone()),
+                                .unwrap_or_else(|| empty_val.clone()),
                         ))
                     }
                     result.push((icell.iid.to_string(), row_result));
@@ -83,7 +83,7 @@ impl Table {
                 result.push((
                     key,
                     Self::acr_tcell_val_cloned(&self.grid.index.cells, rn, cn)
-                        .unwrap_or(empty_val.clone()),
+                        .unwrap_or_else(|| empty_val.clone()),
                 ));
             }
         } else {
@@ -94,7 +94,7 @@ impl Table {
                     result.push((
                         CellKey(rn as u64, cn as u64),
                         Self::acr_tcell_val_cloned(&self.grid.index.cells, rn, cn)
-                            .unwrap_or(empty_val.clone()),
+                            .unwrap_or_else(|| empty_val.clone()),
                     ));
                 }
             }
@@ -142,7 +142,7 @@ impl Table {
                     if kwargs.table {
                         col_data.extend((r_start..r_end).map(|r| {
                             Self::acr_tcell_val_cloned(&self.grid.index.cells, r, col)
-                                .unwrap_or(empty_val.clone())
+                                .unwrap_or_else(|| empty_val.clone())
                         }));
                     }
                     result.push(col_data);
@@ -170,7 +170,7 @@ impl Table {
                     if kwargs.table {
                         row_data.extend((c_start..c_end).map(|c| {
                             Self::acr_tcell_val_cloned(&self.grid.index.cells, row, c)
-                                .unwrap_or(empty_val.clone())
+                                .unwrap_or_else(|| empty_val.clone())
                         }));
                     }
                     result.push(row_data);

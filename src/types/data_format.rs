@@ -1,5 +1,7 @@
 use crate::Val;
 use crate::str_err;
+use crate::utils::parse_bool::parse_bool;
+use crate::utils::parse_dur::parse_duration;
 use bigdecimal::BigDecimal;
 use bigdecimal::FromPrimitive;
 use chrono::{DateTime, Duration, Utc};
@@ -334,27 +336,20 @@ impl DataFormat {
             DataFormat::Dec { decimals, .. } => {
                 Self::parse_dec(&s, normalize.then_some(*decimals))?
             }
-
             DataFormat::Bigdec { .. } => BigDecimal::from_str(s.trim())
                 .map(Val::Bigdec)
                 .map_err(|e| str_err!("Cannot parse '{}' as BigDecimal: {}", s, e))?,
-
             DataFormat::Bigint { .. } => NumBigInt::from_str(s.trim())
                 .map(Val::Bigint)
                 .map_err(|e| str_err!("Cannot parse '{}' as BigInt: {}", s, e))?,
 
-            DataFormat::Bl { .. } => {
-                let lower = s.trim().to_lowercase();
-                Val::Bl(matches!(lower.as_str(), "true" | "1" | "yes" | "y"))
-            }
+            DataFormat::Bl { .. } => Val::Bl(parse_bool(&s)?),
 
             DataFormat::Dt { .. } => Self::parse_datetime(&s)?,
-            DataFormat::Dur { .. } => s
-                .trim()
-                .parse::<i64>()
-                .map(Duration::milliseconds)
+            DataFormat::Dur { .. } => parse_duration(&s)
                 .map(Val::Dur)
-                .map_err(|e| str_err!("Cannot convert '{}' to Duration (ms expected): {}", s, e))?,
+                .map_err(|e| str_err!("Cannot convert '{}' to Duration: {}", s, e))?,
+
             DataFormat::Path { .. } => Val::Path(PathBuf::from(s)),
             DataFormat::Nil { .. } => Val::Nil(()),
             DataFormat::Undf { .. } => Val::Undf(()),
