@@ -1,9 +1,9 @@
 use crate::Val;
-use crate::utils::parse_date::try_parse_date_millis;
-use crate::utils::parse_dur::try_parse_duration;
 use crate::utils::utils_fns::{natural_text_segments, natural_text_segments_cs};
 use bigdecimal::ToPrimitive;
 use num_bigint::Sign;
+use parse_date::try_parse_date_millis;
+use parse_date::try_parse_duration;
 
 // ─── OrderedF64 (clean f64 ordering for BTree/Ord) ───
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]

@@ -3,45 +3,15 @@ use crate::Val;
 use crate::statics::get_true;
 use crate::str_err;
 use crate::utils::parse_bool::try_parse_bool;
-use crate::utils::parse_date::try_parse_date;
-use crate::utils::parse_dur::try_parse_duration;
 use bigdecimal::BigDecimal;
 use bigdecimal::FromPrimitive;
 use chrono::Duration;
 use num_bigint::BigInt as NumBigInt;
+use parse_date::{DateParseOptions, try_parse_date, try_parse_duration};
 use rust_decimal::Decimal;
 use std::borrow::Cow;
 use std::path::PathBuf;
 use std::str::FromStr;
-
-#[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
-#[cfg_attr(feature = "tsify", tsify(from_wasm_abi))]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[derive(Clone, Debug, PartialEq, Default)]
-pub struct DateParseOptions {
-    /// How to parse incoming date strings or numbers.
-    ///
-    /// Accepts **either**:
-    /// - A preset mode (string):
-    ///     - `"auto"` (default)          → scientific-first (MJD/JD + decimals first)
-    ///     - `"legacy"`                  → original business-first heuristic (YYDDD/YYYYDDD)
-    /// - Or any strptime format string (must contain '%'):
-    ///     - `"%d/%m/%Y"` (day-first)
-    ///     - `"%m/%d/%Y"` (month-first)
-    ///     - `"%Y%j"`     (YYYYDDD legacy)
-    ///     - `"%y%j"`     (YYDDD legacy)
-    ///
-    /// If omitted or empty → `"auto"`.
-    #[cfg_attr(feature = "serde", serde(default))]
-    pub parse: Option<String>,
-
-    /// Controls ambiguous slash dates like "01/02/2025".
-    /// - `true`  = DD/MM/YYYY (international/European)
-    /// - `false` = MM/DD/YYYY (US)
-    /// - `None`  = reject ambiguous formats (safest — recommended)
-    #[cfg_attr(feature = "serde", serde(default))]
-    pub day_first: Option<bool>,
-}
 
 #[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
 #[cfg_attr(feature = "tsify", tsify(from_wasm_abi))]
@@ -233,10 +203,10 @@ impl DataFormat {
                 .map_err(|e| str_err!("Cannot parse '{}' as BigInt: {}", s, e))?,
 
             DataFormat::Bl { .. } => Val::Bl(try_parse_bool(&s)?),
-            DataFormat::Dt { parse_options, .. } => try_parse_date(&s, parse_options)
+            DataFormat::Dt { parse_options, .. } => try_parse_date(&s.trim(), parse_options, true)
                 .map(Val::Dt)
                 .map_err(|e| str_err!("Cannot convert '{}' to Date: {}", s, e))?,
-            DataFormat::Dur { .. } => try_parse_duration(&s)
+            DataFormat::Dur { .. } => try_parse_duration(&s.trim())
                 .map(Val::Dur)
                 .map_err(|e| str_err!("Cannot convert '{}' to Duration: {}", s, e))?,
 

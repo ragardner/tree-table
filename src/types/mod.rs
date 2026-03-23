@@ -46,7 +46,7 @@ pub use change_index_cell::{
 pub use checkbox::Checkbox;
 pub use color3::{Color3, try_hex_to_color3};
 pub use cycling_counter::CyclingCounter;
-pub use data_format::{DataFormat, DateParseOptions, string_to_data_format};
+pub use data_format::{DataFormat, string_to_data_format};
 pub use dropdown::{Dropdown, DropdownState};
 pub use event_data::EventData;
 pub use extensions::{GetCellMutResultExt, GetCellResultExt, GetResultExt};
