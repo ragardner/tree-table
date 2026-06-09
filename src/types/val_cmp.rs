@@ -1,9 +1,8 @@
 use crate::Val;
 use crate::utils::utils_fns::{natural_text_segments, natural_text_segments_cs};
 use bigdecimal::ToPrimitive;
+use deep_time::{Dt, Lang};
 use num_bigint::Sign;
-use parse_date::try_parse_date_millis;
-use parse_date::try_parse_duration;
 
 // ─── OrderedF64 (clean f64 ordering for BTree/Ord) ───
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
@@ -34,7 +33,7 @@ pub enum NaturalKey {
     HugeNegative(bigdecimal::BigDecimal), // 3: all huge negatives (more negative first)
     Number(OrderedF64),                   // 4: everything that fits in f64 (including Val::Dec)
     HugePositive(bigdecimal::BigDecimal), // 5: all huge positives
-    Date(i64),                            // 6
+    Date(Dt),                             // 6
     Text(Vec<Vec<NaturalSegment>>), // 7: natural / version / fast / date text (with number extraction)
     Lexical(String), // 8: Pure Lexical / Strict String Key (classic “dumb” computer sort)
     Unknown(String), // 9
@@ -125,8 +124,8 @@ impl Val {
                     f64::INFINITY
                 })
             }),
-            Val::Dt(dt) => Some(dt.timestamp_millis() as f64),
-            Val::Dur(d) => Some(d.num_milliseconds() as f64),
+            Val::Dt(dt) => Some(dt.to_sec_f()),
+            Val::Dur(d) => Some(d.to_sec_f()),
             _ => None,
         }
     }
@@ -138,8 +137,8 @@ impl Val {
         match self {
             Val::Nil(_) | Val::Undf(_) => NaturalKey::Blank,
             Val::Bl(b) => NaturalKey::Bool(*b),
-            Val::Dt(dt) => NaturalKey::Date(dt.timestamp_millis()),
-            Val::Dur(d) => NaturalKey::Number(d.num_milliseconds().into()),
+            Val::Dt(dt) => NaturalKey::Date(*dt),
+            Val::Dur(d) => NaturalKey::Number(d.to_sec_f().into()),
             Val::Bigint(v) => bigint_key(v),
             Val::Bigdec(v) => bigdec_key(v),
             Val::Path(p) => {
@@ -222,10 +221,10 @@ impl Val {
                 return NaturalKey::Number(f.into());
             }
         }
-        if let Ok(dur) = try_parse_duration(trimmed) {
-            return NaturalKey::Number(dur.num_milliseconds().into());
+        if let Ok(dur) = Dt::from_duration_str(trimmed, Lang::En) {
+            return NaturalKey::Number(dur.to_sec_f().into());
         }
-        if let Some(ts) = try_parse_date_millis(trimmed, &None) {
+        if let Ok(ts) = Dt::from_str_parse(trimmed, &None) {
             return NaturalKey::Date(ts);
         }
         NaturalKey::Text(natural_components(trimmed))
@@ -236,16 +235,16 @@ impl Val {
                 return NaturalKey::Number(f.into());
             }
         }
-        if let Ok(dur) = try_parse_duration(trimmed) {
-            return NaturalKey::Number(dur.num_milliseconds().into());
-        }
-        if let Some(ts) = try_parse_date_millis(trimmed, &None) {
+        if let Ok(ts) = Dt::from_str_parse(trimmed, &None) {
             return NaturalKey::Date(ts);
+        }
+        if let Ok(dur) = Dt::from_duration_str(trimmed, Lang::En) {
+            return NaturalKey::Number(dur.to_sec_f().into());
         }
         NaturalKey::Text(cs_natural_components(trimmed))
     }
     fn date_key_from_string(trimmed: &str) -> NaturalKey {
-        if let Some(ts) = try_parse_date_millis(trimmed, &None) {
+        if let Ok(ts) = Dt::from_str_parse(trimmed, &None) {
             return NaturalKey::Date(ts);
         }
         if let Ok(f) = trimmed.parse::<f64>() {
@@ -253,8 +252,8 @@ impl Val {
                 return NaturalKey::Number(f.into());
             }
         }
-        if let Ok(dur) = try_parse_duration(trimmed) {
-            return NaturalKey::Number(dur.num_milliseconds().into());
+        if let Ok(dur) = Dt::from_duration_str(trimmed, Lang::En) {
+            return NaturalKey::Number(dur.to_sec_f().into());
         }
         NaturalKey::Text(natural_components(trimmed))
     }

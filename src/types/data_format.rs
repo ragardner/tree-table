@@ -5,9 +5,9 @@ use crate::str_err;
 use crate::utils::parse_bool::try_parse_bool;
 use bigdecimal::BigDecimal;
 use bigdecimal::FromPrimitive;
-use chrono::Duration;
+use deep_time::Lang;
+use deep_time::{Dt, ParseCfg};
 use num_bigint::BigInt as NumBigInt;
-use parse_date::{DateParseOptions, try_parse_date, try_parse_duration};
 use rust_decimal::Decimal;
 use std::borrow::Cow;
 use std::path::PathBuf;
@@ -122,7 +122,7 @@ pub enum DataFormat {
         #[cfg_attr(feature = "serde", serde(default = "get_true"))]
         nullable: bool,
         display_format: Option<String>,
-        parse_options: Option<DateParseOptions>,
+        parse_options: Option<ParseCfg>,
     },
     Dur {
         invalid_display: Option<String>,
@@ -203,10 +203,10 @@ impl DataFormat {
                 .map_err(|e| str_err!("Cannot parse '{}' as BigInt: {}", s, e))?,
 
             DataFormat::Bl { .. } => Val::Bl(try_parse_bool(&s)?),
-            DataFormat::Dt { parse_options, .. } => try_parse_date(&s.trim(), parse_options, true)
+            DataFormat::Dt { parse_options, .. } => Dt::from_str_parse(&s.trim(), parse_options)
                 .map(Val::Dt)
                 .map_err(|e| str_err!("Cannot convert '{}' to Date: {}", s, e))?,
-            DataFormat::Dur { .. } => try_parse_duration(&s.trim())
+            DataFormat::Dur { .. } => Dt::from_duration_str(&s.trim(), Lang::En)
                 .map(Val::Dur)
                 .map_err(|e| str_err!("Cannot convert '{}' to Duration: {}", s, e))?,
 
@@ -385,9 +385,10 @@ impl DataFormat {
             DataFormat::Dt { display_format, .. } => {
                 let Val::Dt(dt) = val else { unreachable!() };
                 if let Some(format_str) = display_format {
-                    dt.format(format_str).to_string()
+                    dt.to_str(format_str, Lang::En)
+                        .unwrap_or_else(|_| invalid_value.to_string())
                 } else {
-                    dt.to_rfc3339()
+                    dt.to_str_iso8601()
                 }
             }
 
@@ -413,14 +414,14 @@ impl DataFormat {
     }
 
     #[inline(always)]
-    fn format_duration(d: &Duration, unit: Option<&str>) -> String {
+    fn format_duration(d: &Dt, unit: Option<&str>) -> String {
         let unit = unit.unwrap_or("ms");
         match unit.to_lowercase().as_str() {
-            "s" => format!("{}s", d.num_seconds()),
-            "m" => format!("{}m", d.num_minutes()),
-            "h" => format!("{}h", d.num_hours()),
-            "d" => format!("{}d", d.num_days()),
-            _ => format!("{}ms", d.num_milliseconds()),
+            "s" => format!("{}s", d.to_sec_f()),
+            "m" => format!("{}m", d.to_mins()),
+            "h" => format!("{}h", d.to_hrs()),
+            "d" => format!("{}d", d.to_days()),
+            _ => format!("{}ms", d.to_ms()),
         }
     }
 }
@@ -551,7 +552,7 @@ impl DataFormat {
     }
     pub fn datetime(
         display_format: Option<String>,
-        parse_options: Option<DateParseOptions>,
+        parse_options: Option<ParseCfg>,
         nullable: bool,
     ) -> Self {
         Self::Dt {

@@ -1,5 +1,5 @@
 use bigdecimal::BigDecimal;
-use chrono::{DateTime, Duration, Utc};
+use deep_time::Dt;
 use num_bigint::BigInt as NumBigInt;
 use rust_decimal::Decimal;
 use std::fmt;
@@ -30,8 +30,8 @@ pub enum Val {
     Bl(bool),
     Nil(()),
     Undf(()),
-    Dt(DateTime<Utc>),
-    Dur(Duration),
+    Dt(Dt),
+    Dur(Dt),
     Path(PathBuf),
 }
 
@@ -70,8 +70,8 @@ impl fmt::Display for Val {
             Val::Bl(b) => write!(f, "{}", b),
             Val::Nil(_) => write!(f, "null"),
             Val::Undf(_) => write!(f, "undefined"),
-            Val::Dt(dt) => write!(f, "{}", dt.to_rfc3339()),
-            Val::Dur(d) => write!(f, "{}ms", d.num_milliseconds()),
+            Val::Dt(v) => write!(f, "{}", v),
+            Val::Dur(v) => write!(f, "{}ms", v),
             Val::Path(p) => write!(f, "{}", p.display()),
         }
     }
@@ -177,15 +177,10 @@ impl From<bool> for Val {
     }
 }
 
-// chrono
-impl From<DateTime<Utc>> for Val {
-    fn from(val: DateTime<Utc>) -> Self {
+// deep-time
+impl From<Dt> for Val {
+    fn from(val: Dt) -> Self {
         Val::Dt(val)
-    }
-}
-impl From<Duration> for Val {
-    fn from(val: Duration) -> Self {
-        Val::Dur(val)
     }
 }
 

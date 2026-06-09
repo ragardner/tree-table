@@ -1,7 +1,6 @@
-use crate::{Change, EventData};
-
 use super::cell_props::CellProps;
 use super::val::Val;
+use crate::{Change, EventData};
 use std::borrow::Cow;
 use std::rc::Rc;
 

@@ -9,20 +9,16 @@ keywords = ["table", "treeview", "tree", "widget", "rust"]
 readme = "README.md"
 rust-version = "1.90"
 
-[lib]
-crate-type = ["cdylib", "rlib"]
-
 [dependencies]
+deep-time = { path = "../deep-time", features = ["parse", "jiff-tz"] }
 regex = "1"
-chrono = "0.4"
-bigdecimal = { version = "0.4.8" }
-rust_decimal = { version = "1.38.0" }
+jiff = "0.2"
+bigdecimal = { version = "0.4.10" }
+rust_decimal = { version = "1.40.0" }
 num-bigint = { version = "0.4.6" }
 
-parse-date = { path = "../parse-date" }
-
 serde = { version = "1.0", features = ["derive", "rc"], optional = true }
-tsify = { version = "=0.5.5", optional = true }
+tsify = { version = "=0.5.6", optional = true }
 wasm-bindgen = { version = "0.2", optional = true, features = ["serde-serialize"] }
 
 [features]
@@ -31,17 +27,20 @@ safety = []
 
 serde = [
     "dep:serde",
-    "chrono/serde",
+    "jiff/serde",
     "bigdecimal/serde",
     "bigdecimal/serde-json",
     "rust_decimal/serde",
     "num-bigint/serde",
-    "parse-date/serde",
+    "deep-time/serde",
 ]
 
 tsify = [
     "serde",
     "dep:tsify",
     "dep:wasm-bindgen",
-    "parse-date/tsify",
+    "deep-time/tsify",
+    "jiff/js",
 ]
+
+wasm = ["tsify"]

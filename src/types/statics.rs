@@ -13,7 +13,6 @@ pub static NORMAL: &str = "normal";
 pub static HIDDEN: &str = "hidden";
 pub static VALID_INHERITS: OnceLock<HashSet<String>> = OnceLock::new();
 pub static DEFAULT_INHERIT: &str = "@prev";
-pub static TEMPORAL_PROPS: OnceLock<Vec<&'static str>> = OnceLock::new();
 pub static DEFAULT_EMIT_EVENT_FOR_API: bool = true;
 pub static DEFAULT_UNDO_FOR_API: bool = true;
 pub static DEFAULT_SAVE_SELECTION_FOR_API: bool = true;
