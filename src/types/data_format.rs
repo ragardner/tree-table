@@ -206,7 +206,7 @@ impl DataFormat {
             DataFormat::Dt { parse_options, .. } => Dt::from_str_parse(&s.trim(), parse_options)
                 .map(Val::Dt)
                 .map_err(|e| str_err!("Cannot convert '{}' to Date: {}", s, e))?,
-            DataFormat::Dur { .. } => Dt::from_duration_str(&s.trim(), Lang::En)
+            DataFormat::Dur { .. } => Dt::from_str_duration(&s.trim(), Lang::En)
                 .map(Val::Dur)
                 .map_err(|e| str_err!("Cannot convert '{}' to Duration: {}", s, e))?,
 

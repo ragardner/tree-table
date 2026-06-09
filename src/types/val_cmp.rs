@@ -124,8 +124,8 @@ impl Val {
                     f64::INFINITY
                 })
             }),
-            Val::Dt(dt) => Some(dt.to_sec_f()),
-            Val::Dur(d) => Some(d.to_sec_f()),
+            Val::Dt(dt) => Some(dt.to_f64()),
+            Val::Dur(d) => Some(d.to_f64()),
             _ => None,
         }
     }
@@ -138,7 +138,7 @@ impl Val {
             Val::Nil(_) | Val::Undf(_) => NaturalKey::Blank,
             Val::Bl(b) => NaturalKey::Bool(*b),
             Val::Dt(dt) => NaturalKey::Date(*dt),
-            Val::Dur(d) => NaturalKey::Number(d.to_sec_f().into()),
+            Val::Dur(d) => NaturalKey::Number(d.to_f64().into()),
             Val::Bigint(v) => bigint_key(v),
             Val::Bigdec(v) => bigdec_key(v),
             Val::Path(p) => {
@@ -172,45 +172,74 @@ impl Val {
         }
     }
 
+    #[inline(always)]
     pub fn natural_key(&self) -> NaturalKey {
         self.make_key(Self::natural_key_from_string)
     }
+
+    #[inline(always)]
     pub fn date_key(&self) -> NaturalKey {
         self.make_key(Self::date_key_from_string)
     }
+
+    #[inline(always)]
     pub fn version_key(&self) -> NaturalKey {
         self.make_key(Self::version_key_from_string)
     }
+
+    #[inline(always)]
     pub fn fast_key(&self) -> NaturalKey {
         self.make_key(Self::fast_key_from_string)
     }
+
+    #[inline(always)]
     pub fn natural_key_cs(&self) -> NaturalKey {
         self.make_key(Self::natural_key_cs_from_string)
     }
+
+    #[inline(always)]
     pub fn lexical_key(&self) -> NaturalKey {
         NaturalKey::Lexical(self.to_string().to_lowercase())
     }
+
+    #[inline(always)]
     pub fn lexical_cs_key(&self) -> NaturalKey {
         NaturalKey::Lexical(self.to_string())
     }
+
+    //
+
+    #[inline(always)]
     pub fn natural_cmp(&self, other: &Val) -> std::cmp::Ordering {
         self.natural_key().cmp(&other.natural_key())
     }
+
+    #[inline(always)]
     pub fn date_cmp(&self, other: &Val) -> std::cmp::Ordering {
         self.date_key().cmp(&other.date_key())
     }
+
+    #[inline(always)]
     pub fn version_cmp(&self, other: &Val) -> std::cmp::Ordering {
         self.version_key().cmp(&other.version_key())
     }
+
+    #[inline(always)]
     pub fn fast_cmp(&self, other: &Val) -> std::cmp::Ordering {
         self.fast_key().cmp(&other.fast_key())
     }
+
+    #[inline(always)]
     pub fn natural_cs_cmp(&self, other: &Val) -> std::cmp::Ordering {
         self.natural_key_cs().cmp(&other.natural_key_cs())
     }
+
+    #[inline(always)]
     pub fn lexical_cmp(&self, other: &Val) -> std::cmp::Ordering {
         self.lexical_key().cmp(&other.lexical_key())
     }
+
+    #[inline(always)]
     pub fn lexical_cs_cmp(&self, other: &Val) -> std::cmp::Ordering {
         self.lexical_cs_key().cmp(&other.lexical_cs_key())
     }
@@ -221,14 +250,15 @@ impl Val {
                 return NaturalKey::Number(f.into());
             }
         }
-        if let Ok(dur) = Dt::from_duration_str(trimmed, Lang::En) {
-            return NaturalKey::Number(dur.to_sec_f().into());
+        if let Ok(dur) = Dt::from_str_duration(trimmed, Lang::En) {
+            return NaturalKey::Number(dur.to_f64().into());
         }
         if let Ok(ts) = Dt::from_str_parse(trimmed, &None) {
             return NaturalKey::Date(ts);
         }
         NaturalKey::Text(natural_components(trimmed))
     }
+
     fn natural_key_cs_from_string(trimmed: &str) -> NaturalKey {
         if let Ok(f) = trimmed.parse::<f64>() {
             if f.is_finite() {
@@ -238,11 +268,12 @@ impl Val {
         if let Ok(ts) = Dt::from_str_parse(trimmed, &None) {
             return NaturalKey::Date(ts);
         }
-        if let Ok(dur) = Dt::from_duration_str(trimmed, Lang::En) {
-            return NaturalKey::Number(dur.to_sec_f().into());
+        if let Ok(dur) = Dt::from_str_duration(trimmed, Lang::En) {
+            return NaturalKey::Number(dur.to_f64().into());
         }
         NaturalKey::Text(cs_natural_components(trimmed))
     }
+
     fn date_key_from_string(trimmed: &str) -> NaturalKey {
         if let Ok(ts) = Dt::from_str_parse(trimmed, &None) {
             return NaturalKey::Date(ts);
@@ -252,14 +283,16 @@ impl Val {
                 return NaturalKey::Number(f.into());
             }
         }
-        if let Ok(dur) = Dt::from_duration_str(trimmed, Lang::En) {
-            return NaturalKey::Number(dur.to_sec_f().into());
+        if let Ok(dur) = Dt::from_str_duration(trimmed, Lang::En) {
+            return NaturalKey::Number(dur.to_f64().into());
         }
         NaturalKey::Text(natural_components(trimmed))
     }
+
     fn version_key_from_string(trimmed: &str) -> NaturalKey {
         NaturalKey::Text(version_components(trimmed))
     }
+
     fn fast_key_from_string(trimmed: &str) -> NaturalKey {
         if let Ok(f) = trimmed.parse::<f64>() {
             if f.is_finite() {
@@ -282,6 +315,7 @@ fn bigint_key(v: &num_bigint::BigInt) -> NaturalKey {
         NaturalKey::HugePositive(bigdecimal::BigDecimal::from(v.clone()))
     }
 }
+
 fn bigdec_key(bd: &bigdecimal::BigDecimal) -> NaturalKey {
     if let Some(f) = bd.to_f64() {
         if f.is_finite() {
@@ -303,6 +337,7 @@ fn split_components(s: &str, separators: &[char]) -> Vec<Vec<NaturalSegment>> {
         .map(natural_text_segments)
         .collect()
 }
+
 #[inline(always)]
 fn cs_split_components(s: &str, separators: &[char]) -> Vec<Vec<NaturalSegment>> {
     s.split(|c| separators.contains(&c))
@@ -311,15 +346,18 @@ fn cs_split_components(s: &str, separators: &[char]) -> Vec<Vec<NaturalSegment>>
         .map(natural_text_segments_cs)
         .collect()
 }
+
 // Used by natural_key + date_key (conservative path splitting)
 #[inline(always)]
 fn natural_components(s: &str) -> Vec<Vec<NaturalSegment>> {
     split_components(s, &['/', '\\', '-'])
 }
+
 #[inline(always)]
 fn cs_natural_components(s: &str) -> Vec<Vec<NaturalSegment>> {
     cs_split_components(s, &['/', '\\', '-'])
 }
+
 // Used by version_key (aggressive version splitting)
 #[inline(always)]
 fn version_components(s: &str) -> Vec<Vec<NaturalSegment>> {
