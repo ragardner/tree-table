@@ -12,7 +12,7 @@ impl Table {
     pub(crate) fn acr_deselect_all(sel: &mut Selection, event_data: Option<&mut EventData>) {
         if let Some(event_data) = event_data {
             event_data.changes.push(Change::RemoveSelectionBoxes {
-                removed: std::mem::take(&mut sel.selection_boxes),
+                removed: core::mem::take(&mut sel.selection_boxes),
                 old_selected: sel.selected.take(),
             })
         } else {

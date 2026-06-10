@@ -1,11 +1,7 @@
-use crate::Checkbox;
-use crate::CheckboxArgs;
-use crate::EventData;
-use crate::SetCheckboxArgs;
-use crate::Table;
-use crate::Val;
-use std::cell::RefCell;
-use std::rc::Rc;
+use alloc::{rc::Rc, string::String};
+use core::cell::RefCell;
+
+use crate::{Checkbox, CheckboxArgs, EventData, SetCheckboxArgs, Table, Val};
 
 impl Table {
     pub fn checkbox(

@@ -1,10 +1,8 @@
-use crate::CellKey;
-use crate::SpanKey;
-use crate::Table;
-use crate::Val;
-use crate::args::GetDataIidsArgs;
-use crate::args::GetDataSpanArgs;
-use crate::args::GetDataYxArgs;
+use alloc::string::ToString;
+use alloc::{string::String, vec, vec::Vec};
+
+use crate::args::{GetDataIidsArgs, GetDataSpanArgs, GetDataYxArgs};
+use crate::{CellKey, SpanKey, Table, Val};
 
 impl Table {
     /// Gets row data using an array of row ids or positions.

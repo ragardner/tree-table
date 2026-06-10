@@ -1,8 +1,9 @@
 use crate::EventData;
 use crate::ReadonlyArgs;
 use crate::Table;
-use std::cell::RefCell;
-use std::rc::Rc;
+use alloc::rc::Rc;
+use alloc::string::String;
+use core::cell::RefCell;
 
 impl Table {
     pub fn readonly(

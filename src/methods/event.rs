@@ -1,7 +1,8 @@
 use crate::EventData;
 use crate::Table;
-use std::cell::RefCell;
-use std::rc::Rc;
+use alloc::rc::Rc;
+use alloc::string::String;
+use core::cell::RefCell;
 
 impl Table {
     /// The table was modified in some way.

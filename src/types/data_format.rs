@@ -1,17 +1,20 @@
+use alloc::{
+    borrow::Cow,
+    format,
+    string::{String, ToString},
+};
+use bigdecimal::num_bigint::BigInt;
+use bigdecimal::{BigDecimal, FromPrimitive};
+use core::str::FromStr;
+use deep_time::{Dt, Lang, ParseCfg};
+use rust_decimal::Decimal;
+
 use crate::Val;
-#[cfg(feature = "serde")]
-use crate::statics::get_true;
 use crate::str_err;
 use crate::utils::parse_bool::try_parse_bool;
-use bigdecimal::BigDecimal;
-use bigdecimal::FromPrimitive;
-use deep_time::Lang;
-use deep_time::{Dt, ParseCfg};
-use num_bigint::BigInt as NumBigInt;
-use rust_decimal::Decimal;
-use std::borrow::Cow;
-use std::path::PathBuf;
-use std::str::FromStr;
+
+#[cfg(feature = "serde")]
+use crate::statics::get_true;
 
 #[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
 #[cfg_attr(feature = "tsify", tsify(from_wasm_abi))]
@@ -130,11 +133,6 @@ pub enum DataFormat {
         nullable: bool,
         display_unit: Option<String>,
     },
-    Path {
-        invalid_display: Option<String>,
-        #[cfg_attr(feature = "serde", serde(default = "get_true"))]
-        nullable: bool,
-    },
 }
 
 impl DataFormat {
@@ -198,7 +196,7 @@ impl DataFormat {
                 let rounding = if normalize { *decimals } else { None };
                 Self::parse_bigdec(&s, rounding)?
             }
-            DataFormat::Bigint { .. } => NumBigInt::from_str(s.trim())
+            DataFormat::Bigint { .. } => BigInt::from_str(s.trim())
                 .map(Val::Bigint)
                 .map_err(|e| str_err!("Cannot parse '{}' as BigInt: {}", s, e))?,
 
@@ -210,7 +208,6 @@ impl DataFormat {
                 .map(Val::Dur)
                 .map_err(|e| str_err!("Cannot convert '{}' to Duration: {}", s, e))?,
 
-            DataFormat::Path { .. } => Val::Path(PathBuf::from(s)),
             DataFormat::Nil { .. } => Val::Nil(()),
             DataFormat::Undf { .. } => Val::Undf(()),
         };
@@ -263,7 +260,7 @@ impl DataFormat {
 
     fn parse_numeric<T: FromStr>(s: &str) -> Result<T, String>
     where
-        <T as FromStr>::Err: std::fmt::Display,
+        <T as FromStr>::Err: core::fmt::Display,
     {
         s.trim()
             .parse::<T>()
@@ -274,7 +271,7 @@ impl DataFormat {
         let mut f: f64 = s
             .trim()
             .parse()
-            .map_err(|e: std::num::ParseFloatError| e.to_string())?;
+            .map_err(|e: core::num::ParseFloatError| e.to_string())?;
         if let Some(decimals) = rounding {
             if decimals == 0 {
                 f = f.round();
@@ -448,24 +445,28 @@ impl DataFormat {
             nullable,
         }
     }
+
     pub fn u16(nullable: bool) -> Self {
         Self::Un16 {
             invalid_display: None,
             nullable,
         }
     }
+
     pub fn u32(nullable: bool) -> Self {
         Self::Un32 {
             invalid_display: None,
             nullable,
         }
     }
+
     pub fn u64(nullable: bool) -> Self {
         Self::Un64 {
             invalid_display: None,
             nullable,
         }
     }
+
     pub fn u128(nullable: bool) -> Self {
         Self::Un128 {
             invalid_display: None,
@@ -479,24 +480,28 @@ impl DataFormat {
             nullable,
         }
     }
+
     pub fn i16(nullable: bool) -> Self {
         Self::Sn16 {
             invalid_display: None,
             nullable,
         }
     }
+
     pub fn i32(nullable: bool) -> Self {
         Self::Sn32 {
             invalid_display: None,
             nullable,
         }
     }
+
     pub fn i64(nullable: bool) -> Self {
         Self::Sn64 {
             invalid_display: None,
             nullable,
         }
     }
+
     pub fn i128(nullable: bool) -> Self {
         Self::Sn128 {
             invalid_display: None,
@@ -511,6 +516,7 @@ impl DataFormat {
             decimals,
         }
     }
+
     pub fn dec(decimals: Option<u64>, nullable: bool) -> Self {
         Self::Dec {
             invalid_display: None,
@@ -518,6 +524,7 @@ impl DataFormat {
             decimals,
         }
     }
+
     pub fn bigdec(decimals: Option<u64>, nullable: bool) -> Self {
         Self::Bigdec {
             invalid_display: None,
@@ -525,6 +532,7 @@ impl DataFormat {
             decimals,
         }
     }
+
     pub fn bigint(nullable: bool) -> Self {
         Self::Bigint {
             invalid_display: None,
@@ -538,18 +546,21 @@ impl DataFormat {
             nullable,
         }
     }
+
     pub fn null(nullable: bool) -> Self {
         Self::Nil {
             invalid_display: None,
             nullable,
         }
     }
+
     pub fn undefined(nullable: bool) -> Self {
         Self::Undf {
             invalid_display: None,
             nullable,
         }
     }
+
     pub fn datetime(
         display_format: Option<String>,
         parse_options: Option<ParseCfg>,
@@ -562,17 +573,12 @@ impl DataFormat {
             parse_options,
         }
     }
+
     pub fn duration(display_unit: Option<String>, nullable: bool) -> Self {
         Self::Dur {
             invalid_display: None,
             nullable,
             display_unit,
-        }
-    }
-    pub fn path(nullable: bool) -> Self {
-        Self::Path {
-            invalid_display: None,
-            nullable,
         }
     }
 
@@ -601,7 +607,6 @@ impl DataFormat {
                 | (DataFormat::Undf { .. }, Val::Undf(_))
                 | (DataFormat::Dt { .. }, Val::Dt(_))
                 | (DataFormat::Dur { .. }, Val::Dur(_))
-                | (DataFormat::Path { .. }, Val::Path(_))
         )
     }
 
@@ -713,11 +718,6 @@ impl DataFormat {
                 nullable,
                 ..
             } => (invalid_display, *nullable),
-            DataFormat::Path {
-                invalid_display,
-                nullable,
-                ..
-            } => (invalid_display, *nullable),
         }
     }
 }
@@ -747,7 +747,6 @@ pub fn string_to_data_format(input: &str) -> Result<DataFormat, String> {
         "undf" => Ok(DataFormat::undefined(false)),
         "dt" => Ok(DataFormat::datetime(None, None, false)),
         "dur" => Ok(DataFormat::duration(None, false)),
-        "path" => Ok(DataFormat::path(false)),
         _ => Err(str_err!("Invalid data format: '{}'", input)),
     }
 }

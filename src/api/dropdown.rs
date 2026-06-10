@@ -1,10 +1,8 @@
-use crate::Dropdown;
-use crate::EventData;
-use crate::SetDropdownArgs;
-use crate::Table;
+use alloc::{rc::Rc, string::String};
+use core::cell::RefCell;
+
 use crate::args::args_dropdown::DropdownArgs;
-use std::cell::RefCell;
-use std::rc::Rc;
+use crate::{Dropdown, EventData, SetDropdownArgs, Table};
 
 impl Table {
     pub fn dropdown(

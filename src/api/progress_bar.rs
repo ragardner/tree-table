@@ -1,16 +1,10 @@
-use crate::DelProgressBarNameArgs;
-use crate::EventData;
-use crate::ProgressBar;
-use crate::SetProgressBarNameArgs;
-use crate::Table;
-use crate::args::AddProgressBarArgs;
-use crate::args::DelProgressBarArgs;
-use crate::args::args_progress_bar::AddProgressBarPosArgs;
-use crate::args::args_progress_bar::SetProgressBarArgs;
-use crate::str_err;
-use crate::try_hex_to_color3;
-use std::cell::RefCell;
-use std::rc::Rc;
+use alloc::{rc::Rc, string::String};
+use core::cell::RefCell;
+
+use crate::args::args_progress_bar::{AddProgressBarPosArgs, SetProgressBarArgs};
+use crate::args::{AddProgressBarArgs, DelProgressBarArgs};
+use crate::{DelProgressBarNameArgs, EventData, ProgressBar, SetProgressBarNameArgs, Table};
+use crate::{str_err, try_hex_to_color3};
 
 impl Table {
     pub fn add_progress_bar(

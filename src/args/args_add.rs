@@ -4,6 +4,8 @@ use crate::statics::default_save_selection_for_api;
 use crate::statics::default_undo_for_api;
 #[cfg(feature = "serde")]
 use crate::statics::get_true;
+use alloc::string::String;
+use alloc::vec::Vec;
 
 #[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
 #[cfg_attr(feature = "tsify", tsify(from_wasm_abi))]

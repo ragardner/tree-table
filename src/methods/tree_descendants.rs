@@ -1,12 +1,9 @@
-use crate::EventData;
-use crate::GetCellResultExt;
-use crate::GetResultExt;
-use crate::IndexCell;
-use crate::Table;
-use crate::TableGrid;
-use std::collections::HashMap;
-use std::collections::{HashSet, VecDeque};
-use std::rc::Rc;
+use crate::{EventData, GetCellResultExt, GetResultExt, IndexCell, Table, TableGrid};
+use alloc::rc::Rc;
+use alloc::string::String;
+use alloc::{collections::VecDeque, vec::Vec};
+use alloc::{format, vec};
+use hashbrown::{HashMap, HashSet};
 
 impl Table {
     pub(crate) fn acr_tree_descendants_rows<'a>(

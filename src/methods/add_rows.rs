@@ -1,17 +1,11 @@
-use crate::Change;
-use crate::EventData;
-use crate::IndexCell;
-use crate::MaxMap;
-use crate::NO_END;
-use crate::Span;
-use crate::Table;
-use crate::TableCell;
-use crate::TableGrid;
-use crate::Val;
 use crate::statics::DEFAULT_INHERIT;
-use crate::str_err;
 use crate::utils::utils_fns::binary_search_ins_pos;
-use std::rc::Rc;
+use crate::{
+    Change, EventData, IndexCell, MaxMap, NO_END, Span, Table, TableCell, TableGrid, Val, str_err,
+};
+use alloc::rc::Rc;
+use alloc::string::String;
+use alloc::vec::Vec;
 
 impl Table {
     pub(crate) fn cr_add_rows(

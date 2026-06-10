@@ -1,5 +1,6 @@
 // use serde::{Deserialize, Serialize};
-use std::{collections::HashSet, rc::Rc};
+use alloc::rc::Rc;
+use hashbrown::HashSet;
 
 #[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
 #[cfg_attr(feature = "tsify", tsify(from_wasm_abi))]

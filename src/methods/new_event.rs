@@ -1,7 +1,8 @@
 use crate::Change;
 use crate::EventData;
 use crate::Table;
-use std::collections::HashMap;
+use alloc::vec;
+use hashbrown::HashMap;
 
 impl Table {
     pub(crate) fn cr_new_event(&self, boxes: bool) -> EventData {

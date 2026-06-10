@@ -5,8 +5,9 @@ use crate::NoteArgs;
 use crate::SetNoteArgs;
 use crate::Table;
 use crate::try_hex_to_color3;
-use std::cell::RefCell;
-use std::rc::Rc;
+use alloc::rc::Rc;
+use alloc::string::String;
+use core::cell::RefCell;
 
 impl Table {
     pub fn note(

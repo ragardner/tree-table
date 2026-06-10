@@ -1,7 +1,10 @@
+use alloc::string::String;
+use alloc::string::ToString;
+
 use crate::BorderArgs;
 use crate::Color3;
 use crate::try_hex_to_color3;
-use std::convert::TryFrom;
+use core::convert::TryFrom;
 
 #[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
 #[cfg_attr(feature = "tsify", tsify(from_wasm_abi))]

@@ -1,9 +1,9 @@
+use alloc::string::{String, ToString};
 use bigdecimal::BigDecimal;
+use bigdecimal::num_bigint::BigInt;
+use core::fmt;
 use deep_time::Dt;
-use num_bigint::BigInt as NumBigInt;
 use rust_decimal::Decimal;
-use std::fmt;
-use std::path::PathBuf;
 
 #[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
 // #[cfg_attr(feature = "tsify", tsify(from_wasm_abi))]
@@ -25,21 +25,13 @@ pub enum Val {
     Sn128(i128),
     Dec(Decimal),
     Bigdec(BigDecimal),
-    Bigint(NumBigInt),
+    Bigint(BigInt),
     Fl64(f64),
     Bl(bool),
     Nil(()),
     Undf(()),
     Dt(Dt),
     Dur(Dt),
-    Path(PathBuf),
-}
-
-impl Val {
-    /// Create a Val::Path from anything that can be a path
-    pub fn path<P: AsRef<std::path::Path>>(p: P) -> Self {
-        Val::Path(p.as_ref().to_path_buf())
-    }
 }
 
 impl Default for Val {
@@ -71,8 +63,7 @@ impl fmt::Display for Val {
             Val::Nil(_) => write!(f, "null"),
             Val::Undf(_) => write!(f, "undefined"),
             Val::Dt(v) => write!(f, "{}", v),
-            Val::Dur(v) => write!(f, "{}ms", v),
-            Val::Path(p) => write!(f, "{}", p.display()),
+            Val::Dur(v) => write!(f, "{}", v),
         }
     }
 }
@@ -159,8 +150,8 @@ impl From<BigDecimal> for Val {
         Val::Bigdec(val)
     }
 }
-impl From<NumBigInt> for Val {
-    fn from(val: NumBigInt) -> Self {
+impl From<BigInt> for Val {
+    fn from(val: BigInt) -> Self {
         Val::Bigint(val)
     }
 }
@@ -194,18 +185,5 @@ where
             Some(val) => val.into(),
             None => Val::Nil(()),
         }
-    }
-}
-
-// Path
-impl From<PathBuf> for Val {
-    fn from(val: PathBuf) -> Self {
-        Val::Path(val)
-    }
-}
-// Very convenient (allows `Path::new("/foo").into()` or `"/foo".into()` via &Path)
-impl From<&std::path::Path> for Val {
-    fn from(val: &std::path::Path) -> Self {
-        Val::Path(val.to_path_buf())
     }
 }

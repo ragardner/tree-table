@@ -1,3 +1,5 @@
+use alloc::string::String;
+
 use crate::Options;
 use crate::Table;
 use crate::args::ResetArgs;

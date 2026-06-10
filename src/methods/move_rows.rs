@@ -8,9 +8,11 @@ use crate::types::TreeMove;
 use crate::utils::utils_fns::get_full_move_map;
 use crate::utils::utils_fns::offset_move_indices;
 use crate::utils::utils_fns::remove_duplicates_outside_section;
-use std::collections::HashMap;
-use std::collections::HashSet;
-use std::rc::Rc;
+use alloc::rc::Rc;
+use alloc::string::String;
+use alloc::vec::Vec;
+use hashbrown::HashMap;
+use hashbrown::HashSet;
 
 impl Table {
     /// Core move rows function
@@ -301,7 +303,7 @@ impl Table {
                 &mut self.grid.index.cells,
                 *self.grid.index.iid_to_row.get_res(&new_par)?,
             )?;
-            let mut chn = std::mem::take(&mut parent.chn);
+            let mut chn = core::mem::take(&mut parent.chn);
             let section_size = iids.len();
             chn.splice(move_to_pos..move_to_pos, iids);
             // Remove any duplicates which are there if any of the iids only moved position

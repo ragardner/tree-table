@@ -5,10 +5,12 @@ use crate::Table;
 use crate::args::UndoRedoArgs;
 use crate::str_err;
 use crate::types::event_data::TreeChange;
-use std::cell::RefCell;
-use std::collections::HashMap;
-use std::collections::HashSet;
-use std::rc::Rc;
+use alloc::rc::Rc;
+use alloc::string::String;
+use alloc::vec;
+use alloc::vec::Vec;
+use core::cell::RefCell;
+use hashbrown::{HashMap, HashSet};
 
 impl Table {
     pub(crate) fn cr_get_next_undo(&self) -> Result<Option<Rc<RefCell<EventData>>>, String> {
@@ -107,8 +109,8 @@ impl Table {
         let mut to_undo_mut = to_undo.borrow_mut();
 
         // All changes are consumed
-        let changes = std::mem::take(&mut to_undo_mut.changes);
-        let mut tree_changes = std::mem::take(&mut to_undo_mut.tree_changes);
+        let changes = core::mem::take(&mut to_undo_mut.changes);
+        let mut tree_changes = core::mem::take(&mut to_undo_mut.tree_changes);
 
         let invalid_indices_set: HashSet<usize> =
             invalid_indices.drain(..).map(|x| x as usize).collect();

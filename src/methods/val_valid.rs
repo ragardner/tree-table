@@ -1,10 +1,4 @@
-use crate::HeaderCell;
-use crate::IndexCell;
-use crate::Table;
-use crate::TableCell;
-use crate::Val;
-use std::cell::RefCell;
-use std::rc::Rc;
+use crate::{HeaderCell, IndexCell, Table, TableCell, Val};
 
 impl Table {
     /// Checks if a val is valid for the table's current table cell at coords.

@@ -1,3 +1,6 @@
+use alloc::format;
+use alloc::string::{String, ToString};
+
 const BOOL_TRUE_VALUES: &[&str] = &["true", "yes", "y", "on", "t", "enabled", "active"];
 const BOOL_FALSE_VALUES: &[&str] = &["false", "no", "n", "off", "f", "disabled", "inactive"];
 

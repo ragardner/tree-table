@@ -3,9 +3,11 @@ use crate::EventData;
 use crate::Table;
 use crate::args::TreeOpenArgs;
 use crate::utils::consecutive_ranges::consecutive_ranges_borrowed;
-use std::cell::RefCell;
-use std::collections::HashSet;
-use std::rc::Rc;
+use alloc::rc::Rc;
+use alloc::string::String;
+use alloc::vec::Vec;
+use core::cell::RefCell;
+use hashbrown::HashSet;
 
 impl Table {
     // Sets IndexCells to open/close and returns a Set of rows to show/hide.

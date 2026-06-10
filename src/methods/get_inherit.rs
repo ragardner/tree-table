@@ -1,7 +1,8 @@
 use crate::Table;
 use crate::str_err;
-use std::collections::HashMap;
-use std::rc::Rc;
+use alloc::rc::Rc;
+use alloc::string::String;
+use hashbrown::HashMap;
 
 impl Table {
     pub(crate) fn cr_get_inherit_row(

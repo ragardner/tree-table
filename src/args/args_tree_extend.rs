@@ -1,3 +1,7 @@
+use alloc::string::String;
+use alloc::vec;
+use alloc::vec::Vec;
+
 use crate::Val;
 use crate::statics::default_emit_event_for_api;
 use crate::statics::default_inherit;

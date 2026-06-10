@@ -1,9 +1,8 @@
-use crate::EventData;
-use crate::Table;
-use crate::args::FillDataArgs;
-use crate::args::SetDataArgs;
-use std::cell::RefCell;
-use std::rc::Rc;
+use alloc::{rc::Rc, string::String};
+use core::cell::RefCell;
+
+use crate::args::{FillDataArgs, SetDataArgs};
+use crate::{EventData, Table};
 
 impl Table {
     // Sets table cell data using row ids/pos and col ids/pos.

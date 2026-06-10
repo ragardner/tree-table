@@ -1,11 +1,8 @@
-use crate::DataFormat;
-use crate::EventData;
-use crate::FormatSpec;
-use crate::Table;
+use alloc::{rc::Rc, string::String};
+use core::cell::RefCell;
+
 use crate::args::DataFormatArgs;
-use crate::string_to_data_format;
-use std::cell::RefCell;
-use std::rc::Rc;
+use crate::{DataFormat, EventData, FormatSpec, Table, string_to_data_format};
 
 fn parse_format_spec(spec: Option<FormatSpec>) -> Result<Option<DataFormat>, String> {
     match spec {

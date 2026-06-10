@@ -1,4 +1,5 @@
 use crate::statics::default_emit_event_for_api;
+use alloc::vec::Vec;
 
 #[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
 #[cfg_attr(feature = "tsify", tsify(from_wasm_abi))]

@@ -1,7 +1,6 @@
-use crate::EventData;
-use crate::HeaderCell;
-use crate::IndexCell;
-use crate::Table;
+use crate::{EventData, HeaderCell, IndexCell, Table};
+use alloc::string::String;
+use alloc::vec::Vec;
 
 impl Table {
     pub(crate) fn acr_set_row_vis<'a, I>(

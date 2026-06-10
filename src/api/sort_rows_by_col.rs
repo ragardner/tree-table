@@ -1,12 +1,9 @@
-use crate::EventData;
-use crate::Table;
-use crate::Val;
+use alloc::{rc::Rc, string::String, vec::Vec};
+use core::{cell::RefCell, cmp::Ordering};
+use hashbrown::{HashMap, HashSet};
+
 use crate::args::SortRowsArgs;
-use std::cell::RefCell;
-use std::cmp::Ordering;
-use std::collections::HashMap;
-use std::collections::HashSet;
-use std::rc::Rc;
+use crate::{EventData, Table, Val};
 
 impl Table {
     pub fn sort_rows_by_cols(

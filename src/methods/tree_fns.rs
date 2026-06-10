@@ -1,14 +1,9 @@
-use crate::Change;
-use crate::EventData;
-use crate::GetCellResultExt;
-use crate::Index;
-use crate::IndexCell;
-use crate::Table;
-use crate::str_err;
+use alloc::{borrow::ToOwned, rc::Rc, string::String, vec::Vec};
+use hashbrown::HashMap;
+
 use crate::types::event_data::TreeChangeKind;
 use crate::utils::utils_fns::binary_search_exact_pos;
-use std::collections::HashMap;
-use std::rc::Rc;
+use crate::{Change, EventData, GetCellResultExt, Index, IndexCell, Table, str_err};
 
 impl Table {
     pub(crate) fn cr_tree_get_iid_insert_row(

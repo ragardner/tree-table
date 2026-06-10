@@ -1,11 +1,7 @@
-use crate::Border;
-use crate::BordersArgs;
-use crate::CellBorders;
-use crate::EventData;
-use crate::SetBordersArgs;
-use crate::Table;
-use std::cell::RefCell;
-use std::rc::Rc;
+use alloc::{rc::Rc, string::String};
+use core::cell::RefCell;
+
+use crate::{Border, BordersArgs, CellBorders, EventData, SetBordersArgs, Table};
 
 impl Table {
     pub fn borders(

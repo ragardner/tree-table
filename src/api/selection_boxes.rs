@@ -1,14 +1,11 @@
-use crate::Change;
-use crate::EventData;
-use crate::NO_END;
-use crate::Table;
-use crate::args::AddSelectionArgs;
-use crate::args::SelectRowsColsArgs;
-use crate::args::SelectionClearArgs;
+use alloc::string::ToString;
+use alloc::{rc::Rc, string::String, vec::Vec};
+use core::cell::RefCell;
+use hashbrown::HashSet;
+
+use crate::args::{AddSelectionArgs, SelectRowsColsArgs, SelectionClearArgs};
 use crate::utils::consecutive_ranges::consecutive_ranges_owned;
-use std::cell::RefCell;
-use std::collections::HashSet;
-use std::rc::Rc;
+use crate::{Change, EventData, NO_END, Table};
 
 impl Table {
     /// Clear all selections.

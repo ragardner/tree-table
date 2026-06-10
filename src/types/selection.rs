@@ -3,6 +3,8 @@ use crate::statics::CELLS;
 use crate::statics::COLS;
 use crate::statics::ROWS;
 use crate::str_err;
+use alloc::string::String;
+use alloc::vec::Vec;
 
 #[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
 #[cfg_attr(feature = "tsify", tsify(from_wasm_abi))]

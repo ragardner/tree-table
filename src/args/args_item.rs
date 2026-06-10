@@ -1,4 +1,7 @@
 use crate::Val;
+use alloc::string::String;
+use alloc::vec::Vec;
+
 #[cfg(feature = "serde")]
 use crate::statics::default_emit_event_for_api;
 #[cfg(feature = "serde")]

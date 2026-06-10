@@ -1,7 +1,8 @@
 use crate::DataFormat;
 use crate::Table;
 use crate::Val;
-use std::borrow::Cow;
+use alloc::borrow::Cow;
+use alloc::string::String;
 
 impl Table {
     #[inline(always)]

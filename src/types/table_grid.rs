@@ -4,9 +4,11 @@ use crate::Header;
 use crate::Index;
 use crate::utils::utils_fns::pull_n;
 use crate::utils::utils_fns::push_n;
-use std::cell::RefCell;
-use std::collections::HashMap;
-use std::rc::Rc;
+use alloc::rc::Rc;
+use alloc::string::String;
+use alloc::vec::Vec;
+use core::cell::RefCell;
+use hashbrown::HashMap;
 
 #[derive(Clone, Debug)]
 pub struct TableGrid {

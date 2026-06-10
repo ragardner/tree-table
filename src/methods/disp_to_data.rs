@@ -1,6 +1,7 @@
 use crate::Table;
 use crate::str_err;
 use crate::utils::utils_fns::bin_index_usize;
+use alloc::string::String;
 
 impl Table {
     /// Convert a displayed col number to a data col number.

@@ -1,5 +1,7 @@
-use std::collections::HashSet;
-use std::sync::OnceLock;
+use alloc::boxed::Box;
+use alloc::string::{String, ToString};
+use hashbrown::HashSet;
+use once_cell::race::OnceBox;
 
 pub static EVENT_MODIFIED: &'static str = "TableModified";
 pub static EVENT_SELECT: &'static str = "TableSelect";
@@ -11,7 +13,9 @@ pub static COLS: &str = "cols";
 pub static CELLS: &str = "cells";
 pub static NORMAL: &str = "normal";
 pub static HIDDEN: &str = "hidden";
-pub static VALID_INHERITS: OnceLock<HashSet<String>> = OnceLock::new();
+
+pub static VALID_INHERITS: OnceBox<HashSet<String>> = OnceBox::new();
+
 pub static DEFAULT_INHERIT: &str = "@prev";
 pub static DEFAULT_EMIT_EVENT_FOR_API: bool = true;
 pub static DEFAULT_UNDO_FOR_API: bool = true;
@@ -25,29 +29,35 @@ pub fn valid_inherits() -> &'static HashSet<String> {
         set.insert("@next".to_string());
         set.insert("@prev".to_string());
         set.insert("@none".to_string());
-        set
+        Box::new(set)
     })
 }
+
 #[inline(always)]
 pub fn default_inherit() -> String {
     DEFAULT_INHERIT.to_string()
 }
+
 #[inline(always)]
 pub fn default_emit_event_for_api() -> bool {
     DEFAULT_EMIT_EVENT_FOR_API
 }
+
 #[inline(always)]
 pub fn default_undo_for_api() -> bool {
     DEFAULT_UNDO_FOR_API
 }
+
 #[inline(always)]
 pub fn default_save_selection_for_api() -> bool {
     DEFAULT_SAVE_SELECTION_FOR_API
 }
+
 #[inline(always)]
 pub fn default_expand_for_api() -> bool {
     DEFAULT_EXPAND_FOR_API
 }
+
 #[inline(always)]
 pub fn get_true() -> bool {
     true

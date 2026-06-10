@@ -3,10 +3,13 @@ use crate::Table;
 use crate::TreeMove;
 use crate::args::MoveItemsArgs;
 use crate::str_err;
-use std::cell::RefCell;
-use std::collections::HashMap;
-use std::collections::HashSet;
-use std::rc::Rc;
+use alloc::rc::Rc;
+use alloc::string::String;
+use alloc::string::ToString;
+use alloc::vec::Vec;
+use core::cell::RefCell;
+use hashbrown::HashMap;
+use hashbrown::HashSet;
 
 impl Table {
     pub fn move_items(

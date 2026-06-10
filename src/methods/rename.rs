@@ -1,5 +1,6 @@
 use crate::{Change, EventData, Header, Index, Table, str_err};
-use std::rc::Rc;
+use alloc::rc::Rc;
+use alloc::string::String;
 
 impl Table {
     /// Renames a column iid in the header.

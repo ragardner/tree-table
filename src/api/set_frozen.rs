@@ -1,3 +1,5 @@
+use alloc::{string::String, vec::Vec};
+
 use crate::Table;
 
 impl Table {

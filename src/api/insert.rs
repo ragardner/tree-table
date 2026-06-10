@@ -1,17 +1,12 @@
-use crate::CellProps;
-use crate::Change;
-use crate::EventData;
-use crate::IndexCell;
-use crate::NO_END;
-use crate::Table;
-use crate::Val;
+use alloc::string::ToString;
+use alloc::{rc::Rc, string::String, vec, vec::Vec};
+use core::cell::RefCell;
+use hashbrown::HashSet;
+
 use crate::args::{InsertArgs, InsertRow};
-use crate::str_err;
 use crate::utils::consecutive_ranges::consecutive_ranges_owned;
 use crate::utils::utils_fns::binary_search_ins_pos;
-use std::cell::RefCell;
-use std::collections::HashSet;
-use std::rc::Rc;
+use crate::{CellProps, Change, EventData, IndexCell, NO_END, Table, Val, str_err};
 
 impl Table {
     /// Insert multiple new rows into the table.
@@ -175,7 +170,7 @@ impl Table {
                 )?;
                 chn.splice(
                     chn_splice_pos..chn_splice_pos,
-                    std::mem::take(&mut chn_to_splice),
+                    core::mem::take(&mut chn_to_splice),
                 );
             }
             Ok(())

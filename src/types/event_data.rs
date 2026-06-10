@@ -1,7 +1,9 @@
 use crate::ChangeIndexCell;
 use crate::types::Change;
-use std::collections::HashMap;
-use std::rc::Rc;
+use alloc::rc::Rc;
+use alloc::string::String;
+use alloc::vec::Vec;
+use hashbrown::HashMap;
 
 #[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
 #[cfg_attr(feature = "tsify", tsify(from_wasm_abi))]

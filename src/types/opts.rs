@@ -2,6 +2,8 @@ use crate::Color3;
 use crate::Table;
 use crate::Val;
 use crate::utils::utils_fns::generate_unique_id;
+use alloc::string::String;
+use alloc::string::ToString;
 
 macro_rules! define_options {
     ($($field:ident: $ty:ty, $default_str:literal => $default:expr),* $(,)?) => {

@@ -4,8 +4,10 @@ use crate::Val;
 use crate::args::{ItemArgs, ItemResult};
 use crate::args::{ItemColArgs, ItemColResult};
 use crate::str_err;
-use std::cell::RefCell;
-use std::rc::Rc;
+use alloc::rc::Rc;
+use alloc::string::String;
+use alloc::vec::Vec;
+use core::cell::RefCell;
 
 impl Table {
     /// Modify a table item (row).

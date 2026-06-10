@@ -1,19 +1,9 @@
-use crate::Border;
-use crate::CellAlign;
-use crate::CellBorders;
-use crate::Change;
-use crate::Checkbox;
-use crate::Color3;
-use crate::DataFormat;
-use crate::Dropdown;
-use crate::DropdownState;
-use crate::EventData;
-use crate::HeaderCell;
-use crate::Highlight;
-use crate::Note;
-use crate::ProgressBar;
-use crate::Table;
-use crate::Val;
+use crate::{
+    Border, CellAlign, CellBorders, Change, Checkbox, Color3, DataFormat, Dropdown, DropdownState,
+    EventData, HeaderCell, Highlight, Note, ProgressBar, Table, Val,
+};
+use alloc::string::String;
+use alloc::vec::Vec;
 
 impl Table {
     #[inline]

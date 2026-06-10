@@ -1,10 +1,8 @@
-use crate::EventData;
-use crate::Highlight;
-use crate::Table;
+use alloc::{rc::Rc, string::String};
+use core::cell::RefCell;
+
 use crate::args::HighlightArgs;
-use crate::try_hex_to_color3;
-use std::cell::RefCell;
-use std::rc::Rc;
+use crate::{EventData, Highlight, Table, try_hex_to_color3};
 
 impl Table {
     pub fn highlight(

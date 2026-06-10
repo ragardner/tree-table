@@ -1,14 +1,10 @@
-use crate::Change;
-use crate::EventData;
-use crate::NO_END;
-use crate::Table;
-use crate::args::AddArgs;
-use crate::args::AddNumArgs;
-use crate::str_err;
+use alloc::{rc::Rc, string::String, vec, vec::Vec};
+use core::cell::RefCell;
+use hashbrown::HashSet;
+
+use crate::args::{AddArgs, AddNumArgs};
 use crate::utils::consecutive_ranges::consecutive_ranges_owned;
-use std::cell::RefCell;
-use std::collections::HashSet;
-use std::rc::Rc;
+use crate::{Change, EventData, NO_END, Table, str_err};
 
 impl Table {
     /// Add new rows with the provided item ids to the Table.

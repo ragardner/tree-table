@@ -2,8 +2,10 @@ use crate::Change;
 use crate::EventData;
 use crate::Table;
 use crate::utils::utils_fns::get_full_move_map;
-use std::collections::HashMap;
-use std::collections::HashSet;
+use alloc::string::String;
+use alloc::vec::Vec;
+use hashbrown::HashMap;
+use hashbrown::HashSet;
 
 impl Table {
     pub(crate) fn cr_move_cols(

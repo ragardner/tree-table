@@ -1,15 +1,13 @@
-use crate::CellProps;
-use crate::IndexCell;
-use crate::MaxMap;
-use crate::TableCell;
-use crate::str_err;
+use alloc::{
+    rc::Rc,
+    string::{String, ToString},
+    vec::Vec,
+};
+use hashbrown::HashMap;
+
 use crate::types::CyclingCounter;
-use crate::utils::utils_fns::n_to_base62;
-use crate::utils::utils_fns::pull_n;
-use crate::utils::utils_fns::push_n;
-use crate::utils::utils_fns::push_n_add;
-use std::collections::HashMap;
-use std::rc::Rc;
+use crate::utils::utils_fns::{n_to_base62, pull_n, push_n, push_n_add};
+use crate::{CellProps, IndexCell, MaxMap, TableCell, str_err};
 
 #[derive(Debug, Clone)]
 pub struct Index {
@@ -139,6 +137,8 @@ impl Index {
 
         #[cfg(any(debug_assertions, feature = "safety"))]
         {
+            use alloc::vec;
+
             let mut seen = vec![false; n];
             for &old_idx in full_new_to_old {
                 if old_idx >= n || seen[old_idx] {
@@ -148,7 +148,7 @@ impl Index {
             }
         }
 
-        let mut old_cells = std::mem::take(&mut self.cells)
+        let mut old_cells = core::mem::take(&mut self.cells)
             .into_iter()
             .map(Some)
             .collect::<Vec<_>>();

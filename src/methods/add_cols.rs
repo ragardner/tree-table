@@ -1,15 +1,10 @@
-use crate::CellProps;
-use crate::Change;
-use crate::EventData;
-use crate::HeaderCell;
-use crate::NO_END;
-use crate::Span;
-use crate::Table;
-use crate::TableCell;
-use crate::Val;
 use crate::statics::DEFAULT_INHERIT;
-use crate::str_err;
-use std::rc::Rc;
+use crate::{
+    CellProps, Change, EventData, HeaderCell, NO_END, Span, Table, TableCell, Val, str_err,
+};
+use alloc::rc::Rc;
+use alloc::string::String;
+use alloc::vec::Vec;
 
 impl Table {
     pub(crate) fn cr_add_cols(

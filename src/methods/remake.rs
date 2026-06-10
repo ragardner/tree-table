@@ -1,6 +1,7 @@
 use crate::HeaderCell;
 use crate::IndexCell;
 use crate::Table;
+use alloc::vec::Vec;
 
 impl Table {
     /// Remake table displayed rows, row canvas positions.

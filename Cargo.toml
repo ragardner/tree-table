@@ -1,46 +1,45 @@
 [package]
-name = "tree-table-core"
-version = "0.1.0"
+name = "tree-table"
+version = "0.0.1-dev.1"
 edition = "2024"
 description = "A high performance core for a treeview table widget."
 license = "Apache-2.0"
-repository = "https://github.com/ragardner/tree-table-core"
+repository = "https://github.com/ragardner/tree-table"
 keywords = ["table", "treeview", "tree", "widget", "rust"]
 readme = "README.md"
 rust-version = "1.90"
 
 [dependencies]
-deep-time = { path = "../deep-time", features = ["parse", "jiff-tz"] }
-regex = "1"
-jiff = "0.2"
-bigdecimal = { version = "0.4.10" }
-rust_decimal = { version = "1.40.0" }
-num-bigint = { version = "0.4.6" }
+deep-time     = { path = "../deep-time", version = ">=0.1.0-beta.8", features = ["parse", "jiff-tz"] }
+hashbrown     = { version = "0.17" }
+once_cell     = { version = "=1.21", default-features = false, features = ["alloc"] }
+bigdecimal    = { version = "0.4", default-features = false }
+rust_decimal  = { version = "1", default-features = false }
 
-serde = { version = "1.0", features = ["derive", "rc"], optional = true }
-tsify = { version = "=0.5.6", optional = true }
-wasm-bindgen = { version = "0.2", optional = true, features = ["serde-serialize"] }
+serde         = { version = "1.0", features = ["derive", "rc"], optional = true }
+tsify         = { version = "=0.5.6", optional = true }
+wasm-bindgen  = { version = "0.2", optional = true, features = ["serde-serialize"] }
 
 [features]
 default = ["safety"]
+std = []
 safety = []
 
 serde = [
     "dep:serde",
-    "jiff/serde",
+    "deep-time/serde",
     "bigdecimal/serde",
     "bigdecimal/serde-json",
     "rust_decimal/serde",
-    "num-bigint/serde",
-    "deep-time/serde",
 ]
 
-tsify = [
+js = [
+    "std",
     "serde",
-    "dep:tsify",
     "dep:wasm-bindgen",
-    "deep-time/tsify",
-    "jiff/js",
+    "deep-time/js",
 ]
-
-wasm = ["tsify"]
+tsify = [
+    "dep:tsify",
+    "js",
+]

@@ -1,8 +1,12 @@
 use crate::Index;
 use crate::IndexCell;
 use crate::Table;
-use std::collections::HashMap;
-use std::rc::Rc;
+use alloc::boxed::Box;
+use alloc::format;
+use alloc::rc::Rc;
+use alloc::string::String;
+use alloc::vec::Vec;
+use hashbrown::HashMap;
 
 // Custom iterator for traversing ancestor rows
 struct AncestorRowIterator<'a> {
@@ -56,7 +60,7 @@ impl Index {
         // Look up row for the given IID
         let row = match self.iid_to_row.get(iid) {
             None => {
-                return Box::new(std::iter::once(Err(format!(
+                return Box::new(core::iter::once(Err(format!(
                     "IID {} not found in iid_to_row",
                     &*iid
                 ))));
@@ -67,14 +71,14 @@ impl Index {
         // Get cell and extract first parent IID
         let first_parent = match self.cells.get(row) {
             None => {
-                return Box::new(std::iter::once(Err(format!(
+                return Box::new(core::iter::once(Err(format!(
                     "Cell not found for IID {} at row {}",
                     &*iid, row
                 ))));
             }
             Some(cell) => {
                 if cell.par.is_empty() {
-                    return Box::new(std::iter::empty());
+                    return Box::new(core::iter::empty());
                 }
                 cell.par.clone() // Cheap Rc clone
             }

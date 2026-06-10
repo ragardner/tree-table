@@ -1,4 +1,5 @@
 use crate::Color3;
+use alloc::string::String;
 
 #[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
 #[cfg_attr(feature = "tsify", tsify(from_wasm_abi))]

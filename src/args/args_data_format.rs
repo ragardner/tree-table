@@ -1,3 +1,5 @@
+use alloc::string::String;
+
 use crate::DataFormat;
 use crate::SpanKey;
 use crate::statics::default_emit_event_for_api;

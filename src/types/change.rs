@@ -1,10 +1,6 @@
-use crate::ChangeHeaderCell;
-use crate::ChangeIndexCell;
-use crate::HeaderCell;
-use crate::IndexCell;
-use crate::Selected;
-use crate::Span;
-use crate::TableCell;
+use alloc::vec::Vec;
+
+use crate::{ChangeHeaderCell, ChangeIndexCell, HeaderCell, IndexCell, Selected, Span, TableCell};
 
 #[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
 #[cfg_attr(feature = "tsify", tsify(from_wasm_abi))]

@@ -4,11 +4,12 @@ use crate::Change;
 use crate::EventData;
 use crate::MaxMap;
 use crate::TableCell;
-use std::borrow::Borrow;
-use std::borrow::Cow;
-use std::hash::Hash;
-use std::hash::Hasher;
-use std::rc::Rc;
+use alloc::borrow::{Borrow, Cow};
+use alloc::rc::Rc;
+use alloc::string::String;
+use alloc::vec::Vec;
+use core::hash::Hash;
+use core::hash::Hasher;
 
 #[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
 #[cfg_attr(feature = "tsify", tsify(from_wasm_abi))]

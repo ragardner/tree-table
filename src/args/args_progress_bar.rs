@@ -1,3 +1,5 @@
+use alloc::string::String;
+
 #[cfg(feature = "serde")]
 use crate::statics::default_emit_event_for_api;
 #[cfg(feature = "serde")]

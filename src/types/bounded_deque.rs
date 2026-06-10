@@ -1,4 +1,4 @@
-use std::collections::VecDeque;
+use alloc::collections::VecDeque;
 
 #[derive(Debug, Clone)]
 pub struct BoundedDeque<T> {

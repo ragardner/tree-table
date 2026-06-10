@@ -1,7 +1,8 @@
 use crate::args::UndoRedoArgs;
 use crate::{EventData, Table};
-use std::cell::RefCell;
-use std::rc::Rc;
+use alloc::rc::Rc;
+use alloc::string::String;
+use core::cell::RefCell;
 
 impl Table {
     pub fn undo(

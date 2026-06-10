@@ -1,22 +1,16 @@
-use crate::Change;
-use crate::EventData;
-use crate::Header;
-use crate::IndexCell;
-use crate::MaxMap;
-use crate::NO_END;
-use crate::Table;
-use crate::TableCell;
-use crate::Val;
-use crate::args::CycleHandling;
-use crate::args::DuplicateIdHandling;
-use crate::args::EmptyIdHandling;
-use crate::args::TreeExtendArgs;
+use alloc::format;
+use alloc::rc::Rc;
+use alloc::string::String;
+use alloc::vec;
+use alloc::vec::Vec;
+use core::cell::RefCell;
+use hashbrown::HashMap;
+
+use crate::args::{CycleHandling, DuplicateIdHandling, EmptyIdHandling, TreeExtendArgs};
 use crate::str_err;
 use crate::types::extensions::TrySetExt;
 use crate::utils::consecutive_ranges::consecutive_ranges_owned;
-use std::cell::RefCell;
-use std::collections::HashMap;
-use std::rc::Rc;
+use crate::{Change, EventData, Header, IndexCell, MaxMap, NO_END, Table, TableCell, Val};
 
 #[inline]
 fn tree_extend_get_descendants<'a>(

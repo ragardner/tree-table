@@ -1,8 +1,11 @@
 use crate::Val;
 use crate::utils::utils_fns::{natural_text_segments, natural_text_segments_cs};
+use alloc::format;
+use alloc::string::{String, ToString};
+use alloc::vec::Vec;
 use bigdecimal::ToPrimitive;
+use bigdecimal::num_bigint::{BigInt, Sign};
 use deep_time::{Dt, Lang};
-use num_bigint::Sign;
 
 // ─── OrderedF64 (clean f64 ordering for BTree/Ord) ───
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
@@ -10,7 +13,7 @@ pub struct OrderedF64(pub f64);
 
 impl Eq for OrderedF64 {}
 impl Ord for OrderedF64 {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+    fn cmp(&self, other: &Self) -> core::cmp::Ordering {
         self.0.total_cmp(&other.0)
     }
 }
@@ -73,7 +76,7 @@ impl Val {
             | Val::Dt(_)
             | Val::Dur(_) => XKey::Numeric(self.x_numeric_value().unwrap_or(0.0).into()),
             // Group 1 – text (comes after all numerics)
-            Val::Str(_) | Val::Chr(_) | Val::Path(_) => XKey::Text(self.x_text_value()),
+            Val::Str(_) | Val::Chr(_) => XKey::Text(self.x_text_value()),
             // Group 2 – bool
             Val::Bl(b) => XKey::Bool(*b),
             // Group 99 – nil/undefined
@@ -81,7 +84,7 @@ impl Val {
         }
     }
 
-    pub fn cmp_x(&self, other: &Val) -> std::cmp::Ordering {
+    pub fn cmp_x(&self, other: &Val) -> core::cmp::Ordering {
         self.x_key().cmp(&other.x_key())
     }
 
@@ -89,7 +92,6 @@ impl Val {
         match self {
             Val::Str(s) => s.to_lowercase(),
             Val::Chr(c) => c.to_lowercase().collect(),
-            Val::Path(p) => p.display().to_string().to_lowercase(),
             _ => String::new(),
         }
     }
@@ -141,15 +143,6 @@ impl Val {
             Val::Dur(d) => NaturalKey::Number(d.to_f64().into()),
             Val::Bigint(v) => bigint_key(v),
             Val::Bigdec(v) => bigdec_key(v),
-            Val::Path(p) => {
-                let s = p.display().to_string();
-                let trimmed = s.trim();
-                if trimmed.is_empty() {
-                    NaturalKey::Empty
-                } else {
-                    string_to_key(trimmed)
-                }
-            }
             other => {
                 if let Some(n) = other.x_numeric_value() {
                     NaturalKey::Number(n.into())
@@ -210,37 +203,37 @@ impl Val {
     //
 
     #[inline(always)]
-    pub fn natural_cmp(&self, other: &Val) -> std::cmp::Ordering {
+    pub fn natural_cmp(&self, other: &Val) -> core::cmp::Ordering {
         self.natural_key().cmp(&other.natural_key())
     }
 
     #[inline(always)]
-    pub fn date_cmp(&self, other: &Val) -> std::cmp::Ordering {
+    pub fn date_cmp(&self, other: &Val) -> core::cmp::Ordering {
         self.date_key().cmp(&other.date_key())
     }
 
     #[inline(always)]
-    pub fn version_cmp(&self, other: &Val) -> std::cmp::Ordering {
+    pub fn version_cmp(&self, other: &Val) -> core::cmp::Ordering {
         self.version_key().cmp(&other.version_key())
     }
 
     #[inline(always)]
-    pub fn fast_cmp(&self, other: &Val) -> std::cmp::Ordering {
+    pub fn fast_cmp(&self, other: &Val) -> core::cmp::Ordering {
         self.fast_key().cmp(&other.fast_key())
     }
 
     #[inline(always)]
-    pub fn natural_cs_cmp(&self, other: &Val) -> std::cmp::Ordering {
+    pub fn natural_cs_cmp(&self, other: &Val) -> core::cmp::Ordering {
         self.natural_key_cs().cmp(&other.natural_key_cs())
     }
 
     #[inline(always)]
-    pub fn lexical_cmp(&self, other: &Val) -> std::cmp::Ordering {
+    pub fn lexical_cmp(&self, other: &Val) -> core::cmp::Ordering {
         self.lexical_key().cmp(&other.lexical_key())
     }
 
     #[inline(always)]
-    pub fn lexical_cs_cmp(&self, other: &Val) -> std::cmp::Ordering {
+    pub fn lexical_cs_cmp(&self, other: &Val) -> core::cmp::Ordering {
         self.lexical_cs_key().cmp(&other.lexical_cs_key())
     }
 
@@ -303,7 +296,7 @@ impl Val {
     }
 }
 
-fn bigint_key(v: &num_bigint::BigInt) -> NaturalKey {
+fn bigint_key(v: &BigInt) -> NaturalKey {
     if let Some(f) = v.to_f64() {
         if f.is_finite() {
             return NaturalKey::Number(f.into());

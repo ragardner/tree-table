@@ -1,19 +1,11 @@
-use crate::CellAlign;
-use crate::CellBorders;
-use crate::Checkbox;
-use crate::DataFormat;
-use crate::Dropdown;
-use crate::GetCellMutResultExt;
-use crate::GetCellResultExt;
-use crate::GetResultExt;
-use crate::Highlight;
-use crate::IndexCell;
-use crate::Note;
-use crate::ProgressBar;
-use crate::Table;
-use crate::Val;
-use std::collections::HashMap;
-use std::rc::Rc;
+use crate::{
+    CellAlign, CellBorders, Checkbox, DataFormat, Dropdown, GetCellMutResultExt, GetCellResultExt,
+    GetResultExt, Highlight, IndexCell, Note, ProgressBar, Table, Val,
+};
+use alloc::rc::Rc;
+use alloc::string::String;
+use alloc::vec::Vec;
+use hashbrown::HashMap;
 
 impl Table {
     #[inline]

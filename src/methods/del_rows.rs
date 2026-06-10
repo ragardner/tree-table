@@ -1,11 +1,9 @@
-use crate::Change;
-use crate::EventData;
-use crate::IndexCell;
-use crate::NO_END;
-use crate::Table;
-use std::collections::HashMap;
-use std::collections::HashSet;
-use std::rc::Rc;
+use crate::{Change, EventData, IndexCell, NO_END, Table};
+use alloc::rc::Rc;
+use alloc::string::String;
+use alloc::vec::Vec;
+use hashbrown::HashMap;
+use hashbrown::HashSet;
 
 impl Table {
     /// Core del rows function

@@ -1,3 +1,5 @@
+use alloc::{string::String, vec::Vec};
+
 use crate::Val;
 
 #[cfg_attr(feature = "tsify", derive(tsify::Tsify))]

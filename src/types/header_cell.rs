@@ -1,8 +1,9 @@
 use super::cell_props::CellProps;
 use super::val::Val;
 use crate::{Change, EventData};
-use std::borrow::Cow;
-use std::rc::Rc;
+use alloc::borrow::Cow;
+use alloc::rc::Rc;
+use alloc::string::String;
 
 #[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
 #[cfg_attr(feature = "tsify", tsify(from_wasm_abi))]

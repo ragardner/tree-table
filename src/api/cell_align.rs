@@ -1,8 +1,7 @@
-use crate::CellAlignArgs;
-use crate::EventData;
-use crate::Table;
-use std::cell::RefCell;
-use std::rc::Rc;
+use alloc::{rc::Rc, string::String};
+use core::cell::RefCell;
+
+use crate::{CellAlignArgs, EventData, Table};
 
 impl Table {
     pub fn align(

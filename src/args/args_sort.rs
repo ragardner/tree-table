@@ -3,6 +3,8 @@ use crate::Val;
 use crate::statics::default_emit_event_for_api;
 use crate::statics::default_save_selection_for_api;
 use crate::statics::default_undo_for_api;
+use alloc::vec;
+use alloc::vec::Vec;
 
 #[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
 #[cfg_attr(feature = "tsify", tsify(from_wasm_abi))]
@@ -21,7 +23,7 @@ pub enum SortKey {
 }
 
 impl SortKey {
-    pub fn get_cmp(&self) -> fn(&Val, &Val) -> std::cmp::Ordering {
+    pub fn get_cmp(&self) -> fn(&Val, &Val) -> core::cmp::Ordering {
         match self {
             SortKey::Natural => Val::natural_cmp,
             SortKey::X => Val::cmp_x,
@@ -34,7 +36,7 @@ impl SortKey {
         }
     }
 
-    pub fn cmp(&self, a: &Val, b: &Val) -> std::cmp::Ordering {
+    pub fn cmp(&self, a: &Val, b: &Val) -> core::cmp::Ordering {
         match self {
             SortKey::Natural => a.natural_cmp(b),
             SortKey::X => a.cmp_x(b),

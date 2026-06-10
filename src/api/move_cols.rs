@@ -1,16 +1,13 @@
-use crate::Change;
-use crate::EventData;
-use crate::NO_END;
-use crate::Table;
+use alloc::{rc::Rc, string::String, vec, vec::Vec};
+use core::cell::RefCell;
+use hashbrown::{HashMap, HashSet};
+
 use crate::args::MoveArgs;
-use crate::statics::default_emit_event_for_api;
-use crate::statics::default_save_selection_for_api;
-use crate::statics::default_undo_for_api;
-use crate::str_err;
+use crate::statics::{
+    default_emit_event_for_api, default_save_selection_for_api, default_undo_for_api,
+};
 use crate::utils::consecutive_ranges::consecutive_ranges_borrowed;
-use std::cell::RefCell;
-use std::collections::{HashMap, HashSet};
-use std::rc::Rc;
+use crate::{Change, EventData, NO_END, Table, str_err};
 
 impl Table {
     pub fn move_cols(

@@ -1,7 +1,6 @@
-use crate::Change;
-use crate::EventData;
-use crate::NO_END;
-use crate::Table;
+use crate::{Change, EventData, NO_END, Table};
+use alloc::string::String;
+use alloc::vec::Vec;
 
 impl Table {
     pub(crate) fn cr_del_cols(

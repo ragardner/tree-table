@@ -1,11 +1,13 @@
+use alloc::string::ToString;
+use alloc::{rc::Rc, string::String, vec, vec::Vec};
+use core::cell::RefCell;
+
 use crate::args::DelArgs;
 use crate::args::args_del::DelPosArgs;
-use crate::statics::default_emit_event_for_api;
-use crate::statics::default_save_selection_for_api;
-use crate::statics::default_undo_for_api;
+use crate::statics::{
+    default_emit_event_for_api, default_save_selection_for_api, default_undo_for_api,
+};
 use crate::{EventData, Table};
-use std::cell::RefCell;
-use std::rc::Rc;
 
 impl Table {
     /// Delete cols from the table using item ids.

@@ -1,7 +1,10 @@
 use crate::{GetResultExt, NaturalSegment, OrderedF64};
+use alloc::rc::Rc;
+use alloc::string::String;
+use alloc::vec;
+use alloc::vec::Vec;
 use core::sync::atomic::{AtomicU32, Ordering};
-use std::collections::{HashMap, HashSet};
-use std::rc::Rc;
+use hashbrown::{HashMap, HashSet};
 
 static WIDGET_ID_COUNTER: AtomicU32 = AtomicU32::new(0);
 

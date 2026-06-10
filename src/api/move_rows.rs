@@ -6,10 +6,13 @@ use crate::statics::default_emit_event_for_api;
 use crate::statics::default_save_selection_for_api;
 use crate::statics::default_undo_for_api;
 use crate::str_err;
-use std::cell::RefCell;
-use std::collections::HashMap;
-use std::collections::HashSet;
-use std::rc::Rc;
+use alloc::rc::Rc;
+use alloc::string::String;
+use alloc::vec;
+use alloc::vec::Vec;
+use core::cell::RefCell;
+use hashbrown::HashMap;
+use hashbrown::HashSet;
 
 impl Table {
     pub fn move_rows(

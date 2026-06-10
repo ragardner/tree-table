@@ -1,14 +1,18 @@
 use crate::IndexCell;
 use crate::str_err;
-use std::collections::HashMap;
-use std::rc::Rc;
+use alloc::format;
+use alloc::rc::Rc;
+use alloc::string::String;
+use alloc::vec::Vec;
+use hashbrown::HashMap;
 
 pub trait GetResultExt {
     fn get_res(&self, key: &str) -> Result<&usize, String>;
 }
 impl GetResultExt for HashMap<Rc<str>, usize> {
     fn get_res(&self, key: &str) -> Result<&usize, String> {
-        self.get(key).ok_or_else(|| str_err!("Key '{}' not found", key))
+        self.get(key)
+            .ok_or_else(|| str_err!("Key '{}' not found", key))
     }
 }
 
