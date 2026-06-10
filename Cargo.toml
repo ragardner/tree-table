@@ -10,7 +10,7 @@ readme = "README.md"
 rust-version = "1.90"
 
 [dependencies]
-deep-time     = { path = "../deep-time", version = ">=0.1.0-beta.8", features = ["parse", "jiff-tz"] }
+deep-time     = { path = "../deep-time", version = ">=0.1.0-beta.9", features = ["parse", "jiff-tz"] }
 hashbrown     = { version = "0.17" }
 once_cell     = { version = "=1.21", default-features = false, features = ["alloc"] }
 bigdecimal    = { version = "0.4", default-features = false }
