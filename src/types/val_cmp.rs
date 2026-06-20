@@ -5,7 +5,7 @@ use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 use bigdecimal::ToPrimitive;
 use bigdecimal::num_bigint::{BigInt, Sign};
-use deep_time::{Dt, Lang};
+use deep_time::{Dt, Lang, ParseCfg};
 
 // ─── OrderedF64 (clean f64 ordering for BTree/Ord) ───
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
@@ -246,7 +246,7 @@ impl Val {
         if let Ok(dur) = Dt::from_str_duration(trimmed, Lang::En) {
             return NaturalKey::Number(dur.to_f64().into());
         }
-        if let Ok(ts) = Dt::from_str_parse(trimmed, &None) {
+        if let Ok(ts) = Dt::from_str_parse(trimmed, &ParseCfg::DEFAULT) {
             return NaturalKey::Date(ts);
         }
         NaturalKey::Text(natural_components(trimmed))
@@ -258,7 +258,7 @@ impl Val {
                 return NaturalKey::Number(f.into());
             }
         }
-        if let Ok(ts) = Dt::from_str_parse(trimmed, &None) {
+        if let Ok(ts) = Dt::from_str_parse(trimmed, &ParseCfg::DEFAULT) {
             return NaturalKey::Date(ts);
         }
         if let Ok(dur) = Dt::from_str_duration(trimmed, Lang::En) {
@@ -268,7 +268,7 @@ impl Val {
     }
 
     fn date_key_from_string(trimmed: &str) -> NaturalKey {
-        if let Ok(ts) = Dt::from_str_parse(trimmed, &None) {
+        if let Ok(ts) = Dt::from_str_parse(trimmed, &ParseCfg::DEFAULT) {
             return NaturalKey::Date(ts);
         }
         if let Ok(f) = trimmed.parse::<f64>() {

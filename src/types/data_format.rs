@@ -201,9 +201,15 @@ impl DataFormat {
                 .map_err(|e| str_err!("Cannot parse '{}' as BigInt: {}", s, e))?,
 
             DataFormat::Bl { .. } => Val::Bl(try_parse_bool(&s)?),
-            DataFormat::Dt { parse_options, .. } => Dt::from_str_parse(&s.trim(), parse_options)
-                .map(Val::Dt)
-                .map_err(|e| str_err!("Cannot convert '{}' to Date: {}", s, e))?,
+            DataFormat::Dt { parse_options, .. } => {
+                let opts = match parse_options {
+                    Some(po) => po,
+                    None => &ParseCfg::DEFAULT,
+                };
+                Dt::from_str_parse(&s.trim(), opts)
+                    .map(Val::Dt)
+                    .map_err(|e| str_err!("Cannot convert '{}' to Date: {}", s, e))?
+            }
             DataFormat::Dur { .. } => Dt::from_str_duration(&s.trim(), Lang::En)
                 .map(Val::Dur)
                 .map_err(|e| str_err!("Cannot convert '{}' to Duration: {}", s, e))?,
