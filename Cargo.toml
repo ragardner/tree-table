@@ -22,7 +22,9 @@ wasm-bindgen  = { version = "0.2", optional = true, features = ["serde-serialize
 
 [features]
 default = ["safety"]
-std = []
+std = [
+    "deep-time/std",
+]
 safety = []
 
 serde = [
