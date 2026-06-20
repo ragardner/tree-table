@@ -1,3 +1,10 @@
+use alloc::{
+    format,
+    string::{String, ToString},
+};
+
+#[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
+#[cfg_attr(feature = "tsify", tsify(from_wasm_abi))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone, PartialEq)]
 pub struct Color3 {
@@ -41,7 +48,7 @@ impl ToString for Color3 {
     }
 }
 
-impl std::convert::TryFrom<&str> for Color3 {
+impl core::convert::TryFrom<&str> for Color3 {
     type Error = &'static str;
 
     fn try_from(hex: &str) -> Result<Self, Self::Error> {

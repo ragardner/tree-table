@@ -2,9 +2,13 @@ use crate::Color3;
 use crate::Table;
 use crate::Val;
 use crate::utils::utils_fns::generate_unique_id;
+use alloc::string::String;
+use alloc::string::ToString;
 
 macro_rules! define_options {
     ($($field:ident: $ty:ty, $default_str:literal => $default:expr),* $(,)?) => {
+        #[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
+        #[cfg_attr(feature = "tsify", tsify(from_wasm_abi))]
         #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
         #[derive(Debug, Clone, PartialEq)]
         pub struct Options {
@@ -12,6 +16,8 @@ macro_rules! define_options {
                 pub $field: $ty
             ),*
         }
+        #[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
+        #[cfg_attr(feature = "tsify", tsify(from_wasm_abi))]
         #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
         #[derive(Debug, Clone, PartialEq)]
         pub struct PartialOptions {
@@ -55,10 +61,9 @@ macro_rules! define_options {
 
         macro_rules! merge_self_opts_fields {
             ($self:expr, $partial:ident) => {
-                let mut opts = $self.opts.borrow_mut();
                 $(
                     if let Some(val) = $partial.$field {
-                        opts.$field = val;
+                        $self.opts.$field = val;
                     }
                 )*
             }
@@ -73,9 +78,6 @@ macro_rules! define_options {
                 )*
             }
         }
-
-        pub(crate) use merge_self_opts_fields;
-        pub(crate) use merge_opts_fields;
     };
 }
 
@@ -141,6 +143,8 @@ define_options! {
     validation_includes_undo: bool, "validation_includes_undo" => false,
 
     // Appearance
+    horizontal_grid_line_width: u64, "horizontal_grid_line_width" => 1,
+    vertical_grid_line_width: u64, "vertical_grid_line_width" => 1,
     show_row_numbering: String, "show_row_numbering" => "numbers".to_string(),
     show_col_numbering: String, "show_col_numbering" => "letters".to_string(),
     show_index: bool, "show_index" => true,
@@ -150,7 +154,7 @@ define_options! {
     popup_menu_highlight_bg: Color3, "popup_menu_highlight_bg" => Color3 {r: 220, g: 222, b: 224},
     popup_menu_highlight_fg: Color3, "popup_menu_highlight_fg" => Color3 {r: 0, g: 0, b: 0},
     index_hidden_rows_expander_bg: Color3, "index_hidden_rows_expander_bg" => Color3 {r: 116, g: 119, b: 117},
-    header_hidden_columns_expander_bg: Color3, "header_hidden_columns_expander_bg" => Color3 {r: 116, g: 119, b: 117},
+    header_hidden_cols_expander_bg: Color3, "header_hidden_cols_expander_bg" => Color3 {r: 116, g: 119, b: 117},
     header_bg: Color3, "header_bg" => Color3 {r: 255, g: 255, b: 255},
     header_border_fg: Color3, "header_border_fg" => Color3 {r: 196, g: 199, b: 197},
     header_grid_fg: Color3, "header_grid_fg" => Color3 {r: 196, g: 199, b: 197},
@@ -183,22 +187,22 @@ define_options! {
     table_editor_select_fg: Color3, "table_editor_select_fg" => Color3 {r: 0, g: 0, b: 0},
     table_selected_box_cells_fg: Color3, "table_selected_box_cells_fg" => Color3 {r: 11, g: 87, b: 208},
     table_selected_box_rows_fg: Color3, "table_selected_box_rows_fg" => Color3 {r: 11, g: 87, b: 208},
-    table_selected_box_columns_fg: Color3, "table_selected_box_columns_fg" => Color3 {r: 11, g: 87, b: 208},
+    table_selected_box_cols_fg: Color3, "table_selected_box_cols_fg" => Color3 {r: 11, g: 87, b: 208},
     table_selected_cells_border_fg: Color3, "table_selected_cells_border_fg" => Color3 {r: 11, g: 87, b: 208},
     table_selected_cells_bg: Color3, "table_selected_cells_bg" => Color3 {r: 230, g: 239, b: 253},
     table_selected_cells_fg: Color3, "table_selected_cells_fg" => Color3 {r: 0, g: 0, b: 0},
     resizing_line_fg: Color3, "resizing_line_fg" => Color3 {r: 0, g: 0, b: 0},
     drag_and_drop_bg: Color3, "drag_and_drop_bg" => Color3 {r: 11, g: 87, b: 208},
-    header_selected_columns_bg: Color3, "header_selected_columns_bg" => Color3 {r: 11, g: 87, b: 208},
-    header_selected_columns_fg: Color3, "header_selected_columns_fg" => Color3 {r: 255, g: 255, b: 255},
+    header_selected_cols_bg: Color3, "header_selected_cols_bg" => Color3 {r: 11, g: 87, b: 208},
+    header_selected_cols_fg: Color3, "header_selected_cols_fg" => Color3 {r: 255, g: 255, b: 255},
     index_selected_rows_bg: Color3, "index_selected_rows_bg" => Color3 {r: 11, g: 87, b: 208},
     index_selected_rows_fg: Color3, "index_selected_rows_fg" => Color3 {r: 255, g: 255, b: 255},
     table_selected_rows_border_fg: Color3, "table_selected_rows_border_fg" => Color3 {r: 11, g: 87, b: 208},
     table_selected_rows_bg: Color3, "table_selected_rows_bg" => Color3 {r: 230, g: 239, b: 253},
     table_selected_rows_fg: Color3, "table_selected_rows_fg" => Color3 {r: 0, g: 0, b: 0},
-    table_selected_columns_border_fg: Color3, "table_selected_columns_border_fg" => Color3 {r: 11, g: 87, b: 208},
-    table_selected_columns_bg: Color3, "table_selected_columns_bg" => Color3 {r: 230, g: 239, b: 253},
-    table_selected_columns_fg: Color3, "table_selected_columns_fg" => Color3 {r: 0, g: 0, b: 0},
+    table_selected_cols_border_fg: Color3, "table_selected_cols_border_fg" => Color3 {r: 11, g: 87, b: 208},
+    table_selected_cols_bg: Color3, "table_selected_cols_bg" => Color3 {r: 230, g: 239, b: 253},
+    table_selected_cols_fg: Color3, "table_selected_cols_fg" => Color3 {r: 0, g: 0, b: 0},
     tree_arrow_fg: Color3, "tree_arrow_fg" => Color3 {r: 0, g: 0, b: 0},
     selected_cells_tree_arrow_fg: Color3, "selected_cells_tree_arrow_fg" => Color3 {r: 0, g: 0, b: 0},
     selected_rows_tree_arrow_fg: Color3, "selected_rows_tree_arrow_fg" => Color3 {r: 255, g: 255, b: 255},
@@ -211,7 +215,7 @@ impl Table {
     }
 
     /// Validates input before applying settings changes to table.
-    pub fn cr_merge_opts(&self, mut partial: PartialOptions) -> Result<(), String> {
+    pub fn cr_merge_opts(&mut self, mut partial: PartialOptions) -> Result<(), String> {
         Self::acr_validate_partial_opts(&mut partial)?;
         merge_self_opts_fields!(self, partial);
         Ok(())

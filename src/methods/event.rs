@@ -1,49 +1,53 @@
 use crate::EventData;
 use crate::Table;
-use crate::statics::{EVENT_MODIFIED, EVENT_SELECT};
+use alloc::rc::Rc;
+use alloc::string::String;
+use core::cell::RefCell;
 
 impl Table {
-    pub(crate) fn cr_callback_event(&self, event: &str, data: &EventData) {
-        if let Some(vec) = self.events.borrow().bound_event_fns.get(event) {
-            if !vec.is_empty() {
-                for func in vec.iter() {
-                    let _ = func(&data);
-                }
+    /// The table was modified in some way.
+    /// Purge redo is required when not performing undo or redo.
+    pub(crate) fn cr_event_modified(&mut self, purge_redo: bool) -> Result<(), String> {
+        if purge_redo {
+            self.grid.redo_stack.clear();
+        }
+        Ok(())
+    }
+
+    #[inline(always)]
+    pub(crate) fn cr_finalize_event_if_any_non_selection_change(
+        &mut self,
+        event_data: EventData,
+        undo: bool,
+        emit: bool,
+        reverse: bool,
+    ) -> Result<Option<Rc<RefCell<EventData>>>, String> {
+        if event_data.has_non_selection_change(reverse) {
+            self.cr_event_modified(true)?;
+            let shared = Rc::new(RefCell::new(event_data));
+            if self.opts.enabled_undo && undo && self.grid.undo_stack.get_maxlen() > 0 {
+                self.grid.undo_stack.push_back(shared.clone());
             }
+            Ok(emit.then_some(shared))
+        } else {
+            Ok(None)
         }
     }
 
-    /// The table was modified, serialize event_data and send to bound events.
-    /// Purge redo is required when not performing undo or redo.
-    pub(crate) fn cr_event_modified(
-        &self,
-        data: &EventData,
+    #[inline(always)]
+    pub(crate) fn cr_finalize_event(
+        &mut self,
+        event_data: EventData,
+        undo: bool,
         emit: bool,
-        purge_redo: bool,
-    ) -> Result<(), String> {
-        if emit {
-            self.cr_callback_event(EVENT_MODIFIED, data);
+    ) -> Result<Option<Rc<RefCell<EventData>>>, String> {
+        self.cr_event_modified(true)?;
+        let shared = Rc::new(RefCell::new(event_data));
+        if self.opts.enabled_undo && undo && self.grid.undo_stack.get_maxlen() > 0 {
+            self.grid.undo_stack.push_back(shared.clone());
         }
-        if purge_redo {
-            self.grid.borrow_mut().redo_stack.clear();
-        }
-        Ok(())
-    }
-
-    /// The table's selection was modified, serialize event_data and send to bound events.
-    /// Purge redo is required when not performing undo or redo.
-    pub(crate) fn cr_event_select(
-        &self,
-        data: &EventData,
-        emit: bool,
-        purge_redo: bool,
-    ) -> Result<(), String> {
-        if emit {
-            self.cr_callback_event(EVENT_SELECT, data);
-        }
-        if purge_redo {
-            self.grid.borrow_mut().redo_stack.clear();
-        }
-        Ok(())
+        Ok(emit.then_some(shared))
     }
 }
+
+impl Table {}

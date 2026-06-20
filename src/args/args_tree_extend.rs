@@ -1,10 +1,18 @@
+use alloc::string::String;
+use alloc::vec;
+use alloc::vec::Vec;
+
 use crate::Val;
 use crate::statics::default_emit_event_for_api;
 use crate::statics::default_inherit;
+use crate::statics::default_save_selection_for_api;
 use crate::statics::default_undo_for_api;
 #[cfg(feature = "serde")]
 use crate::statics::get_true;
 
+#[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
+#[cfg_attr(feature = "tsify", tsify(from_wasm_abi))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Default, Clone, Copy, PartialEq)]
 pub enum EmptyIdHandling {
     #[default]
@@ -13,6 +21,9 @@ pub enum EmptyIdHandling {
     Ignore,
 }
 
+#[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
+#[cfg_attr(feature = "tsify", tsify(from_wasm_abi))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Default, Clone, Copy, PartialEq)]
 pub enum DuplicateIdHandling {
     #[default]
@@ -20,6 +31,9 @@ pub enum DuplicateIdHandling {
     Error,
 }
 
+#[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
+#[cfg_attr(feature = "tsify", tsify(from_wasm_abi))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Default, Clone, Copy, PartialEq)]
 pub enum CycleHandling {
     #[default]
@@ -35,6 +49,9 @@ pub enum CycleHandling {
 /// - iid
 /// - par
 /// - vals of Vec<(String, Val)>
+#[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
+#[cfg_attr(feature = "tsify", tsify(from_wasm_abi))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone, PartialEq)]
 pub struct TreeExtendRow {
     #[cfg_attr(feature = "serde", serde(default))]
@@ -46,7 +63,6 @@ pub struct TreeExtendRow {
     #[cfg_attr(feature = "serde", serde(default = "get_true"))]
     pub open: bool,
     pub dim: Option<u64>,
-    pub chn: Option<Vec<String>>,
 }
 
 /// For tree_extend functions.
@@ -54,6 +70,9 @@ pub struct TreeExtendRow {
 /// - iid
 /// - par
 /// - vals of Vec<(String, Val)>
+#[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
+#[cfg_attr(feature = "tsify", tsify(from_wasm_abi))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone, PartialEq)]
 pub struct TreeExtendArgs {
     pub rows: Vec<TreeExtendRow>,
@@ -71,6 +90,8 @@ pub struct TreeExtendArgs {
     pub duplicate_ids: DuplicateIdHandling,
     #[cfg_attr(feature = "serde", serde(default))]
     pub cycles: CycleHandling,
+    #[cfg_attr(feature = "serde", serde(default = "default_save_selection_for_api"))]
+    pub save_selection: bool,
 }
 
 impl Default for TreeExtendArgs {
@@ -84,6 +105,7 @@ impl Default for TreeExtendArgs {
             empty_ids: EmptyIdHandling::default(),
             duplicate_ids: DuplicateIdHandling::default(),
             cycles: CycleHandling::default(),
+            save_selection: default_save_selection_for_api(),
         }
     }
 }

@@ -1,31 +1,40 @@
-use crate::Coords;
-use crate::SelectionKind;
-use crate::Table;
-use crate::utils::utils_fns::{span_a2i, span_a2n};
-use regex::Regex;
-use std::sync::OnceLock;
+use alloc::format;
+use alloc::string::String;
+use alloc::string::ToString;
 
-// Define static OnceLock variables for each Regex
-static PATTERN_ROW: OnceLock<Regex> = OnceLock::new();
-static PATTERN_COL: OnceLock<Regex> = OnceLock::new();
-static PATTERN_CELL: OnceLock<Regex> = OnceLock::new();
-static PATTERN_RANGE: OnceLock<Regex> = OnceLock::new();
-static PATTERN_ROW_RANGE: OnceLock<Regex> = OnceLock::new();
-static PATTERN_ROW_START: OnceLock<Regex> = OnceLock::new();
-static PATTERN_ROW_END: OnceLock<Regex> = OnceLock::new();
-static PATTERN_COL_RANGE: OnceLock<Regex> = OnceLock::new();
-static PATTERN_COL_START: OnceLock<Regex> = OnceLock::new();
-static PATTERN_COL_END: OnceLock<Regex> = OnceLock::new();
-static PATTERN_CELL_START: OnceLock<Regex> = OnceLock::new();
-static PATTERN_CELL_END: OnceLock<Regex> = OnceLock::new();
-static PATTERN_CELL_COL: OnceLock<Regex> = OnceLock::new();
-static PATTERN_CELL_ROW: OnceLock<Regex> = OnceLock::new();
-static PATTERN_ALL: OnceLock<Regex> = OnceLock::new();
+use crate::{SelectionKind, Table, TableGrid};
 
+const SPAN_COL_A_VALUE: usize = 'A' as usize;
+pub const NO_END: usize = usize::MAX; // Represents "to the end of table"
+
+/// Gets an index based on a column letter e.g. A = 0.
+/// Now case-insensitive (accepts both "B" and "b").
+pub fn span_a2i(a: &str) -> usize {
+    a.chars().fold(0, |acc, c| {
+        let cu = c.to_ascii_uppercase();
+        acc * 26 + (cu as usize - SPAN_COL_A_VALUE + 1)
+    }) - 1
+}
+
+/// Converts a 0-based column index back to Excel-style letter(s).
+/// 0 → "A", 25 → "Z", 26 → "AA", etc.
+pub fn col_index_to_letter(mut col: usize) -> String {
+    let mut s = String::new();
+    col += 1; // treat as 1-based for lettering
+    while col > 0 {
+        let rem = (col - 1) % 26;
+        s.push((b'A' + rem as u8) as char);
+        col = (col - 1) / 26;
+    }
+    s.chars().rev().collect()
+}
+
+#[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
+#[cfg_attr(feature = "tsify", tsify(from_wasm_abi))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone, PartialEq)]
 pub enum SpanKey {
-    Span(Coords),
+    Span(Span),
     None,
     Un64(usize),
     Tuple2(Option<usize>, Option<usize>),
@@ -37,64 +46,176 @@ pub enum SpanKey {
     Str(String),
 }
 
+#[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
+#[cfg_attr(feature = "tsify", tsify(from_wasm_abi))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub struct Span {
     pub row: usize,
-    pub end_row: Option<usize>,
+    pub end_row: usize, // NO_END = to end of table
     pub col: usize,
-    pub end_col: Option<usize>,
+    pub end_col: usize, // NO_END = to end of table
 }
 
 impl Span {
-    pub fn rows(&self, table: &Table) -> std::ops::Range<usize> {
-        let start: usize = self.row.try_into().unwrap_or(usize::MAX);
-        if let Some(end) = self.end_row {
-            start..end.try_into().unwrap_or(usize::MAX)
-        } else {
-            start..table.cr_total_rows()
+    pub fn new(row: usize, end_row: usize, col: usize, end_col: usize) -> Self {
+        Span {
+            row,
+            end_row,
+            col,
+            end_col,
         }
     }
 
-    pub fn cols(&self, table: &Table) -> std::ops::Range<usize> {
-        let start: usize = self.col.try_into().unwrap_or(usize::MAX);
-        if let Some(end) = self.end_col {
-            start..end.try_into().unwrap_or(usize::MAX)
-        } else {
-            start..table.cr_total_cols()
-        }
-    }
-
-    /// Returns an index.
-    pub fn max_row(&self, table: &Table) -> usize {
-        if let Some(end) = self.end_row {
-            end.saturating_sub(1).try_into().unwrap_or(usize::MAX)
-        } else {
-            table.cr_total_rows().saturating_sub(1)
-        }
-    }
-
-    /// Returns an index.
-    pub fn max_col(&self, table: &Table) -> usize {
-        if let Some(end) = self.end_col {
-            end.saturating_sub(1).try_into().unwrap_or(usize::MAX)
-        } else {
-            table.cr_total_cols().saturating_sub(1)
-        }
-    }
-
-    pub fn coords(&self) -> Coords {
-        Coords::new(self.row, self.end_row, self.col, self.end_col)
-    }
-
+    /// Returns the `SelectionKind`:
+    /// - `end_row == NO_END` but `end_col != NO_END` → `Rows`
+    /// - `end_col == NO_END` but `end_row != NO_END` → `Cols`
+    /// - anything else → `Cells`
     pub fn kind(&self) -> SelectionKind {
-        if self.end_row.is_none() {
-            SelectionKind::Cols
-        } else if self.end_col.is_none() {
-            SelectionKind::Rows
-        } else {
-            SelectionKind::Cells
+        match (self.end_row == NO_END, self.end_col == NO_END) {
+            (true, false) => SelectionKind::Rows,
+            (false, true) => SelectionKind::Cols,
+            _ => SelectionKind::Cells,
         }
+    }
+
+    /// Iterate over a spans rows
+    pub fn rows(&self, grid: &TableGrid) -> core::ops::Range<usize> {
+        let start = self.row;
+        if self.end_row != NO_END {
+            start..self.end_row + 1
+        } else {
+            start..Table::acr_total_rows(&grid.index.cells)
+        }
+    }
+
+    /// Inclusive start index and end index of the span
+    pub fn rows_start_end(&self, grid: &TableGrid) -> (usize, usize) {
+        let start = self.row;
+        if self.end_row != NO_END {
+            (start, self.end_row)
+        } else {
+            (
+                start,
+                Table::acr_total_rows(&grid.index.cells).saturating_sub(1),
+            )
+        }
+    }
+
+    /// Iterate over a spans cols
+    pub fn cols(&self, grid: &TableGrid) -> core::ops::Range<usize> {
+        let start = self.col;
+        if self.end_col != NO_END {
+            start..self.end_col + 1
+        } else {
+            start..Table::acr_total_cols(&grid.header.cells)
+        }
+    }
+
+    /// Inclusive start index and end index of the span
+    pub fn cols_start_end(&self, grid: &TableGrid) -> (usize, usize) {
+        let start = self.col;
+        if self.end_col != NO_END {
+            (start, self.end_col)
+        } else {
+            (
+                start,
+                Table::acr_total_cols(&grid.header.cells).saturating_sub(1),
+            )
+        }
+    }
+
+    /// The max. row index of the span
+    pub fn max_row(&self, grid: &TableGrid) -> usize {
+        if self.end_row != NO_END {
+            self.end_row
+        } else {
+            Table::acr_total_rows(&grid.index.cells).saturating_sub(1)
+        }
+    }
+
+    /// The max. col index of the span
+    pub fn max_col(&self, grid: &TableGrid) -> usize {
+        if self.end_col != NO_END {
+            self.end_col
+        } else {
+            Table::acr_total_cols(&grid.header.cells).saturating_sub(1)
+        }
+    }
+
+    /// Converts this `Span` back into a string in exactly the formats accepted by
+    /// `parse_string_to_span` (and therefore by `cr_key_to_span` when given a `SpanKey::Str`).
+    pub fn to_string(&self) -> String {
+        if self.row == 0 && self.end_row == NO_END && self.col == 0 && self.end_col == NO_END {
+            return ":".to_string();
+        }
+
+        let col_s = col_index_to_letter(self.col);
+        let col_e = if self.end_col != NO_END {
+            col_index_to_letter(self.end_col)
+        } else {
+            String::new()
+        };
+        let row_s = (self.row + 1).to_string();
+        let row_e = if self.end_row != NO_END {
+            (self.end_row + 1).to_string()
+        } else {
+            String::new()
+        };
+
+        // Only columns (full height)
+        if self.row == 0 && self.end_row == NO_END {
+            if self.col == self.end_col && self.end_col != NO_END {
+                col_s
+            } else if self.end_col == NO_END {
+                format!("{}:", col_s)
+            } else if self.col == 0 {
+                format!(":{}", col_e)
+            } else {
+                format!("{}:{}", col_s, col_e)
+            }
+        }
+        // Only rows (full width)
+        else if self.col == 0 && self.end_col == NO_END {
+            if self.row == self.end_row && self.end_row != NO_END {
+                row_s
+            } else if self.end_row == NO_END {
+                format!("{}:", row_s)
+            } else if self.row == 0 {
+                format!(":{}", row_e)
+            } else {
+                format!("{}:{}", row_s, row_e)
+            }
+        }
+        // Cell / mixed selection
+        else {
+            let start = format!("{}{}", col_s, row_s);
+            if self.row == self.end_row && self.col == self.end_col && self.end_col != NO_END {
+                return start; // single cell
+            }
+
+            let end = if self.end_row == NO_END && self.end_col == NO_END {
+                String::new()
+            } else if self.end_row == NO_END {
+                col_e
+            } else if self.end_col == NO_END {
+                row_e
+            } else {
+                format!("{}{}", col_e, row_e)
+            };
+
+            if end.is_empty() {
+                format!("{}:", start)
+            } else {
+                format!("{}:{}", start, end)
+            }
+        }
+    }
+}
+
+impl core::fmt::Display for Span {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "{}", self.to_string())
     }
 }
 
@@ -124,9 +245,9 @@ impl From<(usize, usize)> for SpanKey {
 
 impl From<(Option<usize>, Option<usize>, Option<usize>, Option<usize>)> for SpanKey {
     fn from(
-        (fr, fc, ur, uc): (Option<usize>, Option<usize>, Option<usize>, Option<usize>),
+        (fr, ur, fc, uc): (Option<usize>, Option<usize>, Option<usize>, Option<usize>),
     ) -> Self {
-        SpanKey::Tuple4(fr, fc, ur, uc)
+        SpanKey::Tuple4(fr, ur, fc, uc)
     }
 }
 
@@ -137,12 +258,12 @@ impl
     )> for SpanKey
 {
     fn from(
-        ((fr, fc), (ur, uc)): (
+        ((fr, ur), (fc, uc)): (
             (Option<usize>, Option<usize>),
             (Option<usize>, Option<usize>),
         ),
     ) -> Self {
-        SpanKey::TuplePair((fr, fc), (ur, uc))
+        SpanKey::TuplePair((fr, ur), (fc, uc))
     }
 }
 
@@ -158,100 +279,113 @@ impl From<String> for SpanKey {
     }
 }
 
-// Helper functions to get each Regex, initializing if needed
-fn get_pattern_row() -> &'static Regex {
-    PATTERN_ROW.get_or_init(|| Regex::new(r"^(\d+)$").expect("Invalid: PATTERN_ROW"))
+// ============================================================================
+// NEW: Allocation-free, single-pass parser (replaces all regex + OnceLock)
+// ============================================================================
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Part {
+    Empty,
+    Row(usize),
+    Col(usize),
+    Cell { col: usize, row: usize },
 }
-fn get_pattern_col() -> &'static Regex {
-    PATTERN_COL.get_or_init(|| Regex::new(r"^([A-Z]+)$").expect("Invalid: PATTERN_COL"))
-}
-fn get_pattern_cell() -> &'static Regex {
-    PATTERN_CELL.get_or_init(|| Regex::new(r"^([A-Z]+)(\d+)$").expect("Invalid: PATTERN_CELL"))
-}
-fn get_pattern_range() -> &'static Regex {
-    PATTERN_RANGE.get_or_init(|| {
-        Regex::new(r"^([A-Z]+)(\d+):([A-Z]+)(\d+)$").expect("Invalid: PATTERN_RANGE")
-    })
-}
-fn get_pattern_row_range() -> &'static Regex {
-    PATTERN_ROW_RANGE
-        .get_or_init(|| Regex::new(r"^(\d+):(\d+)$").expect("Invalid: PATTERN_ROW_RANGE"))
-}
-fn get_pattern_row_start() -> &'static Regex {
-    PATTERN_ROW_START.get_or_init(|| Regex::new(r"^(\d+):$").expect("Invalid: PATTERN_ROW_START"))
-}
-fn get_pattern_row_end() -> &'static Regex {
-    PATTERN_ROW_END.get_or_init(|| Regex::new(r"^:(\d+)$").expect("Invalid: PATTERN_ROW_END"))
-}
-fn get_pattern_col_range() -> &'static Regex {
-    PATTERN_COL_RANGE
-        .get_or_init(|| Regex::new(r"^([A-Z]+):([A-Z]+)$").expect("Invalid: PATTERN_COL_RANGE"))
-}
-fn get_pattern_col_start() -> &'static Regex {
-    PATTERN_COL_START
-        .get_or_init(|| Regex::new(r"^([A-Z]+):$").expect("Invalid: PATTERN_COL_START"))
-}
-fn get_pattern_col_end() -> &'static Regex {
-    PATTERN_COL_END.get_or_init(|| Regex::new(r"^:([A-Z]+)$").expect("Invalid: PATTERN_COL_END"))
-}
-fn get_pattern_cell_start() -> &'static Regex {
-    PATTERN_CELL_START
-        .get_or_init(|| Regex::new(r"^([A-Z]+)(\d+):$").expect("Invalid: PATTERN_CELL_START"))
-}
-fn get_pattern_cell_end() -> &'static Regex {
-    PATTERN_CELL_END
-        .get_or_init(|| Regex::new(r"^:([A-Z]+)(\d+)$").expect("Invalid: PATTERN_CELL_END"))
-}
-fn get_pattern_cell_col() -> &'static Regex {
-    PATTERN_CELL_COL
-        .get_or_init(|| Regex::new(r"^([A-Z]+)(\d+):([A-Z]+)$").expect("Invalid: PATTERN_CELL_COL"))
-}
-fn get_pattern_cell_row() -> &'static Regex {
-    PATTERN_CELL_ROW
-        .get_or_init(|| Regex::new(r"^([A-Z]+)(\d+):(\d+)$").expect("Invalid: PATTERN_CELL_ROW"))
-}
-fn get_pattern_all() -> &'static Regex {
-    PATTERN_ALL.get_or_init(|| Regex::new(r"^:$").expect("Invalid: PATTERN_ALL"))
+
+/// Single linear pass classification (no double iteration, no allocation).
+fn classify_part(p: &str) -> Option<Part> {
+    if p.is_empty() {
+        return Some(Part::Empty);
+    }
+
+    let bytes = p.as_bytes();
+    let first = bytes[0];
+
+    if first.is_ascii_digit() {
+        for &b in bytes {
+            if !b.is_ascii_digit() {
+                return None;
+            }
+        }
+        if let Ok(n) = p.parse::<usize>() {
+            return Some(Part::Row(n.saturating_sub(1)));
+        }
+        return None;
+    }
+
+    if first.is_ascii_alphabetic() {
+        let mut letter_end = 0usize;
+        for (i, &b) in bytes.iter().enumerate() {
+            if b.is_ascii_alphabetic() {
+                letter_end = i + 1;
+            } else if b.is_ascii_digit() {
+                break;
+            } else {
+                return None;
+            }
+        }
+
+        if letter_end == 0 {
+            return None;
+        }
+
+        let letters = &p[..letter_end];
+        let rest = &p[letter_end..];
+
+        if rest.is_empty() {
+            return Some(Part::Col(span_a2i(letters)));
+        }
+
+        for &b in rest.as_bytes() {
+            if !b.is_ascii_digit() {
+                return None;
+            }
+        }
+
+        if let Ok(rn) = rest.parse::<usize>() {
+            return Some(Part::Cell {
+                col: span_a2i(letters),
+                row: rn.saturating_sub(1),
+            });
+        }
+        return None;
+    }
+
+    None
 }
 
 impl Table {
     pub fn cr_key_to_span(&self, key: SpanKey) -> Result<Span, String> {
         match key {
-            SpanKey::Span(coords) => Ok(Span {
-                row: coords.row,
-                end_row: coords.end_row,
-                col: coords.col,
-                end_col: coords.end_col,
-            }),
+            SpanKey::Span(coords) => Ok(coords),
             SpanKey::None => Ok(Span {
                 row: 0,
-                end_row: None,
+                end_row: NO_END,
                 col: 0,
-                end_col: None,
+                end_col: NO_END,
             }),
             SpanKey::Un64(row) => Ok(Span {
                 row,
-                end_row: Some(row + 1),
+                end_row: row,
                 col: 0,
-                end_col: None,
+                end_col: NO_END,
             }),
             SpanKey::Tuple2(r, c) => Ok(Span {
                 row: r.unwrap_or(0),
-                end_row: r.map(|val| val + 1),
+                end_row: r.unwrap_or(NO_END),
                 col: c.unwrap_or(0),
-                end_col: c.map(|val| val + 1),
+                end_col: c.unwrap_or(NO_END),
             }),
             SpanKey::Tuple4(fr, ur, fc, uc) => Ok(Span {
                 row: fr.unwrap_or(0),
-                end_row: ur,
+                end_row: ur.unwrap_or(NO_END),
                 col: fc.unwrap_or(0),
-                end_col: uc,
+                end_col: uc.unwrap_or(NO_END),
             }),
             SpanKey::TuplePair((fr, ur), (fc, uc)) => Ok(Span {
                 row: fr.unwrap_or(0),
-                end_row: ur,
+                end_row: ur.unwrap_or(NO_END),
                 col: fc.unwrap_or(0),
-                end_col: uc,
+                end_col: uc.unwrap_or(NO_END),
             }),
             SpanKey::Str(s) => self.parse_string_to_span(&s),
         }
@@ -262,179 +396,123 @@ impl Table {
         if s.is_empty() {
             return Ok(Span {
                 row: 0,
-                end_row: None,
+                end_row: NO_END,
                 col: 0,
-                end_col: None,
+                end_col: NO_END,
             });
         }
-        let s = s.to_uppercase();
-        if let Some(m) = get_pattern_row().captures(&s) {
-            let r = m[1]
-                .parse::<usize>()
-                .map_err(|e| format!("Failed to parse row number: {}", e))?
-                - 1;
-            Ok(Span {
-                row: r,
-                end_row: Some(r + 1),
-                col: 0,
-                end_col: None,
-            })
-        } else if let Some(m) = get_pattern_col().captures(&s) {
-            let c = span_a2i(&m[1]);
-            Ok(Span {
+
+        if s == ":" {
+            return Ok(Span {
                 row: 0,
-                end_row: None,
-                col: c,
-                end_col: Some(span_a2n(&m[1])),
-            })
-        } else if let Some(m) = get_pattern_cell().captures(&s) {
-            let c = span_a2i(&m[1]);
-            let r = m[2]
-                .parse::<usize>()
-                .map_err(|e| format!("Failed to parse row number: {}", e))?
-                - 1;
-            Ok(Span {
-                row: r,
-                end_row: Some(r + 1),
-                col: c,
-                end_col: Some(c + 1),
-            })
-        } else if let Some(m) = get_pattern_range().captures(&s) {
-            let fr = m[2]
-                .parse::<usize>()
-                .map_err(|e| format!("Failed to parse from row: {}", e))?
-                - 1;
-            let fc = span_a2i(&m[1]);
-            let ur = m[4]
-                .parse::<usize>()
-                .map_err(|e| format!("Failed to parse end row: {}", e))?;
-            let uc = span_a2n(&m[3]);
-            Ok(Span {
-                row: fr,
-                end_row: Some(ur),
-                col: fc,
-                end_col: Some(uc),
-            })
-        } else if let Some(m) = get_pattern_row_range().captures(&s) {
-            let fr = m[1]
-                .parse::<usize>()
-                .map_err(|e| format!("Failed to parse from row: {}", e))?
-                - 1;
-            let ur = m[2]
-                .parse::<usize>()
-                .map_err(|e| format!("Failed to parse end row: {}", e))?;
-            Ok(Span {
-                row: fr,
-                end_row: Some(ur),
+                end_row: NO_END,
                 col: 0,
-                end_col: None,
-            })
-        } else if let Some(m) = get_pattern_row_start().captures(&s) {
-            let fr = m[1]
-                .parse::<usize>()
-                .map_err(|e| format!("Failed to parse from row: {}", e))?
-                - 1;
-            Ok(Span {
-                row: fr,
-                end_row: None,
-                col: 0,
-                end_col: None,
-            })
-        } else if let Some(m) = get_pattern_row_end().captures(&s) {
-            let ur = m[1]
-                .parse::<usize>()
-                .map_err(|e| format!("Failed to parse end row: {}", e))?;
-            Ok(Span {
-                row: 0,
-                end_row: Some(ur),
-                col: 0,
-                end_col: None,
-            })
-        } else if let Some(m) = get_pattern_col_range().captures(&s) {
-            let fc = span_a2i(&m[1]);
-            let uc = span_a2n(&m[2]);
-            Ok(Span {
-                row: 0,
-                end_row: None,
-                col: fc,
-                end_col: Some(uc),
-            })
-        } else if let Some(m) = get_pattern_col_start().captures(&s) {
-            let fc = span_a2i(&m[1]);
-            Ok(Span {
-                row: 0,
-                end_row: None,
-                col: fc,
-                end_col: None,
-            })
-        } else if let Some(m) = get_pattern_col_end().captures(&s) {
-            let uc = span_a2n(&m[1]);
-            Ok(Span {
-                row: 0,
-                end_row: None,
-                col: 0,
-                end_col: Some(uc),
-            })
-        } else if let Some(m) = get_pattern_cell_start().captures(&s) {
-            let fc = span_a2i(&m[1]);
-            let fr = m[2]
-                .parse::<usize>()
-                .map_err(|e| format!("Failed to parse from row: {}", e))?
-                - 1;
-            Ok(Span {
-                row: fr,
-                end_row: None,
-                col: fc,
-                end_col: None,
-            })
-        } else if let Some(m) = get_pattern_cell_end().captures(&s) {
-            let uc = span_a2n(&m[1]);
-            let ur = m[2]
-                .parse::<usize>()
-                .map_err(|e| format!("Failed to parse end row: {}", e))?;
-            Ok(Span {
-                row: 0,
-                end_row: Some(ur),
-                col: 0,
-                end_col: Some(uc),
-            })
-        } else if let Some(m) = get_pattern_cell_col().captures(&s) {
-            let fr = m[2]
-                .parse::<usize>()
-                .map_err(|e| format!("Failed to parse from row: {}", e))?
-                - 1;
-            let fc = span_a2i(&m[1]);
-            let uc = span_a2n(&m[3]);
-            Ok(Span {
-                row: fr,
-                end_row: None,
-                col: fc,
-                end_col: Some(uc),
-            })
-        } else if let Some(m) = get_pattern_cell_row().captures(&s) {
-            let fr = m[2]
-                .parse::<usize>()
-                .map_err(|e| format!("Failed to parse from row: {}", e))?
-                - 1;
-            let fc = span_a2i(&m[1]);
-            let ur = m[3]
-                .parse::<usize>()
-                .map_err(|e| format!("Failed to parse end row: {}", e))?;
-            Ok(Span {
-                row: fr,
-                end_row: Some(ur),
-                col: fc,
-                end_col: None,
-            })
-        } else if get_pattern_all().is_match(&s) {
-            Ok(Span {
-                row: 0,
-                end_row: None,
-                col: 0,
-                end_col: None,
-            })
-        } else {
-            Err(format!("'{}' could not be converted to span.", s))
+                end_col: NO_END,
+            });
         }
+
+        if let Some((left_str, right_str)) = s.split_once(':') {
+            let left = classify_part(left_str)
+                .ok_or_else(|| format!("'{}' could not be converted to span.", s))?;
+            let right = classify_part(right_str)
+                .ok_or_else(|| format!("'{}' could not be converted to span.", s))?;
+
+            match (left, right) {
+                (Part::Row(fr), Part::Row(ur)) => Ok(Span {
+                    row: fr,
+                    end_row: ur,
+                    col: 0,
+                    end_col: NO_END,
+                }),
+                (Part::Col(fc), Part::Col(uc)) => Ok(Span {
+                    row: 0,
+                    end_row: NO_END,
+                    col: fc,
+                    end_col: uc,
+                }),
+                (Part::Cell { col: fc, row: fr }, Part::Cell { col: uc, row: ur }) => Ok(Span {
+                    row: fr,
+                    end_row: ur,
+                    col: fc,
+                    end_col: uc,
+                }),
+                (Part::Row(fr), Part::Empty) => Ok(Span {
+                    row: fr,
+                    end_row: NO_END,
+                    col: 0,
+                    end_col: NO_END,
+                }),
+                (Part::Empty, Part::Row(ur)) => Ok(Span {
+                    row: 0,
+                    end_row: ur,
+                    col: 0,
+                    end_col: NO_END,
+                }),
+                (Part::Col(fc), Part::Empty) => Ok(Span {
+                    row: 0,
+                    end_row: NO_END,
+                    col: fc,
+                    end_col: NO_END,
+                }),
+                (Part::Empty, Part::Col(uc)) => Ok(Span {
+                    row: 0,
+                    end_row: NO_END,
+                    col: 0,
+                    end_col: uc,
+                }),
+                (Part::Cell { col: fc, row: fr }, Part::Empty) => Ok(Span {
+                    row: fr,
+                    end_row: NO_END,
+                    col: fc,
+                    end_col: NO_END,
+                }),
+                (Part::Empty, Part::Cell { col: uc, row: ur }) => Ok(Span {
+                    row: 0,
+                    end_row: ur,
+                    col: 0,
+                    end_col: uc,
+                }),
+                (Part::Cell { col: fc, row: fr }, Part::Col(uc)) => Ok(Span {
+                    row: fr,
+                    end_row: NO_END,
+                    col: fc,
+                    end_col: uc,
+                }),
+                (Part::Cell { col: fc, row: fr }, Part::Row(ur)) => Ok(Span {
+                    row: fr,
+                    end_row: ur,
+                    col: fc,
+                    end_col: NO_END,
+                }),
+                _ => Err(format!("'{}' could not be converted to span.", s)),
+            }
+        } else {
+            match classify_part(s) {
+                Some(Part::Row(r)) => Ok(Span {
+                    row: r,
+                    end_row: r,
+                    col: 0,
+                    end_col: NO_END,
+                }),
+                Some(Part::Col(c)) => Ok(Span {
+                    row: 0,
+                    end_row: NO_END,
+                    col: c,
+                    end_col: c,
+                }),
+                Some(Part::Cell { col: c, row: r }) => Ok(Span {
+                    row: r,
+                    end_row: r,
+                    col: c,
+                    end_col: c,
+                }),
+                _ => Err(format!("'{}' could not be converted to span.", s)),
+            }
+        }
+    }
+
+    /// Convenience wrapper: `table.cr_span_to_string(&my_span)` → same as `my_span.to_string()`.
+    pub fn cr_span_to_string(&self, span: &Span) -> String {
+        span.to_string()
     }
 }

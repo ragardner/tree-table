@@ -32,7 +32,7 @@ macro_rules! define_struct_with_new {
 macro_rules! hm_str_key {
     ($( $key:expr => $value:expr ),* $(,)?) => {
         {
-            let mut map: ::std::collections::HashMap<String, _> = ::std::collections::HashMap::new();
+            let mut map: hashbrown::HashMap<String, _> = hashbrown::HashMap::new();
             $(
                 map.insert($key.to_string(), $value);
             )*
@@ -46,7 +46,7 @@ macro_rules! hm_str_key {
 macro_rules! hm_str {
     ($( $key:expr => $value:expr ),* $(,)?) => {
         {
-            let mut map: ::std::collections::HashMap<String, String> = ::std::collections::HashMap::new();
+            let mut map: hashbrown::HashMap<String, String> = hashbrown::HashMap::new();
             $(
                 map.insert($key.to_string(), $value.to_string());
             )*
@@ -60,7 +60,7 @@ macro_rules! hm_str {
 macro_rules! hm_raw {
     ($( $key:expr => $value:expr ),* $(,)?) => {
         {
-            let mut map: ::std::collections::HashMap<_, _> = ::std::collections::HashMap::new();
+            let mut map: hashbrown::HashMap<_, _> = hashbrown::HashMap::new();
             $(
                 map.insert($key, $value);
             )*
@@ -74,30 +74,35 @@ macro_rules! hm_raw {
 macro_rules! log {
     // Single string literal
     ($lit:literal) => {
-        println!($lit);
+        #[cfg(feature = "std")]
+        ::std::println!($lit);
     };
     // Single expression with Debug formatting
     ($expr:expr) => {
-        println!("{:?}", $expr);
+        #[cfg(feature = "std")]
+        ::std::println!("{:?}", $expr);
     };
     // Formatted string with arguments
     ($fmt:literal, $($arg:expr),*) => {
-        println!($fmt, $($arg),*);
+        #[cfg(feature = "std")]
+        ::std::println!($fmt, $($arg),*);
     };
     // Iterable as a Vec for printing
     (array: $expr:expr) => {
-        println!("{:?}", $expr.collect::<Vec<_>>());
+        #[cfg(feature = "std")]
+        ::std::println!("{:?}", $expr.collect::<Vec<_>>());
     };
     // Flexible logging
     ($($t:tt)*) => {
-        println!($($t)*);
+        #[cfg(feature = "std")]
+        ::std::println!($($t)*);
     };
 }
 
-// Properly formats a String Err.
+// Properly formats a String Err. Supports literal strings and format! syntax.
 #[macro_export]
 macro_rules! str_err {
-    ($e:expr) => {
-        format!("Error at {}:{}: {}", file!(), line!(), $e)
+    ($($arg:tt)*) => {
+        ::alloc::format!("Error at {}:{}: {}", file!(), line!(), ::alloc::format!($($arg)*))
     };
 }

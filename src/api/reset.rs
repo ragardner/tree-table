@@ -1,30 +1,31 @@
+use alloc::string::String;
+
 use crate::Options;
 use crate::Table;
 use crate::args::ResetArgs;
 
 impl Table {
     /// Reset the table.
-    pub fn reset(&self, kwargs: Option<ResetArgs>) -> Result<(), String> {
+    pub fn reset(&mut self, kwargs: Option<ResetArgs>) -> Result<(), String> {
         let kwargs: ResetArgs = kwargs.unwrap_or_default();
         if kwargs.opts {
-            *self.opts.borrow_mut() = Options::new();
+            self.opts = Options::new();
         }
-        let mut grid = self.grid.borrow_mut();
         if kwargs.grid {
-            grid.reset();
+            self.grid.reset();
         }
         if kwargs.index {
-            grid.index.reset();
+            self.grid.index.reset();
         }
         if kwargs.header {
-            grid.header.reset();
+            self.grid.header.reset();
         }
         if kwargs.selections {
-            Self::acr_deselect_all(&mut self.sel.borrow_mut());
+            Self::acr_deselect_all(&mut self.sel, None);
         }
         if kwargs.undo_stack {
-            grid.undo_stack.clear();
-            grid.redo_stack.clear();
+            self.grid.undo_stack.clear();
+            self.grid.redo_stack.clear();
         }
         Ok(())
     }

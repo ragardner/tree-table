@@ -1,11 +1,15 @@
-use crate::Coords;
+use crate::Span;
 use crate::statics::CELLS;
 use crate::statics::COLS;
 use crate::statics::ROWS;
 use crate::str_err;
+use alloc::string::String;
+use alloc::vec::Vec;
 
+#[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
+#[cfg_attr(feature = "tsify", tsify(from_wasm_abi))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 // #[serde(rename_all = "lowercase")]
 pub enum SelectionKind {
     Rows,
@@ -35,10 +39,12 @@ impl SelectionKind {
 
     // Convert from string to enum with error handling
     pub fn from_str_res(s: &str) -> Result<Self, String> {
-        Self::from_str(s).ok_or(str_err!(format!("Cannot convert: {} to SelectionKind", s)))
+        Self::from_str(s).ok_or_else(|| str_err!("Cannot convert: {} to SelectionKind", s))
     }
 }
 
+#[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
+#[cfg_attr(feature = "tsify", tsify(from_wasm_abi))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, PartialEq, Clone)]
 // #[serde(rename_all = "lowercase")]
@@ -67,32 +73,26 @@ impl SelectionState {
 
     // Convert from string to enum with error handling
     pub fn from_str_res(s: &str) -> Result<Self, String> {
-        Self::from_str(s).ok_or(str_err!(format!("Cannot convert: {} to SelectionState", s)))
+        Self::from_str(s).ok_or_else(|| str_err!("Cannot convert: {} to SelectionState", s))
     }
 }
 
+#[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
+#[cfg_attr(feature = "tsify", tsify(from_wasm_abi))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Selected {
     pub row: usize,
     pub col: usize,
-    pub coords: Coords,
-    pub kind: SelectionKind,
-    pub pos: usize,
+    pub coords: Span,
 }
 
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[derive(Debug, Clone, PartialEq)]
-pub struct SelectionBox {
-    pub coords: Coords,
-    pub kind: SelectionKind,
-    pub state: SelectionState,
-}
-
+#[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
+#[cfg_attr(feature = "tsify", tsify(from_wasm_abi))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone, PartialEq)]
 pub struct Selection {
-    pub selection_boxes: Vec<SelectionBox>,
+    pub selection_boxes: Vec<Span>,
     pub selected: Option<Selected>,
 }
 
