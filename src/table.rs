@@ -1,4 +1,5 @@
-use crate::{Options, PartialOptions, Selection, TableGrid};
+use crate::types::{Options, PartialOptions};
+use crate::{Selection, TableGrid};
 
 pub struct Table {
     pub(crate) grid: TableGrid,

@@ -421,10 +421,10 @@ impl DataFormat {
         let unit = unit.unwrap_or("ms");
         match unit.to_lowercase().as_str() {
             "s" => format!("{}s", d.to_sec_f()),
-            "m" => format!("{}m", d.to_mins()),
-            "h" => format!("{}h", d.to_hrs()),
-            "d" => format!("{}d", d.to_days()),
-            _ => format!("{}ms", d.to_ms()),
+            "m" => format!("{}m", d.to_mins().0),
+            "h" => format!("{}h", d.to_hours().0),
+            "d" => format!("{}d", d.to_days().0),
+            _ => format!("{}ms", d.to_ms().0),
         }
     }
 }
